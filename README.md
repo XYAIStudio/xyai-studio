@@ -2,13 +2,28 @@
 
 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-> 让专业经验，进化为生产力。
+> **本地优先的智能体工作台**：装上就能对话、挂知识库、定制智能体；需要业务空间时再上 XYOS。  
+> 开源获客与信任 · 企业落地走 XYOS / 私有化（边界见下文）。
 
-> **发布状态：v0.3.0 内测预览版。** 当前用于功能体验与兼容性验证；请在安装前阅读下方的下载选择、安装提示与 SHA-256 校验说明。
+**当前发版：`v0.3.1-20260904-r2`（内测预览）** · 官网 [www.cnxyai.cn](https://www.cnxyai.cn/) · [Release 说明](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
 
-XYAI Studio 是一款本地优先的桌面智能工作台。本仓库发布 v0.3 的 XYAI 开源层：Electron 桌面壳、XYOS 本地服务、行业智能体模块，以及相对于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的集成补丁。
+### 下载（点哪个？）
 
-官网：[www.cnxyai.cn](https://www.cnxyai.cn/) 。产品介绍、最新动态与下载入口以官网公告为准。
+| 你想… | 平台 | 下载 |
+| --- | --- | --- |
+| **先试试**智能体开发（体积更小） | Windows x64 | [简洁包 `.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe) |
+| **一次装齐**少折腾（推荐大多数人） | Windows x64 | [离线完整包 `.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe) |
+| **Mac 试用**（Apple 芯片） | macOS arm64 | [未签名 DMG](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-arm64.dmg) |
+
+- Windows 专业向（本机 XYOS）：先装简洁包，再在应用内「设置 / 组件管理」装 [`xyos-local-runtime` zip](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip)。  
+- Mac 安装逐步教程（含 Gatekeeper）：[MACOS-INSTALL.md](MACOS-INSTALL.md)  
+- 校验：同 Release 的 [`SHA256SUMS.txt`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/SHA256SUMS.txt)
+
+> Star / Issue / 讨论都欢迎。装上后卡在哪一步，直接开 Issue 并附系统版本与报错原文。
+
+---
+
+XYAI Studio 是一款本地优先的桌面智能工作台。本仓库发布 XYAI 开源层：Electron 桌面壳、XYOS 本地服务、行业智能体模块，以及相对于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的集成补丁。
 
 ## v0.3 已包含的能力
 
@@ -31,28 +46,32 @@ XYAI Studio 是一款本地优先的桌面智能工作台。本仓库发布 v0.3
 
 ## Windows 安装与下载
 
-请从 [Releases](https://github.com/XYAIStudio/xyai-studio/releases) 下载与自己需求相符的 Windows x64 安装包。安装包适用于 64 位 Windows；本地推理运行包不包含模型权重，模型仍由用户按硬件推荐自主选择和下载。
+请优先使用文首三个下载按钮对应的 **`v0.3.1-20260904-r2`** 文件；完整说明见 [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)。
 
-| 文件 | 适合谁 | 安装或使用方式 |
+| 文件 | 适合谁 | 怎么用 |
 | --- | --- | --- |
-| `XYAI Studio Setup 0.3.0.exe` | 希望离线完成安装、需要本地 XYOS 与本地推理能力的用户 | 双击安装，按向导完成安装即可；包含 XYOS 本地服务和一份统一的 `llama.cpp` 运行时。 |
-| `XYAI-Studio-0.3.0-core-win-x64.exe` | 只需先使用核心开发空间，或希望缩小初始下载量的用户 | 双击安装；启动后可在设置中按需下载 XYOS 与本地推理组件。 |
-| `XYAI-Studio-0.3.0-xyos-local-runtime-win-x64.zip` | 已安装核心版、需要本机业务空间、账户服务或智能体安装的用户 | 在应用的设置/组件管理中选择 XYOS 本地组件并安装；请勿手工覆盖应用目录。 |
-| `XYAI-Studio-0.3.0-local-inference-win-x64.zip` | 已安装核心版、准备运行本地 GGUF 模型的用户 | 在应用的设置/组件管理中选择本地推理运行时并安装；随后在模型广场按硬件建议下载模型。 |
-
-首次启动时可以先不安装可选系统组件：云端模型由用户自行配置；需要本地模型时，再按硬件推荐下载安装模型。需要完全离线、即装即用的体验时，请优先选择完整离线版。
+| `XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe` | 先体验智能体开发 | 双击安装；XYOS 网络连接；更多组件可在设置中按需装 |
+| `XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe` | 想一次装齐（推荐） | 双击安装；含 XYOS 与本地推理运行时等；**模型权重仍需在应用内下载** |
+| `XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip` | 要本机 XYOS 业务空间 | 在「设置 / 组件管理」安装，勿手工覆盖程序目录 |
+| `XYAI-Studio-0.3.1-20260904-r2-local-inference-win-x64.zip` | 要本地 GGUF 运行时 | 在组件管理中安装后，到模型广场按硬件下载模型 |
 
 ### 安全校验与安装提示
 
-1. 下载 Release 中同批发布的 `SHA256SUMS.txt` 和 `release-manifest.json`。
-2. 在 PowerShell 中执行以下命令，将输出值与 `SHA256SUMS.txt` 中同名文件的值逐项比对：
+1. 下载同批 `SHA256SUMS.txt` / `release-manifest.json`。
+2. PowerShell 校验示例：
 
    ```powershell
-   Get-FileHash -Algorithm SHA256 '.\XYAI Studio Setup 0.3.0.exe'
+   Get-FileHash -Algorithm SHA256 '.\XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe'
    ```
 
-3. 仅在校验一致后运行安装程序；Windows 出现未知发布者或 SmartScreen 提示时，先核对下载来源和 SHA-256，不要跳过校验。
-4. 安装后若选择稍后安装 XYOS 或本地推理组件，请在 XYAI Studio 的设置/组件管理中完成下载和安装，而非解压 ZIP 后直接替换程序文件。
+3. 与 `SHA256SUMS.txt` 中同名行比对一致后再安装；遇 SmartScreen 时先核来源与哈希。
+4. 可选组件请在应用内组件管理安装，不要解压 ZIP 直接覆盖安装目录。
+
+## macOS 安装与下载
+
+- 包：`XYAI-Studio-0.3.1-arm64.dmg`（**仅 Apple 芯片**，未签名内测）
+- 教程：[MACOS-INSTALL.md](MACOS-INSTALL.md)
+- 已含 Metal 版 `llama-server` 与 XYOS 依赖；模型权重仍在应用内下载。
 
 ## 开始开发
 

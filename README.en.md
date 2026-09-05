@@ -2,9 +2,26 @@
 
 [简体中文](README.md) | [繁體中文](README.zh-TW.md) | [English](README.en.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
-> Turn professional experience into productive capability.
+> **Local-first agent workspace**: install, chat, mount knowledge, customize agents — add XYOS when you need a business workspace.  
+> Open source for trust & adoption · enterprise rollout via XYOS / private deploy.
 
-XYAI Studio is a local-first desktop AI workspace. This repository publishes the XYAI open-source layer for v0.3: the Electron desktop shell, the local XYOS service, the industry-agent module, and integration patches for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
+**Release: `v0.3.1-20260904-r2` (preview)** · Site [www.cnxyai.cn](https://www.cnxyai.cn/) · [Release notes](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
+
+### Downloads
+
+| Goal | Platform | Link |
+| --- | --- | --- |
+| **Try agent dev** (smaller) | Windows x64 | [Core `.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe) |
+| **Full offline setup** (recommended) | Windows x64 | [Full Setup `.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe) |
+| **Mac preview** (Apple silicon) | macOS arm64 | [Unsigned DMG](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-arm64.dmg) |
+
+Mac install guide (Gatekeeper): [MACOS-INSTALL.md](MACOS-INSTALL.md) · Checksums: [`SHA256SUMS.txt`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/SHA256SUMS.txt)
+
+Stars / issues welcome. If install fails, open an Issue with OS version and the exact error text.
+
+---
+
+XYAI Studio is a local-first desktop AI workspace. This repository publishes the XYAI open-source layer: the Electron desktop shell, the local XYOS service, the industry-agent module, and integration patches for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
 
 ## What v0.3 includes
 
