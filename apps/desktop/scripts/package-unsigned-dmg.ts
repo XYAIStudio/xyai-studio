@@ -17,6 +17,7 @@ export function packageUnsignedDmg(): void {
   const distResult = spawnSync('node', ['scripts/resolve-electron-dist.cjs'], {
     cwd: desktopRoot,
     encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
   })
   if (distResult.error !== undefined) throw distResult.error
   if (distResult.status !== 0) {
