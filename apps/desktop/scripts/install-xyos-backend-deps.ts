@@ -13,7 +13,7 @@ function run(command: string, args: readonly string[], cwd: string): void {
 
 /** Prefer npm ci when lockfile exists; otherwise omit-dev install. */
 export function installXyosBackendDeps(): void {
-  const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '.')
+  const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const xyosRoot = resolve(desktopRoot, '../../xyos-backend')
   if (!existsSync(resolve(xyosRoot, 'package.json'))) {
     throw new Error(`xyos-backend package.json missing at ${xyosRoot}`)
