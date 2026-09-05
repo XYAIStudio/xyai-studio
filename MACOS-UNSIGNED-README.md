@@ -3,6 +3,8 @@
 > 面向 **内部试用**，不含 Apple Developer ID 签名与公证（notarization）。
 > For **internal use only** — no Apple signing or notarization.
 
+终端用户安装见 **[MACOS-INSTALL.md](./MACOS-INSTALL.md)** / End-user install: **[MACOS-INSTALL.md](./MACOS-INSTALL.md)**.
+
 ## 中文
 
 ### 1. 上传到 GitHub
@@ -24,9 +26,9 @@ xattr -cr "/Applications/XYAI Studio.app"
 
 仍提示无法打开时：系统设置 → 隐私与安全性 → 仍要打开。
 
-### 4. 已知限制：llama-cpp
-当前 `apps/desktop/resources/llama-cpp` 多为 **Windows**（`.dll` / `.exe`）。
-在 Mac 上本地 GGUF 推理不可用，需另备 darwin 二进制后再打正式包。
+### 4. 运行时：llama-cpp + XYOS deps
+打包前由 `scripts/stage-llama-cpp-darwin.ts` 从官方 ggml-org/llama.cpp **b10809**（Metal arm64）暂存 darwin 二进制到 `resources/llama-cpp`（仓库内 Windows 文件保留）。
+xyos-backend 生产依赖在打包前安装；afterPack 硬校验 tsx。详见脚本与 CI。
 
 ### 5. 本地 Mac 命令（可选）
 
@@ -52,8 +54,8 @@ Actions then macOS unsigned (internal) then Run workflow then download artifact 
 xattr -cr "/Applications/XYAI Studio.app"
 ```
 
-### llama-cpp
-Bundled binaries look Windows-only. Local GGUF on macOS needs darwin builds.
+### llama-cpp + XYOS
+darwin llama-cpp staged from ggml-org/llama.cpp b10809 (Metal arm64) before pack; Windows binaries remain in git.
 
 ### Local build
 ```bash
@@ -64,4 +66,4 @@ Signed path unchanged; still expects Apple credentials.
 
 
 ### Note
-Unsigned afterPack soft-fails missing xyos-backend tsx when CSC_IDENTITY_AUTO_DISCOVERY=false.
+xyos-backend prod deps installed before pack; afterPack hard-requires tsx. End-user install: [MACOS-INSTALL.md](./MACOS-INSTALL.md). Remaining: unsigned/Gatekeeper; arm64-only; Metal not Vulkan.

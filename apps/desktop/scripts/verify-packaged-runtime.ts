@@ -27,18 +27,7 @@ export async function afterPack(context: AfterPackContext): Promise<void> {
   }
   if (process.env.XYAI_RELEASE_EDITION !== 'core') {
     for (const segments of REQUIRED_XYOS_FILES) {
-      const target = join(resources, 'xyos-backend', ...segments)
-      try {
-        await access(target)
-      } catch (error) {
-        // Unsigned internal mac CI sets CSC_IDENTITY_AUTO_DISCOVERY=false and may
-        // ship without a pre-installed xyos-backend/node_modules tree. Soft-fail
-        // only that path so DMG packaging can finish; signed/prod builds still fail hard.
-        const unsignedMac = context.electronPlatformName === 'darwin'
-          && process.env.CSC_IDENTITY_AUTO_DISCOVERY === 'false'
-        if (!unsignedMac) throw error
-        console.warn("[afterPack] soft-fail missing " + target + " (unsigned mac)")
-      }
+      await access(join(resources, 'xyos-backend', ...segments))
     }
   }
 }

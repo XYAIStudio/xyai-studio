@@ -14,6 +14,10 @@ export function packageUnsignedDmg(): void {
   const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
   const env: NodeJS.ProcessEnv = { ...process.env }
   env.CSC_IDENTITY_AUTO_DISCOVERY = "false"
+  run('node', ['--import', 'tsx', 'scripts/install-xyos-backend-deps.ts'], desktopRoot, env)
+  if (process.platform === 'darwin') {
+    run('node', ['--import', 'tsx', 'scripts/stage-llama-cpp-darwin.ts'], desktopRoot, env)
+  }
   const distResult = spawnSync('node', ['scripts/resolve-electron-dist.cjs'], {
     cwd: desktopRoot,
     encoding: 'utf8',

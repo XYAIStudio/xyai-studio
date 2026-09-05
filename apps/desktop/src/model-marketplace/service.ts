@@ -42,13 +42,19 @@ export interface ModelMarketplaceSnapshot {
   }[]
 }
 
+/** Platform-specific llama-server binary name (Windows .exe; unix no extension). */
+export function llamaServerBinaryName(platform: NodeJS.Platform = process.platform): string {
+  return platform === 'win32' ? 'llama-server.exe' : 'llama-server'
+}
+
 function embeddedRuntimePath(): string {
+  const binary = llamaServerBinaryName()
   const bundled = process.resourcesPath === undefined
-    ? join(import.meta.dirname, '../../resources/llama-cpp/llama-server.exe')
-    : join(process.resourcesPath, 'llama-cpp', 'llama-server.exe')
+    ? join(import.meta.dirname, '../../resources/llama-cpp', binary)
+    : join(process.resourcesPath, 'llama-cpp', binary)
   const installedComponent = process.env.XYAI_COMPONENTS_DIR === undefined
     ? undefined
-    : join(process.env.XYAI_COMPONENTS_DIR, 'llama-cpp', 'llama-server.exe')
+    : join(process.env.XYAI_COMPONENTS_DIR, 'llama-cpp', binary)
   return [bundled, installedComponent].find(candidate => candidate !== undefined && existsSync(candidate)) ?? bundled
 }
 

@@ -175,4 +175,11 @@ describe('desktop packaging configuration', () => {
     expect(rootPackage.scripts['dist:mac:desktop'])
       .toBe('pnpm --filter @deepseek-ai/dsh-desktop run dist:mac')
   })
+
+  it('resolves platform-specific llama-server binary names', async () => {
+    const { llamaServerBinaryName } = await import('../src/model-marketplace/service.ts')
+    expect(llamaServerBinaryName('win32')).toBe('llama-server.exe')
+    expect(llamaServerBinaryName('darwin')).toBe('llama-server')
+    expect(llamaServerBinaryName('linux')).toBe('llama-server')
+  })
 })

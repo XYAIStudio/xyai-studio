@@ -19,6 +19,8 @@ export function releaseMacUnsigned(): void {
   run('pnpm', ['--workspace-root', 'run', 'build'], desktopRoot, env)
   run('pnpm', ['run', 'build'], desktopRoot, env)
   run('node', ['--import', 'tsx', 'scripts/stage-runtime.ts'], desktopRoot, env)
+  run('node', ['--import', 'tsx', 'scripts/install-xyos-backend-deps.ts'], desktopRoot, env)
+  run('node', ['--import', 'tsx', 'scripts/stage-llama-cpp-darwin.ts'], desktopRoot, env)
   const distResult = spawnSync('node', ['scripts/resolve-electron-dist.cjs'], {
     cwd: desktopRoot,
     encoding: 'utf8',

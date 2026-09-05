@@ -42,7 +42,7 @@ describe('packaged desktop runtime verification', () => {
     }
   })
 
-  it('soft-fails missing xyos tsx on unsigned darwin when Host files exist', async () => {
+  it('rejects missing xyos tsx on unsigned darwin when Host files exist', async () => {
     const prev = process.env.CSC_IDENTITY_AUTO_DISCOVERY
     process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false'
     const appOutDir = await mkdtemp(join(tmpdir(), 'dsh-packaged-runtime-'))
@@ -54,7 +54,7 @@ describe('packaged desktop runtime verification', () => {
       await mkdir(join(web, '..'), { recursive: true })
       await writeFile(cli, '')
       await writeFile(web, '')
-      await expect(afterPack(context(appOutDir))).resolves.toBeUndefined()
+      await expect(afterPack(context(appOutDir))).rejects.toMatchObject({ code: 'ENOENT' })
     } finally {
       if (prev === undefined) delete process.env.CSC_IDENTITY_AUTO_DISCOVERY
       else process.env.CSC_IDENTITY_AUTO_DISCOVERY = prev

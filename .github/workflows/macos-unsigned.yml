@@ -27,27 +27,29 @@ jobs:
 
       - name: Install (immutable)
         run: pnpm install --frozen-lockfile
-      - name: Warn if llama-cpp looks Windows-only
+      - name: Install xyos-backend production deps
+        working-directory: apps/desktop
+        run: node --import tsx scripts/install-xyos-backend-deps.ts
+
+      - name: Stage llama-cpp darwin arm64
+        working-directory: apps/desktop
+        run: node --import tsx scripts/stage-llama-cpp-darwin.ts
+
+      - name: Verify darwin llama-cpp staged
         working-directory: apps/desktop
         run: |
           set -euo pipefail
           llama_dir="resources/llama-cpp"
-          if [[ ! -d "$llama_dir" ]]; then
-            echo "::warning::resources/llama-cpp missing — local GGUF inference may be unavailable on macOS."
-            exit 0
+          if [[ ! -f "$llama_dir/llama-server" ]]; then
+            echo "::error::resources/llama-cpp/llama-server missing after staging"
+            exit 1
           fi
-          dll_count=$(find "$llama_dir" -maxdepth 1 -iname '*.dll' | wc -l | tr -d ' ')
-          exe_count=$(find "$llama_dir" -maxdepth 1 -iname '*.exe' | wc -l | tr -d ' ')
-          dylib_count=$(find "$llama_dir" -maxdepth 1 \( -iname '*.dylib' -o -iname 'libllama*' \) | wc -l | tr -d ' ')
-          if [[ "$dll_count" -gt 0 || "$exe_count" -gt 0 ]]; then
-            if [[ "$dylib_count" -eq 0 ]]; then
-              echo "::warning::llama-cpp under resources/ appears Windows-only (.dll/.exe present, no macOS dylib). Local GGUF on this Mac DMG will not work until darwin binaries are staged."
-            else
-              echo "llama-cpp has Windows binaries and some macOS-looking files; verify darwin runtime separately."
-            fi
-          else
-            echo "llama-cpp does not look Windows-only (no .dll/.exe at top level)."
+          dylib_count=$(find "$llama_dir" -maxdepth 1 -iname "*.dylib" | wc -l | tr -d " ")
+          if [[ "$dylib_count" -eq 0 ]]; then
+            echo "::error::no .dylib under resources/llama-cpp after staging"
+            exit 1
           fi
+          echo "darwin llama-cpp ok: llama-server + ${dylib_count} dylib(s)"
 
       - name: Workspace build
         run: pnpm --workspace-root run build
