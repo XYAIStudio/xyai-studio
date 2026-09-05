@@ -62,3 +62,6 @@ pnpm --filter @deepseek-ai/dsh-desktop run dist:mac:unsigned
 
 Signed path unchanged; still expects Apple credentials.
 
+
+### Note
+Unsigned afterPack soft-fails missing xyos-backend tsx when CSC_IDENTITY_AUTO_DISCOVERY=false.

@@ -41,4 +41,24 @@ describe('packaged desktop runtime verification', () => {
       await rm(appOutDir, { recursive: true, force: true })
     }
   })
+
+  it('soft-fails missing xyos tsx on unsigned darwin when Host files exist', async () => {
+    const prev = process.env.CSC_IDENTITY_AUTO_DISCOVERY
+    process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+    const appOutDir = await mkdtemp(join(tmpdir(), 'dsh-packaged-runtime-'))
+    try {
+      const resources = join(appOutDir, 'DeepSeek Harness.app', 'Contents', 'Resources', 'host', 'node_modules')
+      const cli = join(resources, '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+      const web = join(resources, '@deepseek-ai', 'dsh-web-frontend', 'dist', 'index.html')
+      await mkdir(join(cli, '..'), { recursive: true })
+      await mkdir(join(web, '..'), { recursive: true })
+      await writeFile(cli, '')
+      await writeFile(web, '')
+      await expect(afterPack(context(appOutDir))).resolves.toBeUndefined()
+    } finally {
+      if (prev === undefined) delete process.env.CSC_IDENTITY_AUTO_DISCOVERY
+      else process.env.CSC_IDENTITY_AUTO_DISCOVERY = prev
+      await rm(appOutDir, { recursive: true, force: true })
+    }
+  })
 })
