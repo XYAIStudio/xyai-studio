@@ -58,7 +58,17 @@ jobs:
 
       - name: Stage desktop runtime
         working-directory: apps/desktop
-        run: node --import tsx scripts/stage-runtime.ts
+        run: |
+          set -euo pipefail
+          if [[ -n "${PNPM_HOME:-}" && -f "$PNPM_HOME/../pnpm/bin/pnpm.mjs" ]]; then
+            export npm_execpath="$PNPM_HOME/../pnpm/bin/pnpm.mjs"
+          else
+            PNPM_BIN="$(command -v pnpm)"
+            export npm_execpath="$(dirname "$(dirname "$PNPM_BIN")")/pnpm/bin/pnpm.mjs"
+          fi
+          test -f "$npm_execpath"
+          echo "npm_execpath=$npm_execpath"
+          node --import tsx scripts/stage-runtime.ts
 
       - name: Package unsigned DMG
         working-directory: apps/desktop

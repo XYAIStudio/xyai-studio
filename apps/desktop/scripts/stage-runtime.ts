@@ -140,6 +140,11 @@ async function deploy(): Promise<void> {
 function resolvePnpmEntry(): string {
   const configured = process.env.npm_execpath
   if (configured !== undefined && configured !== '' && existsSync(configured)) return configured
+  const pnpmHome = process.env.PNPM_HOME
+  if (pnpmHome !== undefined && pnpmHome !== '') {
+    const fromHome = join(pnpmHome, '..', 'pnpm', 'bin', 'pnpm.mjs')
+    if (existsSync(fromHome)) return fromHome
+  }
   const pathValue = process.env.Path ?? process.env.PATH ?? ''
   for (const directory of pathValue.split(delimiter)) {
     if (directory === '') continue
