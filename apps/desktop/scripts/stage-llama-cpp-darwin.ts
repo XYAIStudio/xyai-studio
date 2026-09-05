@@ -90,7 +90,7 @@ export async function stageLlamaCppDarwin(options?: { readonly keepCache?: boole
   if (!existsSync(server)) throw new Error(`llama-server missing in ${sourceRoot}`)
 
   mkdirSync(resourcesLlama, { recursive: true })
-const stageOut = join(cacheDir, 'stage-out')
+  const stageOut = join(cacheDir, 'stage-out')
   rmSync(stageOut, { recursive: true, force: true })
   mkdirSync(stageOut, { recursive: true })
   for (const name of readdirSync(sourceRoot)) {
