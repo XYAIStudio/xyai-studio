@@ -1,0 +1,53 @@
+{
+  "name": "xyos-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch server.ts",
+    "start": "node server.ts",
+    "seed": "tsx seed.ts",
+    "test:model-settings": "tsx scripts/test-model-settings.ts",
+    "test:credential-broker": "tsx scripts/test-credential-broker.ts"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "docx": "^9.7.1",
+    "dotenv": "^16.4.0",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.0.0",
+    "html-to-image": "^1.11.13",
+    "iconv-lite": "^0.7.2",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^4.2.1",
+    "mammoth": "^1.12.0",
+    "multer": "^2.1.1",
+    "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.19.1",
+    "pptxgenjs": "^4.0.1",
+    "sql.js": "^1.11.0",
+    "tsx": "^4.19.0",
+    "unzipper": "^0.12.3",
+    "uuid": "^10.0.0",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/iconv-lite": "^0.0.1",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^22.0.0",
+    "@types/unzipper": "^0.10.11",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.6.0"
+  }
+}

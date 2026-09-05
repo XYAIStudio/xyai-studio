@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>雄元智脑XYOS · 人机共融的企业智能体操作系统</title>
+  <link rel="icon" href="./logo.png" />
+  <link rel="apple-touch-icon" href="./logo.png" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#10B981" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <script>
+    // v0.3 的悬浮助手使用原生 fetch，绕过了应用统一的 Bearer 注入器。
+    // 仅为该已打包的遗留组件补上当前登录令牌，后端才能选择当前租户的模型设置。
+    (() => {
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, init = {}) => {
+        const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+        if (!url.includes("/api/assistant/chat")) return originalFetch(input, init);
+        const token = sessionStorage.getItem("token");
+        if (!token) return originalFetch(input, init);
+        const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
+        if (!headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
+        return originalFetch(input, { ...init, headers });
+      };
+    })();
+  </script>
+  <script type="module" crossorigin src="./assets/index-Hzwv5aVY.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/router-vendor-Cy5kaXXC.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-CML-Ej6v.css">
+<link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+<body>
+  <div id="root"></div>
+</body>
+</html>

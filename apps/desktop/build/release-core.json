@@ -1,0 +1,18 @@
+{
+  "appId": "cn.cnxyai.xyosstudio",
+  "productName": "XYAI Studio",
+  "electronDist": "node_modules/electron/dist",
+  "afterPack": "./scripts/verify-packaged-runtime.ts",
+  "asar": true,
+  "files": ["lib/**", "package.json"],
+  "directories": { "output": "dist/release-build/core" },
+  "artifactName": "XYAI-Studio-${version}-core-win-${arch}.${ext}",
+  "extraResources": [
+    { "from": "resources", "to": "desktop-resources", "filter": ["**/*", "!llama-cpp/**"] },
+    { "from": "runtime-host/package.json", "to": "host/package.json" },
+    { "from": "runtime-host/node_modules", "to": "host/node_modules" },
+    { "from": "../../xyos-dist", "to": "dist" }
+  ],
+  "win": { "icon": "build/icon.png", "target": ["nsis"] },
+  "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "deleteAppDataOnUninstall": false }
+}

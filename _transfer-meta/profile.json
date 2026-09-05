@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "mode": "source",
+  "product": "XYAI Studio",
+  "productVersion": "0.3.1",
+  "buildId": "0.3.1-20260904-r2",
+  "platform": "win-x64",
+  "repo": "XYAI-Studio/xyai-studio",
+  "publish": {
+    "tag": "v0.3.1-20260904-r2",
+    "title": "XYAI Studio v0.3.1 内测预览版win64安装包",
+    "notesFile": "build/notes/0.3.1-20260904-r2.md",
+    "draft": false,
+    "prerelease": true
+  },
+  "source": {
+    "root": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh",
+    "packagingRoot": "E:\\XYAI studio\\xyai-studio-release-staging",
+    "openLayerRoot": "E:\\XYAI studio\\XYAI-Studio-open-source",
+    "dshTrack": "master"
+  },
+  "overlay": {
+    "commit": "UNSYNCED-LOCAL-PREVIEW-20260904-r2",
+    "roots": [
+      "apps/desktop",
+      "xyos-backend",
+      "packages/client/xyai-industry-agent"
+    ]
+  },
+  "tests": {
+    "summary": "本地内测构建（未发布 GitHub）：含深色模式切换与插件能力中心增强；类型检查与桌面壳构建纳入编排；Overlay parity 因 open-source 镜像未同步登记而跳过，正式发布前补齐。"
+  },
+  "target": {
+    "arch": "x64",
+    "electronVersion": "43.4.0",
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

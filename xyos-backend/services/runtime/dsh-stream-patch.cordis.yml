@@ -1,0 +1,5 @@
+# 雄元智脑XYOS — DSH headless 会话事件流补丁（由 DshAdapter 以 --patch 注入）
+# 仅追加一个只读事件流插件，不改动 headless profile 的既有行为。
+- insert:
+    - id: dsh-chat-event-stream
+      name: './dsh-event-stream.ts'

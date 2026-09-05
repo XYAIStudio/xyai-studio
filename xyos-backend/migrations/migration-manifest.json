@@ -1,0 +1,138 @@
+[
+  {
+    "file": "001_tenants.sql",
+    "version": "001",
+    "checksum": "563b8040e298477e",
+    "isRollback": false,
+    "linkedFile": null,
+    "bytes": 3152
+  },
+  {
+    "file": "002_pid_pcc.sql",
+    "version": "002",
+    "checksum": "506a31e7221c8339",
+    "isRollback": false,
+    "linkedFile": null,
+    "bytes": 1547
+  },
+  {
+    "file": "003_memory.sql",
+    "version": "003",
+    "checksum": "742dfd9449d8a361",
+    "isRollback": false,
+    "linkedFile": null,
+    "bytes": 1723
+  },
+  {
+    "file": "004_heartbeat.sql",
+    "version": "004",
+    "checksum": "ec0a30284e8f8f4b",
+    "isRollback": false,
+    "linkedFile": null,
+    "bytes": 1082
+  },
+  {
+    "file": "005_pending_reviews.sql",
+    "version": "005",
+    "checksum": "634742015b2c3f46",
+    "isRollback": false,
+    "linkedFile": "005_pending_reviews_rollback.sql",
+    "bytes": 708
+  },
+  {
+    "file": "005_pending_reviews_rollback.sql",
+    "version": "005",
+    "checksum": "4620ba43d97ae844",
+    "isRollback": true,
+    "linkedFile": "005_pending_reviews.sql",
+    "bytes": 231
+  },
+  {
+    "file": "006_add_schema_migrations.sql",
+    "version": "006",
+    "checksum": "621bc95bfdc7d35c",
+    "isRollback": false,
+    "linkedFile": "006_add_schema_migrations_rollback.sql",
+    "bytes": 259
+  },
+  {
+    "file": "006_add_schema_migrations_rollback.sql",
+    "version": "006",
+    "checksum": "c7c16990de27f519",
+    "isRollback": true,
+    "linkedFile": "006_add_schema_migrations.sql",
+    "bytes": 79
+  },
+  {
+    "file": "007_add_db_adapter_config.sql",
+    "version": "007",
+    "checksum": "1d1c7f6ef6db3eba",
+    "isRollback": false,
+    "linkedFile": "007_add_db_adapter_config_rollback.sql",
+    "bytes": 440
+  },
+  {
+    "file": "007_add_db_adapter_config_rollback.sql",
+    "version": "007",
+    "checksum": "2c85bbf718055b89",
+    "isRollback": true,
+    "linkedFile": "007_add_db_adapter_config.sql",
+    "bytes": 79
+  },
+  {
+    "file": "008_add_pending_reviews.sql",
+    "version": "008",
+    "checksum": "03590f001737597b",
+    "isRollback": false,
+    "linkedFile": "008_add_pending_reviews_rollback.sql",
+    "bytes": 1088
+  },
+  {
+    "file": "008_add_pending_reviews_rollback.sql",
+    "version": "008",
+    "checksum": "1566bb552cbc4e2b",
+    "isRollback": true,
+    "linkedFile": "008_add_pending_reviews.sql",
+    "bytes": 218
+  },
+  {
+    "file": "009_add_mcp_connections.sql",
+    "version": "009",
+    "checksum": "8c58735121dcc489",
+    "isRollback": false,
+    "linkedFile": "009_add_mcp_connections_rollback.sql",
+    "bytes": 1145
+  },
+  {
+    "file": "009_add_mcp_connections_rollback.sql",
+    "version": "009",
+    "checksum": "a6a5d29db3fa2482",
+    "isRollback": true,
+    "linkedFile": "009_add_mcp_connections.sql",
+    "bytes": 224
+  },
+  {
+    "file": "010_add_memory_vectors.sql",
+    "version": "010",
+    "checksum": "aa56e7821acd795d",
+    "isRollback": false,
+    "linkedFile": "010_add_memory_vectors_rollback.sql",
+    "bytes": 1480
+  },
+  {
+    "file": "010_add_memory_vectors_rollback.sql",
+    "version": "010",
+    "checksum": "77edd7f195010873",
+    "isRollback": true,
+    "linkedFile": "010_add_memory_vectors.sql",
+    "bytes": 220
+  },
+  {
+    "file": "011_organization_units.sql",
+    "version": "011",
+    "checksum": "45b1e928da26710a",
+    "isRollback": false,
+    "linkedFile": null,
+    "bytes": 1726
+  }
+]

@@ -1,0 +1,69 @@
+{
+  "name": "xyai-studio-full-release",
+  "version": "0.3.0",
+  "private": true,
+  "main": "lib/main.cjs",
+  "build": {
+    "appId": "cn.cnxyai.xyosstudio",
+    "productName": "XYAI Studio",
+    "electronDist": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\apps\\desktop\\node_modules\\electron\\dist",
+    "afterPack": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\apps\\desktop\\scripts\\verify-packaged-runtime.ts",
+    "asar": true,
+    "files": [
+      "lib/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\apps\\desktop\\dist\\release-build\\full"
+    },
+    "artifactName": "XYAI-Studio-0.3.0-full-win-${arch}.${ext}",
+    "extraResources": [
+      {
+        "from": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\apps\\desktop\\resources",
+        "to": "desktop-resources"
+      },
+      {
+        "from": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\apps\\desktop\\resources\\llama-cpp",
+        "to": "llama-cpp"
+      },
+      {
+        "from": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\apps\\desktop\\runtime-host\\package.json",
+        "to": "host/package.json"
+      },
+      {
+        "from": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\apps\\desktop\\runtime-host\\node_modules",
+        "to": "host/node_modules"
+      },
+      {
+        "from": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\xyos-dist",
+        "to": "dist"
+      },
+      {
+        "from": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\xyos-backend",
+        "to": "xyos-backend",
+        "filter": [
+          "**/*",
+          "!.env",
+          "!runtime-workspace/**",
+          "!data/**",
+          "!uploads/**"
+        ]
+      },
+      {
+        "from": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\xyos-backend\\node_modules",
+        "to": "xyos-backend/node_modules"
+      }
+    ],
+    "win": {
+      "icon": "E:\\XYAI studio\\XYAI-Studio-0.3-latest-dsh\\apps\\desktop\\build\\icon.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

@@ -1,0 +1,5 @@
+- dialog "XYAI Studio 与 DSH 联合内测声明":
+  - heading "XYAI Studio 与 DSH 联合内测声明" [level=2]
+  - paragraph: XYAI Studio 与 DeepSeek Harness（DSH）目前面向开发者进行联合内测。桌面端集成、Harness 能力、XYOS 业务空间和本地模型工作流仍在持续改进和打磨，欢迎广大开发者反馈使用体验。
+  - paragraph: 我们期待与全球开发者一起，在开源、可复用、可组合的基础设施之上，共同探索智能上限。欢迎加入 XYAI Studio 与 DSH 联合内测计划。
+  - button "继续"

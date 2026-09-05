@@ -1,0 +1,100 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "description": "XYAI Studio desktop — DeepSeek Harness 开发空间 + XYOS 业务空间（基于 deepseek-harness-desktop 复刻集成）",
+  "version": "0.3.1",
+  "private": true,
+  "type": "module",
+  "main": "lib/main.cjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsdown",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tests/tsconfig.json",
+    "dev": "pnpm --workspace-root run build && electron .",
+    "package": "pnpm --workspace-root run build && pnpm run build && node --import tsx scripts/stage-runtime.ts && electron-builder --dir",
+    "dist": "pnpm --workspace-root run build && pnpm run build && node --import tsx scripts/stage-runtime.ts && electron-builder",
+    "dist:mac": "node --import tsx scripts/release-mac.ts",
+    "dist:mac:unsigned": "node --import tsx scripts/release-mac-unsigned.ts"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "electron": "43.4.0",
+    "electron-builder": "26.15.3",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "build": {
+    "appId": "cn.cnxyai.xyosstudio",
+    "productName": "XYAI Studio",
+    "electronDist": "node_modules/electron/dist",
+    "afterPack": "./scripts/verify-packaged-runtime.ts",
+    "asar": true,
+    "files": [
+      "lib/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "desktop-resources"
+      },
+      {
+        "from": "resources/llama-cpp",
+        "to": "llama-cpp"
+      },
+      {
+        "from": "runtime-host/package.json",
+        "to": "host/package.json"
+      },
+      {
+        "from": "runtime-host/node_modules",
+        "to": "host/node_modules"
+      },
+      {
+        "from": "../../xyos-dist",
+        "to": "dist"
+      },
+      {
+        "from": "../../xyos-backend",
+        "to": "xyos-backend",
+        "filter": [
+          "**/*",
+          "!.env",
+          "!runtime-workspace/**",
+          "!data/**",
+          "!uploads/**"
+        ]
+      },
+      {
+        "from": "../../xyos-backend/node_modules",
+        "to": "xyos-backend/node_modules"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true,
+      "icon": "build/icon.png",
+      "notarize": true,
+      "target": [
+        "dir"
+      ]
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "linux": {
+      "category": "Development",
+      "target": [
+        "dir"
+      ]
+    }
+  }
+}
