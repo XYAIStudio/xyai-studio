@@ -62,6 +62,10 @@ function findExtractedRoot(scratch: string): string {
 export async function stageLlamaCppDarwin(options?: { readonly keepCache?: boolean }): Promise<void> {
   const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const resourcesLlama = join(desktopRoot, 'resources', 'llama-cpp')
+  if (existsSync(join(resourcesLlama, 'llama-server')) && existsSync(resourcesLlama) && readdirSync(resourcesLlama).some(name => name.endsWith('.dylib'))) {
+    console.log(`[llama-cpp-darwin] already staged at ${resourcesLlama}; skipping`)
+    return
+  }
   const cacheDir = join(desktopRoot, '.dsh-build', 'llama-cpp-darwin')
   mkdirSync(cacheDir, { recursive: true })
   const archivePath = join(cacheDir, LLAMA_CPP_DARWIN_PIN.asset)
@@ -86,17 +90,24 @@ export async function stageLlamaCppDarwin(options?: { readonly keepCache?: boole
   if (!existsSync(server)) throw new Error(`llama-server missing in ${sourceRoot}`)
 
   mkdirSync(resourcesLlama, { recursive: true })
+const stageOut = join(cacheDir, 'stage-out')
+  rmSync(stageOut, { recursive: true, force: true })
+  mkdirSync(stageOut, { recursive: true })
+  for (const name of readdirSync(sourceRoot)) {
+    cpSync(join(sourceRoot, name), join(stageOut, name), { recursive: true })
+  }
   for (const name of readdirSync(resourcesLlama)) {
     if (/\.(exe|dll)$/i.test(name)) {
       rmSync(join(resourcesLlama, name), { force: true })
     }
   }
-  for (const name of readdirSync(sourceRoot)) {
-    const from = join(sourceRoot, name)
+  for (const name of readdirSync(stageOut)) {
     const to = join(resourcesLlama, name)
-    cpSync(from, to, { recursive: true })
+    rmSync(to, { recursive: true, force: true })
+    cpSync(join(stageOut, name), to, { recursive: true })
     try { chmodSync(to, 0o755) } catch { /* ignore */ }
   }
+  rmSync(stageOut, { recursive: true, force: true })
 
   if (!existsSync(join(resourcesLlama, 'llama-server'))) {
     throw new Error('staging failed: llama-server not present in resources/llama-cpp')
