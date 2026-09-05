@@ -1,4 +1,4 @@
-/** Build an unsigned macOS DMG for internal distribution (no Apple signing/notarization). */
+/** Package unsigned macOS DMG only (assumes prior build + stage-runtime). */
 
 import { spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
@@ -10,15 +10,10 @@ function run(command: string, args: readonly string[], cwd: string, env: NodeJS.
   if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} exited with ${String(result.status)}`)
 }
 
-/** Package macOS DMG without code signing or notarization. Skips release-preflight. */
-export function releaseMacUnsigned(): void {
-  const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+export function packageUnsignedDmg(): void {
+  const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
   const env: NodeJS.ProcessEnv = { ...process.env }
-  env.CSC_IDENTITY_AUTO_DISCOVERY = 'false'
-  console.log('macOS unsigned build: CSC_IDENTITY_AUTO_DISCOVERY=false; no signing/notarization')
-  run('pnpm', ['--workspace-root', 'run', 'build'], desktopRoot, env)
-  run('pnpm', ['run', 'build'], desktopRoot, env)
-  run('node', ['--import', 'tsx', 'scripts/stage-runtime.ts'], desktopRoot, env)
+  env.CSC_IDENTITY_AUTO_DISCOVERY = "false"
   const distResult = spawnSync('node', ['scripts/resolve-electron-dist.cjs'], {
     cwd: desktopRoot,
     encoding: 'utf8',
@@ -40,7 +35,7 @@ export function releaseMacUnsigned(): void {
 const invokedPath = process.argv[1]
 if (invokedPath !== undefined && resolve(invokedPath) === fileURLToPath(import.meta.url)) {
   try {
-    releaseMacUnsigned()
+    packageUnsignedDmg()
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error))
     process.exitCode = 1
