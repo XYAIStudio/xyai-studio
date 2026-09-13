@@ -1,0 +1,22 @@
+{
+  "name": "@xyai/dsh-product-base",
+  "description": "XYAI Studio base product bundle: the five core local-capability plugins (brand, shell, composer, model hub, knowledge) as one desktop-first patch layer",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@xyai/dsh-brand-pack": "workspace:*",
+    "@xyai/dsh-composer": "workspace:*",
+    "@xyai/dsh-dev-shell": "workspace:*",
+    "@xyai/dsh-knowledge": "workspace:*",
+    "@xyai/dsh-model-hub": "workspace:*"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
+  },
+  "files": [
+    "src/client/index.ts",
+    "src/client/locales.ts",
+    "src/client/settings-layout.ts",
+    "src/protocol.ts"
+  ],
+  "references": [
+    { "path": "../../vendor/cordis" },
+    { "path": "../../packages/client/connection/tsconfig.client.json" },
+    { "path": "../../packages/client/locale" },
+    { "path": "../../packages/client/ui-renderer" },
+    { "path": "../../packages/client/ui-settings" },
+    { "path": "../../packages/client/ui-slots" }
+  ]
+}

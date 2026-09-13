@@ -1,0 +1,24 @@
+{
+  "name": "@xyai/dsh-xyai-app",
+  "version": "0.4.0",
+  "type": "module",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@xyai/dsh-ai-employees": "workspace:*",
+    "@xyai/dsh-brand-pack": "workspace:*",
+    "@xyai/dsh-tenancy": "workspace:*",
+    "@xyai/dsh-commerce": "workspace:*",
+    "@xyai/dsh-composer": "workspace:*",
+    "@xyai/dsh-dev-shell": "workspace:*",
+    "@xyai/dsh-online-auth": "workspace:*",
+    "@xyai/dsh-model-hub": "workspace:*",
+    "@xyai/dsh-knowledge": "workspace:*"
+  }
+}

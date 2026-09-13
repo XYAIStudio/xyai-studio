@@ -1,0 +1,30 @@
+# @xyai/dsh-product-base — the XYAI Studio base product bundle.
+#
+# One patch layer mounting the five core local-capability plugins on top of
+# @deepseek-ai/dsh-web-app (browser and Desktop Host compositions both apply
+# this bundle after the built-in desktop bundle list). Collaboration
+# (ai-employees, agent-forge) and commercial plugins (online-auth, tenancy,
+# commerce) stay in their own bundles so an experimental-API or online-service
+# failure cannot take the base desktop down.
+
+- insert:
+    - id: xyai-brand-pack
+      name: '@xyai/dsh-brand-pack'
+
+- insert:
+    - id: xyai-dev-shell
+      name: '@xyai/dsh-dev-shell'
+
+- insert:
+    - id: xyai-composer
+      name: '@xyai/dsh-composer'
+
+# Model hub (real OS inspect, GGUF scan/mount, Ollama pull, measured local models).
+- insert:
+    - id: xyai-model-hub
+      name: '@xyai/dsh-model-hub'
+
+# Local knowledge (mount, parse, distill, knowledge_search tool).
+- insert:
+    - id: xyai-knowledge
+      name: '@xyai/dsh-knowledge'

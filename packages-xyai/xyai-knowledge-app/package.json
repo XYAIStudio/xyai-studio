@@ -1,0 +1,18 @@
+{
+  "name": "@xyai/dsh-knowledge-app",
+  "description": "DSH bundle that mounts the XYAI knowledge plugin over the Web application",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@xyai/dsh-knowledge": "workspace:*"
+  }
+}

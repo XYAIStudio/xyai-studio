@@ -1,0 +1,9 @@
+{
+  // Solution-only root: the Host and browser halves merge different `connection`
+  // services into the cordis Context, so each face compiles under its own leaf.
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.host.json" },
+    { "path": "./tsconfig.client.json" }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types", "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo" },
+  "files": ["src/index.ts", "src/protocol.ts"],
+  "references": [
+    { "path": "../../vendor/cordis" },
+    { "path": "../../vendor/schemastery" },
+    { "path": "../../packages/core/agent" },
+    { "path": "../../packages/core/session" },
+    { "path": "../../packages/settings/settings" },
+    { "path": "../../packages/experimental/agent-team" },
+    { "path": "../../packages/client/connection/tsconfig.host.json" }
+  ]
+}

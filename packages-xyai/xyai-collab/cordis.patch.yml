@@ -1,0 +1,9 @@
+# @xyai/dsh-product-collab — XYAI Studio collaboration layer for Desktop.
+#
+# Mounts only AI employees on top of dsh-web-app / product-base so an
+# experimental Agent Teams failure cannot take the five-pack base desktop down.
+# Commercial plugins and agent-forge stay out of this bundle.
+
+- insert:
+    - id: xyai-ai-employees
+      name: '@xyai/dsh-ai-employees'

@@ -1,0 +1,51 @@
+# @xyai/dsh-xyai-app — the XYAI v0.4 meta bundle over the DSH web surface.
+#
+# One patch layer that mounts the XYAI plugins. It applies on top of
+# @deepseek-ai/dsh-web-app; the upstream bundle must NOT carry these rows
+# anymore once this layer exists (V0.4-ROUTE-A-MIGRATION.md §7 rolls them back).
+
+- insert:
+    - id: xyai-ai-employees
+      name: '@xyai/dsh-ai-employees'
+
+# XYAI v0.4 brand-pack engine (per-tenant brand config + theme) & tenancy (license/plan).
+- insert:
+    - id: xyai-brand-pack
+      name: '@xyai/dsh-brand-pack'
+- insert:
+    - id: xyai-tenancy
+      name: '@xyai/dsh-tenancy'
+
+# XYAI v0.4 commerce engine (payment/billing/commission/license + HQ admin backend).
+- insert:
+    - id: xyai-commerce
+      name: '@xyai/dsh-commerce'
+
+# XYAI v0.4 composer (Cindy-level input chips / context bar).
+- insert:
+    - id: xyai-composer
+      name: '@xyai/dsh-composer'
+
+# XYAI v0.4 dev-space shell (AI interact header entry).
+- insert:
+    - id: xyai-dev-shell
+      name: '@xyai/dsh-dev-shell'
+
+# XYAI online-account link for the desktop (device-authorization flow).
+- insert:
+    - id: xyai-online-auth
+      name: '@xyai/dsh-online-auth'
+
+# XYAI v0.4 model hub (P0-4 phase 1: catalog + selection-strategy settings page).
+- insert:
+    - id: xyai-model-hub
+      name: '@xyai/dsh-model-hub'
+
+- insert:
+    - id: xyai-knowledge
+      name: '@xyai/dsh-knowledge'
+
+- insert:
+    - id: xyai-agent-forge
+      name: '@xyai/dsh-agent-forge'
+

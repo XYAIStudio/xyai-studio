@@ -1,0 +1,4 @@
+# XYAI knowledge module over the DSH Web application.
+- insert:
+    - id: xyai-knowledge
+      name: '@xyai/dsh-knowledge'

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages-xyai/xyai-model-hub/README.md
+README.md: a9a9c0aec4d7adf130312ebed1e792f48ed20444
+README.zh.md: 40d8f6a52edc14437b0c4e35fdf1b85761d0a9ee
