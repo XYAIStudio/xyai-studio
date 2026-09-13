@@ -37,8 +37,8 @@ async function bench() {
   await ctx.plugin(composer).await()
   const input = createSnapshotStore({ draft: '', phase: 'plain', attachmentIds: [], queue: [] })
   const setDraft = vi.fn((draft: string) => input.update(state => { state.draft = draft }))
-  const component = (slot: string) => {
-    const entry = slots.entries(slot)[0]!
+  const component = (slot: string, id?: string) => {
+    const entry = (id ? slots.entries(slot).find(item => item.options.id === id) : slots.entries(slot)[0])!
     const C = entry.component as ComponentType<Record<string, unknown>>
     const injected = (entry.inject as (() => Record<string, unknown>) | undefined)?.() ?? {}
     const hooks = (injected.hooks ?? {}) as Record<string, Parameters<typeof bindSnapshotSelector>[0]>
@@ -182,7 +182,7 @@ it('shows DSH as the only connected Harness and derives live draft counts', asyn
     state.queue = [{ text: 'queued' }] as never
     state.phase = 'submitting'
   })
-  const { C, props } = b.component('conversation.composer.dock')
+  const { C, props } = b.component('conversation.composer.dock', 'xyai-composer-status')
   render(<C {...props} />)
   fireEvent.click(screen.getByText('Harness: DSH'))
   expect(screen.getByText('当前会话由 DSH 执行。')).toBeTruthy()
@@ -232,4 +232,36 @@ it('edits an existing phrase and rejects a duplicate name before writing', async
   fireEvent.change(text, { target: { value: '另一份周报' } })
   fireEvent.click(screen.getByText('添加短语'))
   expect((await screen.findByRole('alert')).textContent).toBe('已存在同名短语。')
+})
+
+it('renders Cindy chips on the dock without fighting resident input slots', async () => {
+  const plaza = vi.fn()
+  const collab = vi.fn()
+  const knowledge = vi.fn()
+  window.addEventListener('xyai:open-model-plaza', plaza)
+  window.addEventListener('xyai:open-ai-collaboration', collab)
+  window.addEventListener('xyai:open-knowledge', knowledge)
+  try {
+    const b = await bench()
+    const { C, props } = b.component('conversation.composer.dock', 'xyai-composer-cindy')
+    render(<C {...props} sessionTitle="Office Ops Desk · 单聊" />)
+    expect(screen.getByRole('toolbar')).toBeTruthy()
+    expect(screen.getByLabelText('工作区')).toBeTruthy()
+    fireEvent.click(screen.getByLabelText('模式'))
+    expect(b.scope.mutate).toHaveBeenCalled()
+    fireEvent.click(screen.getByLabelText('知识库'))
+    expect(knowledge).toHaveBeenCalled()
+    fireEvent.click(screen.getByLabelText('模型'))
+    expect(plaza).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByLabelText('思考强度'))
+    fireEvent.click(screen.getByLabelText('AI员工'))
+    expect(collab).toHaveBeenCalledOnce()
+    expect(screen.getByText('单聊')).toBeTruthy()
+    expect(screen.getByLabelText('附件').closest('button')?.disabled).toBe(true)
+    expect(b.slots.entries('conversation.input.left').every(entry => entry.options.id !== 'xyai-composer-cindy')).toBe(true)
+  } finally {
+    window.removeEventListener('xyai:open-model-plaza', plaza)
+    window.removeEventListener('xyai:open-ai-collaboration', collab)
+    window.removeEventListener('xyai:open-knowledge', knowledge)
+  }
 })

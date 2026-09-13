@@ -1,0 +1,18 @@
+# @xyai/dsh-product-online - XYAI Studio online / commercial layer.
+#
+# Mounts online-auth, tenancy, and commerce on top of dsh-web-app / product-base
+# so cloud sync, license, and paid-plugin surfaces stay out of the offline-first
+# desktop six-pack (DESKTOP_PROFILE_BUNDLES = product-base + product-collab).
+# Full web profile and optional desktop installs add this bundle explicitly.
+
+- insert:
+    - id: xyai-online-auth
+      name: '@xyai/dsh-online-auth'
+
+- insert:
+    - id: xyai-tenancy
+      name: '@xyai/dsh-tenancy'
+
+- insert:
+    - id: xyai-commerce
+      name: '@xyai/dsh-commerce'

@@ -35,6 +35,17 @@ export const en = {
   "shell.browser.home": "Home",
   "shell.browser.go": "Go",
   "shell.browser.url": "Address",
+  "shell.interact": "AI chats",
+  "shell.interact.dm": "Direct messages",
+  "shell.interact.group": "Groups",
+  "shell.interact.empty": "No AI-employee chats yet.",
+  "shell.interact.rename": "Rename",
+  "shell.interact.archive": "Archive",
+  "shell.interact.delete": "Delete",
+  "shell.interact.deleteConfirm": "Remove this chat from the list? The session is archived, not destroyed.",
+  "shell.interact.save": "Save",
+  "shell.interact.cancel": "Cancel",
+  "shell.interact.open": "Open conversation",
 } as const
 /** Simplified-Chinese dictionary for the same key set. */
 export const zh = {
@@ -73,6 +84,18 @@ export const zh = {
   "shell.browser.home": "主页",
   "shell.browser.go": "前往",
   "shell.browser.url": "地址",
+  "shell.interact": "与AI互动",
+  "shell.interact.dm": "单聊",
+  "shell.interact.group": "群聊",
+  "shell.interact.empty": "还没有 AI员工 会话。",
+  "shell.interact.rename": "重命名",
+  "shell.interact.archive": "归档",
+  "shell.interact.delete": "删除",
+  "shell.interact.deleteConfirm": "从列表中移除该会话？会话会被归档，不会销毁记录。",
+  "shell.interact.save": "保存",
+  "shell.interact.cancel": "取消",
+  "shell.interact.open": "打开对话",
+
 } as const
 /** The `xyaiDevShell` namespace key union. */
 export type XyaiDevShellKey = keyof typeof en

@@ -14,13 +14,23 @@ import {
   SNIPPET_LIMIT,
   TEXT_MAX,
   appendToDraft,
+  classifyClipboardPaste,
+  classifyEmployeeTitle,
   classifySpeechError,
+  estimateTokens,
   foldSpeechEvent,
   formatClock,
   matchesQuery,
+  nextKnowledge,
+  nextMode,
+  nextThink,
+  parseKnowledge,
+  parseMode,
+  parseThink,
   speechRecognitionConstructor,
   validateSnippet,
   type ComposerSettings,
+  type KnowledgeSeat,
   type Snippet,
   type SpeechRecognizer,
 } from './logic.ts'
@@ -442,6 +452,110 @@ function SnippetManager(props: {
   </form>
 }
 
+
+function persistComposer(settings: { mutate: (ops: unknown) => Promise<unknown> }, patch: Partial<ComposerSettings>): void {
+  const ops = Object.entries(patch).map(([key, value]) => ({ op: 'set' as const, path: [key], value }))
+  void settings.mutate(ops)
+}
+
+function CindyBar(props: {
+  t: T
+  useInput: (select: (state: { draft: string; attachmentIds: readonly string[]; queue: readonly unknown[]; phase: string }) => unknown) => unknown
+  useSettings?: (select: (state: { value: ComposerSettings | undefined; writable: boolean }) => unknown) => unknown
+  setComposer?: (patch: Partial<ComposerSettings>) => void
+  inputActions: { setDraft: (draft: string) => void }
+  sessionTitle?: string
+}): ReactNode {
+  const snapshot = (props.useSettings?.(state => state) ?? { value: undefined, writable: false }) as { value?: ComposerSettings; writable: boolean }
+  const value = snapshot.value
+  const mode = parseMode(value?.mode)
+  const think = parseThink(value?.think)
+  const kb = parseKnowledge(value?.kb)
+  const workspace = value?.workspace?.trim() ?? ''
+  const draft = props.useInput(state => state.draft) as string
+  const attachments = props.useInput(state => state.attachmentIds.length) as number
+  const tokens = estimateTokens(draft)
+  const used = Array.from(draft).length
+  const employee = classifyEmployeeTitle(props.sessionTitle)
+  const [pasteNote, setPasteNote] = useState<string | null>(null)
+  const write = (patch: Partial<ComposerSettings>) => {
+    if (props.setComposer) props.setComposer(patch)
+  }
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const types = Array.from(event.clipboardData?.types ?? [])
+      if (classifyClipboardPaste(types) === 'image') {
+        setPasteNote(props.t('cindy.pasteImage'))
+      }
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [props.t])
+  const openKnowledge = (seat: KnowledgeSeat) => {
+    write({ kb: seat })
+    if (seat !== 'off' && typeof window !== 'undefined') window.dispatchEvent(new Event('xyai:open-knowledge'))
+  }
+  const openModel = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('xyai:open-model-plaza'))
+      window.dispatchEvent(new CustomEvent('xyai:open-settings', { detail: { section: 'xyai-model-hub' } }))
+    }
+  }
+  const openEmployee = () => {
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('xyai:open-ai-collaboration'))
+  }
+  const cycleMode = () => {
+    const next = nextMode(mode)
+    write({ mode: next })
+    if (next === 'plan') props.inputActions.setDraft(appendToDraft(draft, '/plan'))
+  }
+  return <div data-xyai-cindy-bar className={css.bar} role="toolbar" aria-label={props.t('cindy.bar')}>
+    <button type="button" className={`${css.chip}${workspace ? ` ${css.chipOn}` : ''}`}
+      title={props.t('cindy.workspaceHint')} aria-label={props.t('cindy.workspace')}
+      onClick={() => {
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('xyai:open-workspace'))
+      }}>
+      {workspace || props.t('cindy.workspaceEmpty')}
+    </button>
+    <button type="button" className={`${css.chip} ${css.chipOn}`} title={props.t('cindy.modeHint')}
+      aria-label={props.t('cindy.mode')} onClick={cycleMode}>
+      {props.t(`cindy.mode.${mode}`)}
+    </button>
+    <button type="button" className={`${css.chip}${kb !== 'off' ? ` ${css.chipOn}` : ''}`}
+      title={props.t('cindy.kbHint')} aria-label={props.t('cindy.kb')}
+      onClick={() => openKnowledge(nextKnowledge(kb))}>
+      {props.t(`cindy.kb.${kb}`)}
+    </button>
+    <button type="button" className={css.chip} title={props.t('cindy.modelHint')}
+      aria-label={props.t('cindy.model')} onClick={openModel}>
+      {props.t('cindy.model')}
+    </button>
+    <button type="button" className={`${css.chip} ${css.chipOn}`} title={props.t('cindy.thinkHint')}
+      aria-label={props.t('cindy.think')} onClick={() => write({ think: nextThink(think) })}>
+      {props.t('cindy.think')}: {props.t(`cindy.think.${think}`)}
+    </button>
+    <span className={css.meter} title={props.t('cindy.context')}>
+      <span className={css.meterBar} aria-hidden="true"><span className={css.meterFill} style={{ width: `${Math.min(100, used / 8)}%` }} /></span>
+      {props.t('cindy.tokens', { count: String(tokens) })}
+      {attachments > 0 ? ` · ${props.t('attachments')}: ${attachments}` : ''}
+    </span>
+    <button type="button" className={css.chip} title={props.t('cindy.attachHint')}
+      aria-label={props.t('cindy.attach')} disabled>
+      {props.t('cindy.attach')}
+    </button>
+    <button type="button" className={css.chip} title={props.t('cindy.screenshotHint')}
+      aria-label={props.t('cindy.screenshot')}
+      onClick={() => setPasteNote(props.t('cindy.screenshotHint'))}>
+      {props.t('cindy.screenshot')}
+    </button>
+    <button type="button" className={`${css.chip}${employee !== 'none' ? ` ${css.chipOn}` : ''}`}
+      title={props.t('cindy.employeeHint')} aria-label={props.t('cindy.employee')} onClick={openEmployee}>
+      {employee === 'dm' ? props.t('cindy.employeeDm') : employee === 'group' ? props.t('cindy.employeeGroup') : props.t('cindy.employeeNone')}
+    </button>
+    {pasteNote && <small className={css.hint} role="status">{pasteNote}</small>}
+  </div>
+}
+
 /** Register XYAI controls without replacing the DSH composer.
  * @param ctx - Client plugin context.
  */
@@ -450,6 +564,10 @@ export function apply(ctx: Context): void {
   ctx.effect(() => injectXyaiSettingsCss('@xyai/dsh-composer'), 'xyai-composer: settings layout css')
   const settings = ctx.settingsScope.bind<ComposerSettings>({ namespace: 'xyai-composer' })
   const face = () => ({ hooks: { snippets: settings } })
+  const cindyFace = () => ({
+    hooks: { settings },
+    setComposer: (patch: Partial<ComposerSettings>) => persistComposer(settings, patch),
+  })
   const settingsFace = () => ({
     hooks: { snippets: settings },
     setSnippets: (snippets: Snippet[]) => settings.mutate(snippetOps(snippets)),
@@ -462,6 +580,10 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
     name: 'conversation.input.right', id: 'xyai-composer-voice', order: 20, locale: 'xyaiComposer',
   }, VoiceInput))
+
+  ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
+    name: 'conversation.composer.dock', id: 'xyai-composer-cindy', order: 5, locale: 'xyaiComposer', inject: cindyFace,
+  }, CindyBar))
 
   ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
     name: 'conversation.composer.dock', id: 'xyai-composer-status', order: 10, locale: 'xyaiComposer',

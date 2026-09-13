@@ -38,7 +38,7 @@ it('registers the xyai-composer namespace through the Loader and rejects invalid
   let ctx: Context | undefined
   try {
     ctx = await boot()
-    expect(ctx.settings.get('xyai-composer')).toEqual({ snippets: [] })
+    expect(ctx.settings.get('xyai-composer')).toEqual({ snippets: [], mode: 'standard', think: 'medium', kb: 'off', workspace: '' })
     await ctx.settings.update('xyai-composer', { snippets: [{ label: '问候', text: '你好' }] })
     expect(JSON.parse(await readFile(settingsPath, 'utf8'))['xyai-composer'].snippets).toEqual([
       { label: '问候', text: '你好' },
@@ -48,7 +48,7 @@ it('registers the xyai-composer namespace through the Loader and rejects invalid
       snippets: [{ label: 'x'.repeat(41), text: 'ok' }],
     })).rejects.toThrow()
     await ctx.fiber.dispose(); ctx = await boot()
-    expect(ctx.settings.get('xyai-composer')).toEqual({ snippets: [{ label: '问候', text: '你好' }] })
+    expect(ctx.settings.get('xyai-composer')).toEqual({ snippets: [{ label: '问候', text: '你好' }], mode: 'standard', think: 'medium', kb: 'off', workspace: '' })
   } finally {
     await ctx?.fiber.dispose()
     await rm(dir, { recursive: true, force: true })

@@ -1,0 +1,12 @@
+# @xyai/dsh-product-forge - experimental Agent Forge product layer.
+#
+# Opt-in only. Mounts @xyai/dsh-agent-forge so a forge / experimental-API
+# failure cannot take product-base, product-collab, product-online, or the
+# offline desktop six-pack down. Do not add this bundle to
+# DESKTOP_PROFILE_BUNDLES. The default profiles/xyai full web profile also
+# omits it; add "@xyai/dsh-product-forge" to a profile's dsh.profile.bundles
+# (and dependencies) when intentionally enabling the experimental workbench.
+
+- insert:
+    - id: xyai-agent-forge
+      name: '@xyai/dsh-agent-forge'

@@ -69,6 +69,17 @@ pnpm run start:desktop
 
 Workspace development runs the current CLI and private Desktop Host packages under the invoking Node.js and disables desktop package mutations. Its explicitly linked disposable profile is the only mode allowed to resolve bundles outside its own directory. Use an unpacked application to exercise the bundled Node.js, bundled pnpm, release seed, plugin installation, staging, and rollback paths.
 
+
+## XYAI Studio product assembly (overlay)
+
+XYAI Studio ships as the official DSH Desktop shell plus an XYAI plugin assembly — not a separate Electron host.
+
+- Display name / artifacts: electron-builder `productName` is `XYAI Studio`; artifacts use `xyai-studio-...`.
+- App id: every pack target still requires reverse-DNS `DSH_DESKTOP_APP_ID` (recommended: `com.xyaistudio.desktop`).
+- Default seed roots: `@xyai/dsh-product-base` and `@xyai/dsh-product-collab` via `pack:xyai` / `prepare:packages` and `DESKTOP_PROFILE_BUNDLES`.
+- Not in default desktop: `@xyai/dsh-product-online` (auth/tenancy/commerce) and `@xyai/dsh-product-forge` (Agent Forge).
+- Release QA matrix: `docs/xyai/P6-DESKTOP-RELEASE-QA.md`.
+
 ## Package
 
 The normal packaging path is one complete command. It performs release preparation before creating the host platform's installers and update metadata. Every target requires a reverse-DNS `DSH_DESKTOP_APP_ID`. macOS targets additionally require the electron-builder certificate qualifier in `DSH_DESKTOP_MACOS_SIGNING_IDENTITY`, its 10-character Apple Team ID in `DSH_DESKTOP_MACOS_TEAM_ID`, and one complete notarytool credential strategy. The App Store Connect API-key strategy uses these variables:

@@ -176,3 +176,49 @@ it('cloud test reports unavailable without stub when the probe fails', async () 
   expect(value.unavailable).toBe(true)
   expect(value.errcode).toBe('503')
 })
+
+it('pulls an Ollama tag when the runtime is up and refuses to re-download a mounted tag', async () => {
+  const pulls: string[] = []
+  const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    if (url.endsWith('/api/tags')) return new Response(JSON.stringify({ models: [{ name: 'qwen2.5:7b' }] }), { status: 200 })
+    if (url.endsWith('/api/version')) return new Response(JSON.stringify({ version: '0.3.0' }), { status: 200 })
+    if (url.endsWith('/api/pull')) {
+      pulls.push(String(init?.body ?? ''))
+      const body = '{"status":"success"}\n'
+      return new Response(body, { status: 200, headers: { 'content-type': 'application/x-ndjson' } })
+    }
+    throw new Error(url)
+  }) as typeof fetch
+  const backend = new ModelHubBackend(memorySettings(), { fetchImpl })
+  backends.push(backend)
+
+  const missing = await backend.dispatch('ollama/pull', {})
+  expect((missing.value as { errcode: string }).errcode).toBe('400')
+
+  const started = await backend.dispatch('ollama/pull', { tag: 'tinyllama:1.1b' })
+  expect(started.ok).toBe(true)
+  const task = (started.value as { task: { taskId: string; detail: string; stub: boolean } }).task
+  expect(task.stub).toBe(false)
+  expect(task.detail).toContain('Ollama pull')
+
+  const registered = await backend.dispatch('registry/register', {
+    path: 'ollama:qwen2.5:7b', name: 'qwen2.5:7b', kind: 'Ollama', autoBenchmark: 'no',
+  })
+  expect(registered.ok).toBe(true)
+  const again = await backend.dispatch('ollama/pull', { tag: 'qwen2.5:7b' })
+  expect((again.value as { errcode: string; errmsg: string }).errcode).toBe('409')
+  expect((again.value as { errmsg: string }).errmsg).toMatch(/无需重复下载|already/i)
+})
+
+it('does not start an Ollama pull when the runtime is down', async () => {
+  const backend = new ModelHubBackend(memorySettings(), {
+    fetchImpl: (async () => { throw new Error('offline') }) as typeof fetch,
+  })
+  backends.push(backend)
+  const res = await backend.dispatch('ollama/pull', { tag: 'qwen2.5:7b' })
+  const value = res.value as { errcode: string; unavailable?: boolean; stub?: boolean }
+  expect(value.errcode).toBe('503')
+  expect(value.unavailable).toBe(true)
+  expect(value.stub).toBe(false)
+})

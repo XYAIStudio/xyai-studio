@@ -46,3 +46,21 @@ it('previews local artifacts and confirms detach without deleting data', async (
   render(<KnowledgePage call={call} t={t} listDirectory={vi.fn()}/>); fireEvent.click(await screen.findByText('资料')); fireEvent.click(screen.getByText('抽取文本')); expect(await screen.findByText('真实解析文本')).toBeTruthy()
   fireEvent.click(screen.getByText('解除挂接')); expect(screen.getByRole('dialog')).toBeTruthy(); expect(screen.getByText(/应用解析产物均保留/)).toBeTruthy(); fireEvent.click(screen.getByText('取消')); expect(call).not.toHaveBeenCalledWith('unmount',expect.anything())
 })
+
+it('lets the user pick a parse output directory and keeps the source path read-only', async () => {
+  const call = vi.fn(async endpoint => endpoint === 'snapshot' ? empty : endpoint === 'precheck' ? { root: 'D:/资料', existing: null } : endpoint === 'mountLocal' ? ({ kind:'local', id:'local-2', name:'资料', root:'D:/资料', output:'E:/kb-out', documents:[] } satisfies LocalMount) : null) as unknown as Call
+  const listDirectory = vi.fn(async (path?: string) => path === 'E:/kb-out'
+    ? { path: 'E:/kb-out', home: 'E:/', crumbs: [], entries: [], truncated: false }
+    : listing)
+  render(<KnowledgePage call={call} t={t} listDirectory={listDirectory}/>)
+  fireEvent.click(screen.getByText('挂接本地文件夹'))
+  fireEvent.click(screen.getByText('浏览…'))
+  fireEvent.click(await screen.findByText('选择当前文件夹'))
+  fireEvent.click(screen.getByText('检查文件夹'))
+  await screen.findByText(/原始文件及目录不会被改动/)
+  const output = await screen.findByPlaceholderText(empty.artifactRoot) as HTMLInputElement
+  fireEvent.change(output, { target: { value: 'E:/kb-out' } })
+  expect(screen.getByText(/源文件夹保持只读/)).toBeTruthy()
+  fireEvent.click(screen.getByText('挂接并开始处理'))
+  await waitFor(() => expect(call).toHaveBeenCalledWith('mountLocal', { path: 'D:/资料', output: 'E:/kb-out' }))
+})

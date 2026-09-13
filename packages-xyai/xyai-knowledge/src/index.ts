@@ -28,7 +28,7 @@ export async function dispatch(store: KnowledgeStore, endpoint: string, raw: unk
   switch (endpoint) {
     case 'snapshot': return store.snapshot()
     case 'precheck': return store.precheck(field(raw, 'path'))
-    case 'mountLocal': return store.addLocal(field(raw, 'path'))
+    case 'mountLocal': return store.addLocal(field(raw, 'path'), optional(raw, 'output'))
     case 'scan': await store.scan(field(raw, 'id')); return null
     case 'retry': await store.scan(field(raw, 'id'), true); return null
     case 'rename': await store.update(field(raw, 'id'), field(raw, 'name')); return null

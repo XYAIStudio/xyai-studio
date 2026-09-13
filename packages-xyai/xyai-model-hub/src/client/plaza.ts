@@ -90,6 +90,7 @@ export function ModelPlaza(props: {
   const [scanTask, setScanTask] = useState<TaskSnapshot | null>(null)
   const [benchTask, setBenchTask] = useState<TaskSnapshot | null>(null)
   const [benchNote, setBenchNote] = useState('')
+  const [pullTag, setPullTag] = useState('')
 
   const say = useCallback((text: string, isError = false) => {
     setMsg(text); setErr(isError)
@@ -409,6 +410,39 @@ export function ModelPlaza(props: {
             : null,
         ),
       ),
+      panel(React.createElement(React.Fragment, null,
+        React.createElement('strong', null, t('plaza.ollamaPull')),
+        muted(t('plaza.ollamaTagHint')),
+        React.createElement('input', {
+          'aria-label': t('plaza.ollamaTag'),
+          placeholder: 'qwen2.5:7b',
+          value: pullTag,
+          onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPullTag(e.target.value),
+          style: { display: 'block', width: '100%', marginTop: 8, padding: '8px 11px', borderRadius: 8, border: '1px solid rgba(15,23,42,.16)', font: 'inherit', boxSizing: 'border-box' },
+        }),
+        React.createElement('div', { style: { marginTop: 10 } },
+          btn(t('plaza.ollamaPull'), () => { void (async () => {
+            const tag = pullTag.trim()
+            if (!tag) return
+            const res = await run<ModelHubEnvelope & { task?: TaskSnapshot; errmsg?: string }>(
+              'ollama/pull',
+              { tag },
+            )
+            if (res?.errcode === '409') {
+              say(t('plaza.noRedownload'), true)
+              return
+            }
+            if (res?.task) {
+              setTasks(prev => {
+                const rest = prev.filter(x => x.taskId !== res.task!.taskId)
+                return [...rest, res.task!]
+              })
+              setTab('tasks')
+              say(`${tag} · ${res.task.phase}`)
+            }
+          })() }, true, loading || !pullTag.trim()),
+        ),
+      )),
       scanFound.length > 0 || scanTask
         ? panel(React.createElement(React.Fragment, null,
           scanTask ? muted(`${scanTask.phase} · ${scanTask.percent}% · ${scanTask.detail || ''}`) : null,

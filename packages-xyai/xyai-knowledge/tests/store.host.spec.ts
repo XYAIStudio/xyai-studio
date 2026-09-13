@@ -79,3 +79,25 @@ function u16(value:number):number[]{return[value&255,(value>>>8)&255]} function 
 function storedZip(files:ReadonlyArray<readonly[string,Buffer]>):Buffer{const bytes:number[]=[],central:number[]=[];for(const[name,data]of files){const nb=Buffer.from(name);const offset=bytes.length;bytes.push(...u32(0x04034B50),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(data.length),...u32(data.length),...u16(nb.length),...u16(0),...nb,...data);central.push(...u32(0x02014B50),...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(data.length),...u32(data.length),...u16(nb.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(offset),...nb)}const off=bytes.length;bytes.push(...central,...u32(0x06054B50),...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(central.length),...u32(off),...u16(0));return Buffer.from(bytes)}
 function pdfFixture():Buffer{const compressed=deflateSync(Buffer.from('BT /F1 12 Tf 72 720 Td (Hello from XYAI PDF) Tj ET','latin1'));const body=`<< /Length ${compressed.length} /Filter /FlateDecode >>\nstream\n${compressed.toString('latin1')}\nendstream`;return Buffer.from(`%PDF-1.4\n1 0 obj\n${body}\nendobj\n%%EOF`,'latin1')}
 it('extracts real DOCX and compressed text PDF bytes',()=>{const xml=Buffer.from('<w:document><w:body><w:p><w:r><w:t>第二段 hello docx</w:t></w:r></w:p></w:body></w:document>');expect(extractDocxText(storedZip([['word/document.xml',xml]])).text).toContain('hello docx');expect(extractPdfText(pdfFixture()).text).toContain('Hello from XYAI PDF')})
+
+it('writes parse artifacts only into a user-chosen output directory and leaves the source read-only', async () => {
+  const b = await bench()
+  const chosen = join(b.source, '..', 'user-output')
+  await mkdir(chosen)
+  await writeFile(join(b.source, 'keep.md'), '源文件必须原样保留')
+  const mount = await b.store.addLocal(b.source, chosen)
+  expect(mount.output.replaceAll('\\', '/').toLowerCase()).toContain('user-output')
+  expect(mount.root.replaceAll('\\', '/')).not.toBe(mount.output.replaceAll('\\', '/'))
+  await b.store.scan(mount.id); await b.store.idle()
+  expect(await readFile(join(b.source, 'keep.md'), 'utf8')).toBe('源文件必须原样保留')
+  expect((await readdir(b.source)).includes('.owner')).toBe(false)
+  expect((await readdir(mount.output)).includes('.owner')).toBe(true)
+  expect((await readdir(mount.output)).some(name => name.endsWith('.text.txt') || name.endsWith('.semantic.json'))).toBe(true)
+  await expect(b.store.addLocal(b.source, chosen)).rejects.toThrow('ALREADY_MOUNTED')
+})
+
+it('rejects a parse output directory that overlaps the read-only source', async () => {
+  const b = await bench()
+  await expect(b.store.addLocal(b.source, b.source)).rejects.toThrow('ARTIFACT_ROOT_OVERLAPS_SOURCE')
+  await expect(b.store.addLocal(b.source, join(b.source, 'nested-out'))).rejects.toThrow('ARTIFACT_ROOT_OVERLAPS_SOURCE')
+})

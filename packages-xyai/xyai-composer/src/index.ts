@@ -17,5 +17,9 @@ export function apply(ctx: Context): void {
       label: z.string().min(1).max(40),
       text: z.string().min(1).max(2000),
     })).max(50).default([]),
+    mode: z.string().default('standard'),
+    think: z.string().default('medium'),
+    kb: z.string().default('off'),
+    workspace: z.string().max(1024).default(''),
   }))
 }

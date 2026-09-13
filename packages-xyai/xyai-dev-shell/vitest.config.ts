@@ -10,12 +10,10 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   css: { modules: { classNameStrategy: 'non-scoped' } },
   test: {
-    environment: 'node',
+    environment: 'jsdom',
     include: [
-      'packages-xyai/xyai-model-hub/tests/host-backend.host.spec.ts',
-      'packages-xyai/xyai-model-hub/tests/native-download.spec.ts',
-      'packages-xyai/xyai-model-hub/tests/audit-regressions.spec.ts',
-      'packages-xyai/xyai-model-hub/tests/plaza.client.spec.tsx',
+      'packages-xyai/xyai-dev-shell/tests/interact.spec.ts',
+      'packages-xyai/xyai-dev-shell/tests/plugin.client.spec.tsx',
     ],
   },
 })

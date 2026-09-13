@@ -1,10 +1,16 @@
 import { expect, it } from 'vitest'
 import {
   appendToDraft,
+  classifyClipboardPaste,
+  classifyEmployeeTitle,
   classifySpeechError,
+  estimateTokens,
   foldSpeechEvent,
   formatClock,
   matchesQuery,
+  nextKnowledge,
+  nextMode,
+  nextThink,
   validateSnippet,
 } from '../src/client/logic.ts'
 
@@ -52,4 +58,26 @@ it('folds final and interim speech results from one event', () => {
       1: { isFinal: false, length: 1, 0: { transcript: '临时' } },
     },
   })).toEqual({ confirmed: '确认', pending: '临时' })
+})
+
+it('cycles Cindy seats and estimates tokens without clobbering DSH ownership', () => {
+  expect(nextMode('standard')).toBe('create')
+  expect(nextMode('plan')).toBe('standard')
+  expect(nextThink(undefined)).toBe('low')
+  expect(nextThink('high')).toBe('low')
+  expect(nextKnowledge('off')).toBe('local')
+  expect(nextKnowledge('cloud')).toBe('off')
+  expect(estimateTokens('四个字啊')).toBe(1)
+  expect(estimateTokens('abcd')).toBe(1)
+  expect(estimateTokens('abcdefgh')).toBe(2)
+})
+
+it('classifies clipboard pastes and AI-employee titles for coordination chips', () => {
+  expect(classifyClipboardPaste(['image/png'])).toBe('image')
+  expect(classifyClipboardPaste(['text/plain'])).toBe('text')
+  expect(classifyClipboardPaste([])).toBe('empty')
+  expect(classifyEmployeeTitle('Office Ops Desk · 单聊')).toBe('dm')
+  expect(classifyEmployeeTitle('A、B · 协作')).toBe('group')
+  expect(classifyEmployeeTitle('Office Ops Desk · single chat')).toBe('dm')
+  expect(classifyEmployeeTitle('plain session')).toBe('none')
 })

@@ -27,14 +27,17 @@
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-workspace",
-        "@deepseek-ai/dsh-client-ui-theme"
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-session"
       ],
       "platform": "web"
     }
   },
   "scripts": {
     "bundle": "tsdown",
-    "watch": "tsdown --watch"
+    "watch": "tsdown --watch",
+    "test": "vitest run --config vitest.config.ts"
   },
   "license": "MIT",
   "peerDependencies": {
@@ -52,7 +55,12 @@
     "@deepseek-ai/dsh-client-ui-sidebar": "workspace:^",
     "@deepseek-ai/dsh-client-ui-layout": "workspace:^",
     "@deepseek-ai/dsh-client-ui-workspace": "workspace:^",
-    "@deepseek-ai/dsh-client-ui-theme": "workspace:^"
+    "@deepseek-ai/dsh-client-ui-theme": "workspace:^",
+    "@deepseek-ai/dsh-api-session-controller": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-session": "workspace:^",
+    "@deepseek-ai/dsh-client-store": "workspace:^",
+    "@deepseek-ai/dsh-client-test-runtime": "workspace:^",
+    "@testing-library/react": "^16.3.0"
   },
   "files": [
     "lib/index.js",

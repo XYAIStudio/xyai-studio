@@ -8,7 +8,9 @@
     "@deepseek-ai/dsh-experimental-agent-team-profile": "workspace:*",
     "@deepseek-ai/dsh-experimental-agent-team-web-profile": "workspace:*",
     "@deepseek-ai/dsh-web-app": "workspace:*",
-    "@xyai/dsh-xyai-app": "workspace:*"
+    "@xyai/dsh-product-base": "workspace:*",
+    "@xyai/dsh-product-collab": "workspace:*",
+    "@xyai/dsh-product-online": "workspace:*"
   },
   "dsh": {
     "profile": {
@@ -17,7 +19,9 @@
         "@deepseek-ai/dsh-experimental-agent-team-profile",
         "@deepseek-ai/dsh-web-app",
         "@deepseek-ai/dsh-experimental-agent-team-web-profile",
-        "@xyai/dsh-xyai-app"
+        "@xyai/dsh-product-base",
+        "@xyai/dsh-product-collab",
+        "@xyai/dsh-product-online"
       ]
     }
   }

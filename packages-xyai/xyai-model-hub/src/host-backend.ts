@@ -453,6 +453,7 @@ export class ModelHubBackend {
         case 'registry/register-batch': return answered(await this.registerBatch(fields))
         case 'registry/unmount': return answered(await this.unmount(fields))
         case 'registry/set-default': return answered(await this.setDefault(fields))
+        case 'ollama/pull': return answered(await this.ollamaPull(fields))
         case 'downloads/list': return answered(ok({ tasks: [...this.tasks.values()].filter(t => t.kind === 'download') }, false))
         case 'downloads/start': return answered(await this.downloadStart(fields))
         case 'downloads/pause': return answered(this.downloadMutate(fields, 'paused'))
@@ -924,6 +925,31 @@ export class ModelHubBackend {
   }
 
   private downloadSources = new Map<string, { modelId: string; native?: GgufDownloadSource; ollamaTag?: string }>()
+
+  /** Pull an Ollama tag. Already-mounted tags return 409 so the UI never offers re-download. */
+  private async ollamaPull(fields: Record<string, unknown>) {
+    const tag = (str(fields, 'tag') || str(fields, 'name')).trim()
+    if (!tag) return { errcode: '400', errmsg: '缺少 Ollama 模型名。', stub: false }
+    const ollama = await detectOllama(this.fetchImpl)
+    if (ollama.status !== 'running') {
+      return { errcode: '503', errmsg: 'Ollama 未运行。请先在环境准备页启动后再拉取。', stub: false, unavailable: true }
+    }
+    const id = `ollama-${tag.replace(/[^a-zA-Z0-9._-]+/g, '-')}`
+    const mounted = this.loadRegistry().find(e =>
+      e.mounted && !e.missing && (e.id === id || e.path === `ollama:${tag}` || e.name === tag),
+    )
+    if (mounted) return { errcode: '409', errmsg: '该模型已注册，无需重复下载。', stub: false }
+    const active = [...this.tasks.values()].find(
+      t => t.kind === 'download' && (t.modelId === id || t.label === tag) && !['done', 'cancelled', 'failed'].includes(t.phase),
+    )
+    if (active) return ok({ task: active, errmsg: '该模型已有任务，请继续现有任务。' }, false)
+    const task = this.newTask('download', tag, tag, 'connecting', 2, false)
+    task.modelId = id
+    task.detail = `Ollama pull ${tag}`
+    this.downloadSources.set(task.taskId, { modelId: id, ollamaTag: tag })
+    void this.runDownload(task.taskId)
+    return ok({ task }, false)
+  }
 
   private async downloadStart(fields: Record<string, unknown>) {
     const modelId = str(fields, 'modelId')

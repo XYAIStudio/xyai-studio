@@ -8,13 +8,19 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
+import type { ISessions, SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import { ABOUT_HTML } from './about-html.ts'
+import {
+  conversationOpenDetail,
+  isWorkbenchMisland,
+  partitionInteractSessions,
+} from './interact.ts'
 import { en, zh, type XyaiDevShellKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap { xyaiDevShell: XyaiDevShellKey }
 }
-export const inject = ['slots', 'locale', 'layout', 'uiWorkspace', 'theme']
+export const inject = ['slots', 'locale', 'layout', 'uiWorkspace', 'theme', 'sessions']
 
 type SpaceId = 'dev' | 'biz' | 'eco' | 'browser' | 'about'
 type NavId = 'models' | 'employees' | 'knowledge'
@@ -701,10 +707,15 @@ export function apply(ctx: Context): void {
   }))
 
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
-    name: 'conversation.session.header.utilities', id: 'xyai-ai-interact', order: 20,
+    name: 'conversation.session.header.utilities', id: 'xyai-workbench', order: 20,
     locale: 'xyaiDevShell', inject: navigation,
   }, function Workbench(props) {
     const [open, setOpen] = useState(false)
+    useEffect(() => {
+      const close = () => setOpen(false)
+      window.addEventListener('xyai:open-conversation', close)
+      return () => window.removeEventListener('xyai:open-conversation', close)
+    }, [])
     return <details open={open} onToggle={e => setOpen(e.currentTarget.open)} data-xyai-workbench>
       <summary>{props.t('shell.workbench')}</summary>
       <nav aria-label={props.t('shell.workbench')} style={{ display: 'grid', gap: 8, padding: 12 }}>
@@ -715,4 +726,127 @@ export function apply(ctx: Context): void {
       </nav>
     </details>
   }))
+
+  const sessions = (ctx as Context & { sessions?: ISessions }).sessions
+  const workspaceFace = () => {
+    try {
+      return (ctx as Context & { uiWorkspace?: { openSession?: (id: string) => void; archiveSession?: (id: string) => Promise<void> } }).uiWorkspace
+    } catch { return undefined }
+  }
+  const interactFace = () => ({
+    hooks: sessions ? { sessionList: sessions.list } : {},
+    sessions,
+    uiWorkspace: workspaceFace(),
+  })
+
+  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
+    name: 'sidebar.footer.action', id: 'xyai-ai-interact', order: 3, locale: 'xyaiDevShell', inject: interactFace,
+  }, function AiInteract(props: {
+    wide?: boolean
+    t: (key: XyaiDevShellKey) => string
+    useSessionList?: (select: (state: SessionListState) => unknown) => unknown
+    sessions?: ISessions
+    uiWorkspace?: { openSession?: (id: string) => void; archiveSession?: (id: string) => Promise<void> }
+  }) {
+    const list = (props.useSessionList?.(state => state) ?? { ids: [], byId: {}, current: undefined }) as SessionListState
+    const rows = list.ids.map(id => {
+      const row = list.byId[id]
+      return { id: id as string, title: row?.title, displayTitle: row?.displayTitle, updatedAt: row?.updatedAt, blank: row?.blank }
+    })
+    const { dm, group } = partitionInteractSessions(rows)
+    const [renaming, setRenaming] = useState<string | null>(null)
+    const [draft, setDraft] = useState('')
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+    const [error, setError] = useState('')
+
+    const openChat = (sessionId: string) => {
+      const detail = conversationOpenDetail(sessionId)
+      if (isWorkbenchMisland(detail.view)) return
+      props.uiWorkspace?.openSession?.(sessionId as never)
+      props.sessions?.open(sessionId as never)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('xyai:open-conversation', { detail }))
+        window.dispatchEvent(new CustomEvent('xyai:shell-space', { detail: { id: 'dev', ready: true } }))
+      }
+    }
+
+    const rename = async (sessionId: string) => {
+      const name = draft.trim()
+      if (!name || !props.sessions) return
+      setError('')
+      try {
+        const binding = props.sessions.binding(sessionId as never)
+        if (!binding) throw new Error('session unavailable')
+        const result = await binding.session.rename(name)
+        if (!result.ok) throw new Error(result.error.message)
+        setRenaming(null)
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause))
+      }
+    }
+
+    const archive = async (sessionId: string) => {
+      setError('')
+      try { await props.uiWorkspace?.archiveSession?.(sessionId as never) }
+      catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)) }
+    }
+
+    const renderList = (title: string, items: typeof dm) => (
+      <div style={{ display: 'grid', gap: 4 }}>
+        <strong style={{ fontSize: 11, opacity: 0.7 }}>{title}</strong>
+        {items.length === 0 && <small style={{ opacity: 0.65 }}>{props.t('shell.interact.empty')}</small>}
+        {items.map(item => (
+          <div key={item.id} data-xyai-interact-row={item.kind} style={{ display: 'grid', gap: 4 }}>
+            {renaming === item.id ? (
+              <span style={{ display: 'flex', gap: 4 }}>
+                <input aria-label={props.t('shell.interact.rename')} value={draft} onChange={event => setDraft(event.target.value)} />
+                <button type="button" onClick={() => { void rename(item.id) }}>{props.t('shell.interact.save')}</button>
+                <button type="button" onClick={() => setRenaming(null)}>{props.t('shell.interact.cancel')}</button>
+              </span>
+            ) : (
+              <button type="button" data-xyai-interact-open={item.id}
+                style={{ ...navBtn(list.current === item.id, true), textAlign: 'left' }}
+                title={props.t('shell.interact.open')}
+                onClick={() => openChat(item.id)}>
+                {item.title}
+              </button>
+            )}
+            <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => { setRenaming(item.id); setDraft(item.title); setError('') }}>{props.t('shell.interact.rename')}</button>
+              <button type="button" onClick={() => { void archive(item.id) }}>{props.t('shell.interact.archive')}</button>
+              {confirmDelete === item.id ? (
+                <button type="button" onClick={() => { void archive(item.id); setConfirmDelete(null) }}>{props.t('shell.interact.deleteConfirm')}</button>
+              ) : (
+                <button type="button" onClick={() => setConfirmDelete(item.id)}>{props.t('shell.interact.delete')}</button>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+
+    if (!props.wide) {
+      return (
+        <button type="button" data-xyai-interact="collapsed" title={props.t('shell.interact')}
+          aria-label={props.t('shell.interact')}
+          style={{ appearance: 'none', border: '1px solid rgba(21,101,192,0.2)', background: 'transparent', borderRadius: 8, padding: '6px 0', fontSize: 11, cursor: 'pointer', width: '100%' }}
+          onClick={() => {
+            const first = dm[0] ?? group[0]
+            if (first) openChat(first.id)
+          }}>
+          {props.t('shell.interact').slice(0, 1)}
+        </button>
+      )
+    }
+
+    return (
+      <nav data-xyai-interact aria-label={props.t('shell.interact')} style={{ display: 'grid', gap: 10, width: '100%', padding: '6px 0', pointerEvents: 'auto' }}>
+        <strong style={{ fontSize: 12 }}>{props.t('shell.interact')}</strong>
+        {renderList(props.t('shell.interact.dm'), dm)}
+        {renderList(props.t('shell.interact.group'), group)}
+        {error && <small role="alert">{error}</small>}
+      </nav>
+    )
+  }))
+
 }

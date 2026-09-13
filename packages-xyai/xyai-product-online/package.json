@@ -1,0 +1,23 @@
+{
+  "name": "@xyai/dsh-product-online",
+  "description": "XYAI Studio online product bundle: online-auth, tenancy, and commerce as one optional patch layer for full web / optional desktop install - not part of the offline desktop six-pack",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@xyai/dsh-commerce": "workspace:*",
+    "@xyai/dsh-online-auth": "workspace:*",
+    "@xyai/dsh-tenancy": "workspace:*"
+  },
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts"
+  }
+}

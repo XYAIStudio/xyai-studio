@@ -80,12 +80,22 @@ export class KnowledgeStore {
   }
 
   /** Register a local source and reserve its application-owned artifact directory. */
-  async addLocal(path: string): Promise<LocalMount> {
+  async addLocal(path: string, outputDir?: string): Promise<LocalMount> {
     return this.mutate(async () => {
       const { root, existing } = await this.precheck(path); if (existing) throw new Error('ALREADY_MOUNTED')
-      const artifactRoot = await ensureDirectory(this.limits.artifactRoot)
-      if (within(root, artifactRoot) || within(artifactRoot, root)) throw new Error('ARTIFACT_ROOT_OVERLAPS_SOURCE')
-      const id = randomUUID() as MountId; const output = join(artifactRoot, id); await mkdir(output, { mode: 0o700 }); await writeFile(join(output, '.owner'), id, { flag: 'wx', mode: 0o600 })
+      const id = randomUUID() as MountId
+      let output: string
+      if (outputDir?.trim()) {
+        const chosen = await ensureDirectory(outputDir)
+        if (chosen === root || within(root, chosen) || within(chosen, root)) throw new Error('ARTIFACT_ROOT_OVERLAPS_SOURCE')
+        output = chosen
+      } else {
+        const artifactRoot = await ensureDirectory(this.limits.artifactRoot)
+        if (within(root, artifactRoot) || within(artifactRoot, root)) throw new Error('ARTIFACT_ROOT_OVERLAPS_SOURCE')
+        output = join(artifactRoot, id)
+        await mkdir(output, { mode: 0o700 })
+      }
+      await writeFile(join(output, '.owner'), id, { flag: 'wx', mode: 0o600 })
       const mount: LocalMount = { kind: 'local', id, name: basename(root), root, output, documents: [] }
       this.mounts.push(mount); try { await this.persist() } catch (error) { this.mounts.pop(); throw error }
       return structuredClone(mount)

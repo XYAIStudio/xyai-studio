@@ -7,13 +7,90 @@ export interface Snippet {
   text: string
 }
 
+/** Composer mode chip. Plan still hands /plan to the resident slash pipeline. */
+export type ComposerMode = 'standard' | 'create' | 'plan'
+/** Think-intensity chip. DSH owns the actual reasoning selector; this is the XYAI seat. */
+export type ThinkIntensity = 'low' | 'medium' | 'high'
+/** Knowledge seat: off, local mount, or cloud library. */
+export type KnowledgeSeat = 'off' | 'local' | 'cloud'
+
 /** Durable composer settings. */
 export interface ComposerSettings {
   snippets: Snippet[]
+  mode: ComposerMode
+  think: ThinkIntensity
+  kb: KnowledgeSeat
+  workspace: string
 }
 
 /** Value used until Host settings arrive. */
-export const defaultComposerSettings: ComposerSettings = { snippets: [] }
+export const defaultComposerSettings: ComposerSettings = {
+  snippets: [],
+  mode: 'standard',
+  think: 'medium',
+  kb: 'off',
+  workspace: '',
+}
+
+const MODES: ComposerMode[] = ['standard', 'create', 'plan']
+const THINKS: ThinkIntensity[] = ['low', 'medium', 'high']
+const KBS: KnowledgeSeat[] = ['off', 'local', 'cloud']
+
+/** Cycle the mode chip without replacing the resident DSH mode control. */
+export function nextMode(current: string | undefined): ComposerMode {
+  const index = MODES.indexOf(current as ComposerMode)
+  return MODES[(index + 1) % MODES.length]!
+}
+
+/** Cycle think intensity. Default is medium. */
+export function nextThink(current: string | undefined): ThinkIntensity {
+  const index = THINKS.indexOf(current as ThinkIntensity)
+  return THINKS[(index + 1) % THINKS.length]!
+}
+
+/** Cycle the local/cloud knowledge seat. */
+export function nextKnowledge(current: string | undefined): KnowledgeSeat {
+  const index = KBS.indexOf(current as KnowledgeSeat)
+  return KBS[(index + 1) % KBS.length]!
+}
+
+/** Normalize a persisted mode. */
+export function parseMode(value: string | undefined): ComposerMode {
+  return MODES.includes(value as ComposerMode) ? value as ComposerMode : 'standard'
+}
+
+/** Normalize a persisted think intensity. */
+export function parseThink(value: string | undefined): ThinkIntensity {
+  return THINKS.includes(value as ThinkIntensity) ? value as ThinkIntensity : 'medium'
+}
+
+/** Normalize a persisted knowledge seat. */
+export function parseKnowledge(value: string | undefined): KnowledgeSeat {
+  return KBS.includes(value as KnowledgeSeat) ? value as KnowledgeSeat : 'off'
+}
+
+/** Rough token estimate shown beside the resident context meter. */
+export function estimateTokens(text: string): number {
+  return Math.ceil(Array.from(text ?? '').length / 4)
+}
+
+/** Classify a clipboard paste so the bar can coordinate with DSH attachments. */
+export function classifyClipboardPaste(types: readonly string[]): 'image' | 'text' | 'empty' {
+  if (types.some(item => item.startsWith('image/'))) return 'image'
+  if (types.some(item => item === 'text/plain' || item === 'text/html')) return 'text'
+  return 'empty'
+}
+
+const DM_MARKERS = [' · 单聊', ' · single chat']
+const GROUP_MARKERS = [' · 协作', ' · collaboration']
+
+/** Classify a session title for the AI-employee coordination chip. */
+export function classifyEmployeeTitle(title: string | undefined): 'none' | 'dm' | 'group' {
+  const value = title ?? ''
+  if (GROUP_MARKERS.some(marker => value.endsWith(marker))) return 'group'
+  if (DM_MARKERS.some(marker => value.endsWith(marker))) return 'dm'
+  return 'none'
+}
 
 /** Host schema ceiling for stored phrases. */
 export const SNIPPET_LIMIT = 50

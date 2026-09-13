@@ -1,11 +1,12 @@
-# @xyai/dsh-product-base — the XYAI Studio base product bundle.
+# @xyai/dsh-product-base - the XYAI Studio base product bundle.
 #
 # One patch layer mounting the five core local-capability plugins on top of
 # @deepseek-ai/dsh-web-app (browser and Desktop Host compositions both apply
 # this bundle after the built-in desktop bundle list). Collaboration
-# (ai-employees, agent-forge) and commercial plugins (online-auth, tenancy,
-# commerce) stay in their own bundles so an experimental-API or online-service
-# failure cannot take the base desktop down.
+# (ai-employees), commercial plugins (online-auth, tenancy, commerce), and
+# experimental Agent Forge stay in product-collab / product-online /
+# product-forge so an experimental-API or online-service failure cannot take
+# the base desktop down.
 
 - insert:
     - id: xyai-brand-pack

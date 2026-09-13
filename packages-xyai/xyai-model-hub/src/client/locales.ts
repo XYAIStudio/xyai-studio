@@ -95,6 +95,12 @@ export const en = {
   'plaza.unmountedKept': 'Unmounted. Original files kept.',
   'plaza.defaultUpdated': 'Default local model updated.',
   'plaza.cloudSaved': 'Credential flag saved. The key is never echoed.',
+  'plaza.ollamaPull': 'Ollama pull',
+  'plaza.ollamaTag': 'Ollama model name',
+  'plaza.ollamaTagHint': 'Pull a tag such as qwen2.5:7b. Already mounted models are not re-downloaded.',
+  'plaza.ollamaNeedRuntime': 'Start Ollama first, then pull.',
+  'plaza.noRedownload': 'Already mounted — no re-download.',
+
   'plaza.items': 'items',
 } as const
 
@@ -195,6 +201,12 @@ export const zh = {
   'plaza.unmountedKept': '已解除挂载，原文件保留',
   'plaza.defaultUpdated': '默认本地模型已更新',
   'plaza.cloudSaved': '已保存凭据状态；密钥不会回显。',
+  'plaza.ollamaPull': 'Ollama 拉取',
+  'plaza.ollamaTag': 'Ollama 模型名',
+  'plaza.ollamaTagHint': '拉取如 qwen2.5:7b 的标签。已挂载的模型不会重复下载。',
+  'plaza.ollamaNeedRuntime': '请先启动 Ollama 再拉取。',
+  'plaza.noRedownload': '已挂载，无需重复下载。',
+
   'plaza.items': '项',
 } as const
 

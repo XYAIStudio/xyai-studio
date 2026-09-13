@@ -69,6 +69,17 @@ pnpm run start:desktop
 
 Workspace 开发使用调用命令的 Node.js 运行当前 CLI 与私有 Desktop Host 包，并禁用桌面包修改；只有该模式明确链接的一次性 profile 可以从自身目录外解析 bundle。需要验证内置 Node.js、内置 pnpm、发布 seed、插件安装、staging 和 rollback 时，应运行未封装安装器的应用目录。
 
+
+## XYAI Studio 产品组装（叠加层）
+
+XYAI Studio = 官方 DSH Desktop + XYAI 插件组装，不是并行 Electron Host。
+
+- 显示名/产物：`productName` 为 `XYAI Studio`；产物名 `xyai-studio-...`。
+- 应用 ID：打包仍需反向 DNS 的 `DSH_DESKTOP_APP_ID`（建议 `com.xyaistudio.desktop`）。
+- 默认 seed 根：`@xyai/dsh-product-base` 与 `@xyai/dsh-product-collab`（`pack:xyai` / `prepare:packages` / `DESKTOP_PROFILE_BUNDLES`）。
+- 默认桌面不含：`product-online`（auth/tenancy/commerce）、`product-forge`（Agent Forge）。
+- 发布 QA：`docs/xyai/P6-DESKTOP-RELEASE-QA.md`。
+
 ## 打包
 
 正常打包只需执行一条完整命令。该命令会先准备发布资源，再生成宿主平台的安装包与更新元数据。所有目标都要求通过 `DSH_DESKTOP_APP_ID` 提供反向域名形式的应用 ID。macOS 目标还要求通过 `DSH_DESKTOP_MACOS_SIGNING_IDENTITY` 提供 electron-builder 证书限定名，通过 `DSH_DESKTOP_MACOS_TEAM_ID` 提供对应的 10 字符 Apple Team ID，并提供一套完整的 notarytool 凭据。App Store Connect API Key 方式使用以下变量：
