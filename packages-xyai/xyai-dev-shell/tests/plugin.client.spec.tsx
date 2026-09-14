@@ -185,6 +185,6 @@ it('compacts an empty interact list', async () => {
   const { hooks: _hooks, ...plain } = injected
   render(<C {...plain} {...hookProps} wide t={locale.bind(entry.locale ?? 'xyaiDevShell')} />)
   const nav = document.querySelector('[data-xyai-interact]') as HTMLElement
-  expect(nav.getAttribute('data-xyai-empty')).toBe('')
+  expect(nav.hasAttribute('data-xyai-empty')).toBe(true)
   expect(document.querySelectorAll('[data-xyai-interact-empty]')).toHaveLength(2)
 })

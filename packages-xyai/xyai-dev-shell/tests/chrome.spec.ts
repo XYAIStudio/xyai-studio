@@ -1,6 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import {
   advertiseXyaiSurface,
   canEmbedRemoteFrames,
@@ -46,10 +45,9 @@ it('stacks footer product-nav without hashed CSS-module class names', () => {
 })
 
 it('surface plugins advertise the attributes ProductNav watches', () => {
-  const root = fileURLToPath(new URL('../../..', import.meta.url))
-  const model = readFileSync(`${root}/packages-xyai/xyai-model-hub/src/client/index.ts`, 'utf8')
-  const knowledge = readFileSync(`${root}/packages-xyai/xyai-knowledge/src/client/plugin.tsx`, 'utf8')
-  const employees = readFileSync(`${root}/packages-xyai/xyai-ai-employees/src/client/plugin.tsx`, 'utf8')
+  const model = readFileSync('packages-xyai/xyai-model-hub/src/client/index.ts', 'utf8')
+  const knowledge = readFileSync('packages-xyai/xyai-knowledge/src/client/plugin.tsx', 'utf8')
+  const employees = readFileSync('packages-xyai/xyai-ai-employees/src/client/plugin.tsx', 'utf8')
   expect(model).toContain("setAttribute('data-xyai-surface-models'")
   expect(knowledge).toContain("setAttribute('data-xyai-surface-knowledge'")
   expect(employees).toContain("setAttribute('data-xyai-surface-employees'")
