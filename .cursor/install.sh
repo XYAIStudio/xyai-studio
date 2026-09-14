@@ -18,6 +18,11 @@ if [ "$need_node" -eq 1 ]; then
   sudo apt-get install -y nodejs
 fi
 
+# The Cursor exec sandbox can place its own older `/exec-daemon/node` ahead of
+# the system Node in PATH. Put the NodeSource install (/usr/bin) first so the
+# rest of this script and its child processes run on Node 24.
+export PATH="/usr/bin:$PATH"
+
 # pnpm is pinned by package.json "packageManager"; Corepack provides it.
 sudo corepack enable
 
