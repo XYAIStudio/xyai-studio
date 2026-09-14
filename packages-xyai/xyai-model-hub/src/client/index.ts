@@ -178,4 +178,10 @@ export function apply(ctx: Context): void {
     const hub = (snapshot.value ?? defaultModelHub) as ModelHub
     return React.createElement(ModelPlaza, { call: props.call as PlazaCall, t: props.t, hub })
   }))
+
+  ctx.effect(() => {
+    if (typeof document === 'undefined') return () => {}
+    document.documentElement.setAttribute('data-xyai-surface-models', '')
+    return () => document.documentElement.removeAttribute('data-xyai-surface-models')
+  }, 'xyai-model-hub: surface flag')
 }

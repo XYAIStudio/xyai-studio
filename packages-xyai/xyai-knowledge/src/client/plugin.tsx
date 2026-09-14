@@ -36,6 +36,11 @@ export function apply(ctx:Context):void{
  ctx.slots.inject('settings.section',()=>ctx.slots.register({name:'settings.section',id:'xyai-knowledge',locale:'xyaiKnowledge',label:()=>ctx.locale.bind('xyaiKnowledge')('title'),order:125},function KnowledgeSettings(props){return <KnowledgePage call={call} t={props.t} listDirectory={listDirectory}/>}))
  ctx.slots.inject('conversation.view',()=>ctx.slots.register({name:'conversation.view',id:'xyai-knowledge',locale:'xyaiKnowledge',label:()=>ctx.locale.bind('xyaiKnowledge')('title'),order:45},function KnowledgeView(props){return <KnowledgePage call={call} t={props.t} listDirectory={listDirectory}/>}))
  ctx.slots.inject('shell.overlay',()=>ctx.slots.register({name:'shell.overlay',id:'xyai-knowledge',locale:'xyaiKnowledge',order:45},function KnowledgeOverlay(props){const [opened,setOpened]=useState(false);useEffect(()=>{const open=()=>setOpened(true);window.addEventListener('xyai:open-knowledge',open);return()=>window.removeEventListener('xyai:open-knowledge',open)},[]);if(!opened)return null;return <section role="dialog" aria-label={props.t('title')} style={{position:'fixed',inset:0,zIndex:85,overflow:'auto',background:'var(--dsw-alias-bg-base,white)'}}><button type="button" onClick={()=>setOpened(false)}>{props.t('close')}</button><KnowledgePage call={call} t={props.t} listDirectory={listDirectory}/></section>}))
+ ctx.effect(()=>{
+  if(typeof document==='undefined')return()=>{}
+  document.documentElement.setAttribute('data-xyai-surface-knowledge','')
+  return()=>document.documentElement.removeAttribute('data-xyai-surface-knowledge')
+ },'xyai-knowledge: surface flag')
 }
 
 

@@ -38,7 +38,7 @@ kind: "package-reference"
   name: '@xyai/dsh-ai-employees'
 ```
 
-本包没有插件配置字段。它需要 Host 侧的 `connection`、`settings`、`agents` 和 `agentTeams` 服务；浏览器半需要插槽、语言、连接和 Session 控制器。XYAI Profile 提供这些依赖。
+本包没有插件配置字段。它需要 Host 侧的 `connection`、`settings` 和 `agents` 服务；浏览器半需要插槽、语言、连接和 Session 控制器。队友拉起、邮箱和任务 RPC 需要 Host `agentTeams`，该服务缺失时以明确错误拒绝。XYAI Web Profile 提供 Agent Teams；桌面种子不提供。
 
 -----
 
@@ -48,7 +48,7 @@ kind: "package-reference"
 <details>
 <summary>实现内部——点击展开</summary>
 
-Host 把员工库、草稿版本和单聊绑定存入 `xyai-ai-team` 设置命名空间。Connection RPC 校验浏览器载荷，并把队友、邮箱和任务操作委托给 `ctx.agentTeams`。浏览器注册完整的对话 View、打开协作对话框的输入框入口，以及团队感知的改名控件。
+Host 把员工库、草稿版本和单聊绑定存入 `xyai-ai-team` 设置命名空间。Connection RPC 校验浏览器载荷，并在存在 `agentTeams` 时把队友、邮箱和任务操作委托给它。浏览器注册完整的对话 View、打开协作对话框的输入框入口，以及团队感知的改名控件。
 
 | 文件 | 用途 |
 |---|---|
@@ -92,6 +92,7 @@ Host 把员工库、草稿版本和单聊绑定存入 `xyai-ai-team` 设置命�
 - 例行任务仍是员工配置；本包不注册调度器任务。
 - 市场安装和线上员工同步需要所属的商业或线上适配器。
 - 当绑定的 Session 仍在浏览器 Session 列表中时才复用单聊；删除 Session 后，下次启动会创建新的绑定目标。
+- 队友拉起、邮箱和任务操作需要 Host `agentTeams`；桌面种子省略实验性 Agent Teams 时这些操作会被拒绝。
 - 本包不发布 `./invariant`，因为 Loader 组合测试和 DSH 注册表直接观测每项自有注册。
 
 <a id="dev-note"></a>

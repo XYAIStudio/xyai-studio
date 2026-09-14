@@ -22,6 +22,9 @@ const MAX_DOCUMENT_BYTES = 1_000_000
 const MAX_EMPLOYEES_PER_TEAM = 6
 const MAX_OUTCOMES = 200
 
+/** Thrown when team spawn/send/task RPC runs without a Host Agent Teams service. */
+export const AGENT_TEAMS_UNAVAILABLE = 'Agent Teams is not available on this Host'
+
 const defaults = (instructions: string, knowledge: string[], tools: string[]): EmployeeSettings => ({
   instructions,
   memory: '',
@@ -140,9 +143,27 @@ export class AiTeamBackend {
   private readonly section: SettingsScope<AiTeamSection>
   private writes: Promise<void> = Promise.resolve()
 
-  /** @param ctx - Host context providing settings, live agents, and Agent Teams. */
+  /** @param ctx - Host context providing settings, live agents, and optional Agent Teams. */
   constructor(private readonly ctx: Context) {
     this.section = ctx.settings.register('xyai-ai-team', sectionSchema)
+  }
+
+  private agentTeams() {
+    let teams: Context['agentTeams'] | undefined
+    if (typeof this.ctx.get === 'function') {
+      teams = this.ctx.get('agentTeams') as Context['agentTeams'] | undefined
+    }
+    if (teams === undefined) {
+      try {
+        teams = this.ctx.agentTeams
+      } catch {
+        // Host did not provide Agent Teams; employee library RPC still runs.
+      }
+    }
+    if (teams === undefined || typeof teams.listMembers !== 'function') {
+      throw new Error(AGENT_TEAMS_UNAVAILABLE)
+    }
+    return teams
   }
 
   /** Dispatch one validated browser request. */
@@ -245,7 +266,8 @@ export class AiTeamBackend {
 
   private teamView(payload: unknown) {
     const agent = this.agent(payload)
-    return { members: this.ctx.agentTeams.listMembers(agent), tasks: this.ctx.agentTeams.listTasks(agent) }
+    const teams = this.agentTeams()
+    return { members: teams.listMembers(agent), tasks: teams.listTasks(agent) }
   }
 
   private async start(payload: unknown): Promise<TeamStartResult> {
@@ -256,7 +278,8 @@ export class AiTeamBackend {
     const context = fields.context === 'fork' ? 'fork' : 'fresh'
     const library = this.library()
     const byId = new Map(library.employees.map(employee => [employee.id, employee]))
-    const existingNames = new Set(this.ctx.agentTeams.listMembers(agent).map(member => member.name))
+    const teams = this.agentTeams()
+    const existingNames = new Set(teams.listMembers(agent).map(member => member.name))
     const result: TeamStartResult = { started: [], existing: [], failed: [] }
     for (const id of ids) {
       const employee = byId.get(id)
@@ -265,7 +288,7 @@ export class AiTeamBackend {
       const settings = employee.published
       const prompt = [settings.instructions, settings.memory && `项目记忆：\n${settings.memory}`, settings.skills.length > 0 && `优先技能：${settings.skills.join('、')}`, settings.routines.length > 0 && `例行职责：${settings.routines.join('；')}`, settings.integrations.length > 0 && `可用集成：${settings.integrations.join('、')}`].filter(Boolean).join('\n\n')
       try {
-        await this.ctx.agentTeams.spawnTeammate(agent, { name: employee.id, description: employee.description, prompt: [{ type: 'text', text: prompt }], context, provider: context === 'fork' ? 'fork' : 'spawn', signal: AbortSignal.timeout(60_000) })
+        await teams.spawnTeammate(agent, { name: employee.id, description: employee.description, prompt: [{ type: 'text', text: prompt }], context, provider: context === 'fork' ? 'fork' : 'spawn', signal: AbortSignal.timeout(60_000) })
         result.started.push(id); existingNames.add(employee.id)
       } catch (error) { result.failed.push({ employeeId: id, message: error instanceof Error ? error.message : String(error) }) }
     }
@@ -274,12 +297,12 @@ export class AiTeamBackend {
 
   private async send(payload: unknown) {
     const fields = fieldsOf(payload)
-    return await this.ctx.agentTeams.sendMessage(this.agent(payload), { target: requiredString(fields, 'target', 80), content: [{ type: 'text', text: requiredString(fields, 'message', 65_000) }], signal: AbortSignal.timeout(30_000) })
+    return await this.agentTeams().sendMessage(this.agent(payload), { target: requiredString(fields, 'target', 80), content: [{ type: 'text', text: requiredString(fields, 'message', 65_000) }], signal: AbortSignal.timeout(30_000) })
   }
 
   private async createTask(payload: unknown) {
     const fields = fieldsOf(payload)
-    return await this.ctx.agentTeams.createTask(this.agent(payload), { subject: requiredString(fields, 'subject', 200), description: requiredString(fields, 'description', 4_000), writeScopes: strings(fields.writeScopes ?? [], 'writeScopes') })
+    return await this.agentTeams().createTask(this.agent(payload), { subject: requiredString(fields, 'subject', 200), description: requiredString(fields, 'description', 4_000), writeScopes: strings(fields.writeScopes ?? [], 'writeScopes') })
   }
 
   private async updateTask(payload: unknown) {
@@ -293,7 +316,7 @@ export class AiTeamBackend {
       action: action as typeof allowed[number],
       ...(action === 'edit' ? { subject: requiredString(fields, 'subject', 200), description: requiredString(fields, 'description', 4_000) } : {}),
     }
-    return await this.ctx.agentTeams.updateTask(this.agent(payload), request)
+    return await this.agentTeams().updateTask(this.agent(payload), request)
   }
 
   private outcomes(payload: unknown): TeamOutcome[] {
@@ -341,8 +364,8 @@ export class AiTeamBackend {
   }
 }
 
-/** Services required for employee persistence and executable team operations. */
-export const inject = ['connection', 'settings', 'agents', 'agentTeams']
+/** Services required for employee persistence. Agent Teams is optional at load. */
+export const inject = ['connection', 'settings', 'agents']
 
 /** Register the AI Team RPC channel on the plugin lifetime. */
 export function apply(ctx: Context): void {

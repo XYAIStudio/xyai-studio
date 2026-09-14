@@ -8,6 +8,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { BRAND_FIELDS, defaultBrand, MAX_ICP_LENGTH, MAX_LOGO_DATAURL, MAX_SITES_LENGTH, type Brand } from '../brand.ts'
+import { HERO_LAYOUT_CSS } from './hero-layout.ts'
 import { en, zh, type XyaiBrandKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -337,29 +338,19 @@ export function apply(ctx: Context): void {
       tag = document.createElement('style')
       tag.dataset.plugin = '@xyai/dsh-brand-pack'
       tag.dataset.pluginCss = tagId
-      tag.textContent = [
-        /* Escape DSH HeroShell 34px mark column so welcome can lay out horizontally. */
-        '.pXSMma_headline:has([data-xyai-hero-welcome]){display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-width:0;grid-template-columns:unset;column-gap:0;position:relative}',
-        '.pXSMma_headline:has([data-xyai-hero-welcome]) .pXSMma_fishHitbox{display:flex;width:100%;min-width:0;max-width:100%;justify-content:center;align-items:center}',
-        '.pXSMma_headline:has([data-xyai-hero-welcome]) .pXSMma_headlineText,',
-        '.pXSMma_headline:has([data-xyai-hero-welcome]) .pXSMma_previewBadge{display:none!important}',
-        '[data-xyai-hero-welcome]{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;min-width:280px;max-width:640px;margin:0 auto;padding:4px 16px 8px;box-sizing:border-box;text-align:center;writing-mode:horizontal-tb;white-space:normal;word-break:normal;overflow-wrap:break-word}',
-        '[data-xyai-hero-welcome] [data-xyai-hero-kicker]{font-size:12px;letter-spacing:0.12em;opacity:0.75;white-space:nowrap}',
-        '[data-xyai-hero-welcome] [data-xyai-hero-title]{font-size:22px;line-height:1.3;font-weight:800}',
-        '[data-xyai-hero-welcome] [data-xyai-hero-slogan]{display:block;font-size:13.5px;line-height:1.8;opacity:0.85;max-width:560px;white-space:normal;word-break:normal}',
-      ].join('')
+      tag.textContent = HERO_LAYOUT_CSS
       document.head.appendChild(tag)
     }
     return () => { tag?.remove() }
   }, 'xyai-brand: hero layout css')
   ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register({
-    name: 'conversation.hero.brand.mark', inject: face,
+    name: 'conversation.hero.brand.mark', locale: 'xyaiBrand', inject: face,
   }, props => {
     const brand = props.useBrand(s => s.value ?? defaultBrand)
     return (
       <span data-xyai-hero-welcome title={brand.vision || brand.name}>
         <BrandMark brand={brand} size={120} />
-        <span data-xyai-hero-kicker style={{ color: brand.accent }}>桌面开发工作台</span>
+        <span data-xyai-hero-kicker style={{ color: brand.accent }}>{props.t('brand.heroKicker')}</span>
         <strong data-xyai-hero-title style={{ color: brand.accent }}>{brand.name}</strong>
         {brand.vision
           ? <small data-xyai-hero-slogan>{brand.vision}</small>

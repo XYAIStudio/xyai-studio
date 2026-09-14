@@ -29,6 +29,7 @@ None; this package neither assembles nor sends a provider request.
 ## Known Limitations and Deferred Work
 
 - **Writable settings required** — brand editing is disabled on connections without a writable Host settings scope.
+- **Hero layout uses data attributes** — welcome CSS targets `[data-xyai-hero-welcome]` and hides the adjacent official headline group; hashed CSS-module class names are not selectors.
 - **Per-tenant branding not provided** — tenant-isolated brand provisioning belongs to the `xyai-tenancy` seam.
 - **Body text color is single-valued** — when set it applies to both light and dark themes; leave empty to keep the theme defaults.
 - **No `./invariant`** — slot ownership and settings validation are owned by their DSH services; this package owns no independently diverging runtime observations.

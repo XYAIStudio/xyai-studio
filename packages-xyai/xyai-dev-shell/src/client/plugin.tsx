@@ -1,5 +1,5 @@
 /** XYAI shell chrome: space router, product navigation, and theme over DSH slots. */
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -15,6 +15,13 @@ import {
   isWorkbenchMisland,
   partitionInteractSessions,
 } from './interact.ts'
+import {
+  canEmbedRemoteFrames,
+  isXyaiSurfaceMounted,
+  SHELL_CHROME_CSS,
+  watchXyaiSurfaces,
+  type XyaiSurfaceId,
+} from './chrome.ts'
 import { en, zh, type XyaiDevShellKey } from './locales.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -80,13 +87,14 @@ const navBtn = (active: boolean, ready: boolean): CSSProperties => ({
   appearance: 'none',
   border: 'none',
   background: active ? 'rgba(21,101,192,0.14)' : 'transparent',
-  color: ready ? 'inherit' : 'rgba(0,0,0,0.55)',
+  color: ready ? 'inherit' : 'rgba(0,0,0,0.45)',
   textAlign: 'left',
   padding: '6px 10px',
   borderRadius: 8,
   fontSize: 12,
-  cursor: 'pointer',
+  cursor: ready ? 'pointer' : 'not-allowed',
   width: '100%',
+  opacity: ready ? 1 : 0.55,
 })
 
 const fullView: CSSProperties = {
@@ -261,6 +269,50 @@ function normalizeBrowserUrl(raw: string): string {
 
 type TProps = { t: (key: XyaiDevShellKey) => string }
 
+/** In-shell panel when Electron `dsh-app:` cannot host a remote https iframe. */
+function DesktopBlockedSurface(props: TProps & {
+  url: string
+  title: string
+  onClose?: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(props.url)
+      setCopied(true)
+    } catch {
+      // Clipboard may be denied; the address field stays selectable.
+    }
+  }
+  return (
+    <div data-xyai-shell-view="desktop-blocked" style={{ ...fullView, display: 'flex', flexDirection: 'column', background: '#0f172a' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'rgba(15,23,42,0.92)', color: '#e2e8f0', borderBottom: '1px solid rgba(148,163,184,0.25)' }}>
+        <strong style={{ fontSize: 12 }}>{props.title}</strong>
+        <span style={{ flex: 1 }} />
+        {props.onClose && (
+          <button type="button" onClick={props.onClose} style={{ appearance: 'none', border: '1px solid rgba(148,163,184,0.45)', background: 'transparent', color: '#e2e8f0', borderRadius: 999, padding: '4px 12px', cursor: 'pointer', fontSize: 12 }}>
+            {props.t('shell.about.close')}
+          </button>
+        )}
+      </div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, color: '#e2e8f0' }}>
+        <div style={{ maxWidth: 480, width: '100%', textAlign: 'center' }}>
+          <p style={{ margin: '0 0 14px', lineHeight: 1.6 }}>{props.t('shell.embed.desktopBlocked')}</p>
+          <input
+            readOnly
+            aria-label={props.t('shell.embed.copyUrl')}
+            value={props.url}
+            style={{ width: '100%', boxSizing: 'border-box', marginBottom: 12, borderRadius: 8, border: '1px solid rgba(148,163,184,0.35)', background: 'rgba(30,41,59,0.9)', color: '#e2e8f0', padding: '8px 10px', fontSize: 12 }}
+          />
+          <button type="button" onClick={() => { void copy() }} style={{ appearance: 'none', border: 'none', borderRadius: 8, padding: '8px 14px', background: '#1565c0', color: '#fff', cursor: 'pointer' }}>
+            {copied ? props.t('shell.embed.copied') : props.t('shell.embed.copyUrl')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** Iframe embed with loading + offline fallback (never empty ready:false). */
 function EmbedSurface(props: TProps & {
   url: string
@@ -280,6 +332,10 @@ function EmbedSurface(props: TProps & {
     }, 10_000)
     return () => window.clearTimeout(timer)
   }, [props.url, nonce])
+
+  if (!canEmbedRemoteFrames()) {
+    return <DesktopBlockedSurface t={props.t} url={props.url} title={props.title} onClose={props.onClose} />
+  }
 
   return (
     <div data-xyai-shell-view="embed" style={{ ...fullView, display: 'flex', flexDirection: 'column', background: '#0f172a' }}>
@@ -369,6 +425,10 @@ function BrowserChrome(props: TProps & { onClose: () => void }) {
   }
   const home = () => navigate(BROWSER_HOME, true)
 
+  if (!canEmbedRemoteFrames()) {
+    return <DesktopBlockedSurface t={props.t} url={url} title={props.t('shell.space.browser')} onClose={props.onClose} />
+  }
+
   return (
     <div data-xyai-shell-view="browser" style={{ ...fullView, display: 'flex', flexDirection: 'column', background: '#0f172a' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', background: 'rgba(15,23,42,0.96)', borderBottom: '1px solid rgba(148,163,184,0.25)' }}>
@@ -423,11 +483,10 @@ export function apply(ctx: Context): void {
       tag.dataset.plugin = '@xyai/dsh-dev-shell'
       tag.dataset.pluginCss = tagId
       tag.textContent = [
-        'div:has(>[data-slot="sidebar.footer.action"]>[data-xyai-product-nav]){flex:0 0 auto!important;flex-direction:column!important;align-items:stretch!important;width:100%!important;min-width:0!important;height:auto!important}',
+        SHELL_CHROME_CSS,
         '[data-xyai-product-nav]{width:100%;min-width:0;flex:0 0 auto;box-sizing:border-box;pointer-events:auto;overflow:hidden;border-top:1px solid rgba(80,95,120,.12);padding-top:8px!important}',
         'div:has(>[data-slot="sidebar.footer.action"]>[data-xyai-product-nav="collapsed"]){gap:4px!important}',
-        '[data-shell-overlay]>[data-xyai-space-bar], [data-xyai-space-bar]{pointer-events:none!important}',
-        '[data-xyai-space-bar] nav, [data-xyai-space-bar] [data-xyai-shell-view], [data-xyai-space-bar] button, [data-xyai-space-bar] a, [data-xyai-space-bar] input, [data-xyai-space-bar] form{pointer-events:auto!important}',
+        '[data-xyai-space-bar],[data-xyai-shell-view]{pointer-events:auto}',
         '[data-xyai-shell-view] iframe{border:0;width:100%;height:100%;background:transparent}',
         '[data-xyai-collapsed-nav]{display:grid;gap:4px;width:100%}',
       ].join('')
@@ -533,11 +592,8 @@ export function apply(ctx: Context): void {
         : props.t('shell.theme.system')
 
     return (
-      <div
-        data-xyai-space-bar
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 30, pointerEvents: 'none', height: 0, overflow: 'visible' }}
-      >
-        <nav aria-label={props.t('shell.topbar')} style={{ ...glassBar, pointerEvents: 'auto' }}>
+      <Fragment>
+        <nav data-xyai-space-bar aria-label={props.t('shell.topbar')} style={{ ...glassBar, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50, pointerEvents: 'auto' }}>
           <strong style={{ fontSize: 13, marginRight: 8 }}>XYAI Studio</strong>
           {SPACES.map(item => (
             <button
@@ -615,8 +671,7 @@ export function apply(ctx: Context): void {
             <iframe title={props.t('shell.space.about')} srcDoc={aboutHtml} />
           </div>
         )}
-
-      </div>
+      </Fragment>
     )
   }))
 
@@ -624,8 +679,22 @@ export function apply(ctx: Context): void {
     name: 'sidebar.footer.action', id: 'xyai-product-nav', order: 5, locale: 'xyaiDevShell', inject: navigation,
   }, function ProductNav(props) {
     const [nav, setNav] = useState<NavId | null>(null)
+    const [mounted, setMounted] = useState<Record<XyaiSurfaceId, boolean>>(() => ({
+      models: isXyaiSurfaceMounted('models'),
+      employees: isXyaiSurfaceMounted('employees'),
+      knowledge: isXyaiSurfaceMounted('knowledge'),
+    }))
 
-    const runNav = (id: NavId) => {
+    useEffect(() => watchXyaiSurfaces(() => {
+      setMounted({
+        models: isXyaiSurfaceMounted('models'),
+        employees: isXyaiSurfaceMounted('employees'),
+        knowledge: isXyaiSurfaceMounted('knowledge'),
+      })
+    }), [])
+
+    const runNav = (id: NavId, ready: boolean) => {
+      if (!ready) return
       setNav(id)
       window.dispatchEvent(new CustomEvent('xyai:shell-nav', { detail: { id, ready: true } }))
       if (id === 'models') {
@@ -636,19 +705,22 @@ export function apply(ctx: Context): void {
         window.dispatchEvent(new CustomEvent('xyai:open-ai-collaboration'))
         return
       }
-      // Knowledge opens its owning surface through xyai:shell-nav.
+      // Knowledge opens its owning overlay through xyai:shell-nav.
     }
+
+    const items = NAV.map(item => ({ ...item, ready: mounted[item.id] }))
 
     if (!props.wide) {
       return (
         <div data-xyai-product-nav="collapsed" data-xyai-collapsed-nav>
-          {NAV.map(item => (
+          {items.map(item => (
             <button
               key={item.id}
               type="button"
               data-xyai-nav={item.id}
-              title={props.t(item.key)}
-              aria-label={props.t(item.key)}
+              disabled={!item.ready}
+              title={item.ready ? props.t(item.key) : props.t('shell.nav.unavailable')}
+              aria-label={item.ready ? props.t(item.key) : props.t('shell.nav.unavailable')}
               style={{
                 appearance: 'none',
                 border: nav === item.id ? '1px solid rgba(21,101,192,0.55)' : '1px solid rgba(21,101,192,0.2)',
@@ -656,10 +728,11 @@ export function apply(ctx: Context): void {
                 borderRadius: 8,
                 padding: '6px 0',
                 fontSize: 11,
-                cursor: 'pointer',
+                cursor: item.ready ? 'pointer' : 'not-allowed',
                 width: '100%',
+                opacity: item.ready ? 1 : 0.45,
               }}
-              onClick={() => runNav(item.id)}
+              onClick={() => runNav(item.id, item.ready)}
             >
               {props.t(item.key).slice(0, 1)}
             </button>
@@ -669,14 +742,15 @@ export function apply(ctx: Context): void {
     }
     return (
       <nav data-xyai-product-nav aria-label={props.t('shell.productNav')} style={{ display: 'grid', gap: 2, width: '100%', padding: '4px 0', pointerEvents: 'auto' }}>
-        {NAV.map(item => (
+        {items.map(item => (
           <button
             key={item.id}
             type="button"
             data-xyai-nav={item.id}
+            disabled={!item.ready}
             style={navBtn(nav === item.id, item.ready)}
-            title={props.t(item.key)}
-            onClick={() => runNav(item.id)}
+            title={item.ready ? props.t(item.key) : props.t('shell.nav.unavailable')}
+            onClick={() => runNav(item.id, item.ready)}
           >
             {props.t(item.key)}
           </button>
@@ -794,7 +868,7 @@ export function apply(ctx: Context): void {
     const renderList = (title: string, items: typeof dm) => (
       <div style={{ display: 'grid', gap: 4 }}>
         <strong style={{ fontSize: 11, opacity: 0.7 }}>{title}</strong>
-        {items.length === 0 && <small style={{ opacity: 0.65 }}>{props.t('shell.interact.empty')}</small>}
+        {items.length === 0 && <small data-xyai-interact-empty style={{ opacity: 0.65 }}>{props.t('shell.interact.empty')}</small>}
         {items.map(item => (
           <div key={item.id} data-xyai-interact-row={item.kind} style={{ display: 'grid', gap: 4 }}>
             {renaming === item.id ? (
@@ -839,8 +913,10 @@ export function apply(ctx: Context): void {
       )
     }
 
+    const empty = dm.length === 0 && group.length === 0
+
     return (
-      <nav data-xyai-interact aria-label={props.t('shell.interact')} style={{ display: 'grid', gap: 10, width: '100%', padding: '6px 0', pointerEvents: 'auto' }}>
+      <nav data-xyai-interact data-xyai-empty={empty || undefined} aria-label={props.t('shell.interact')} style={{ display: 'grid', gap: 10, width: '100%', padding: '6px 0', pointerEvents: 'auto' }}>
         <strong style={{ fontSize: 12 }}>{props.t('shell.interact')}</strong>
         {renderList(props.t('shell.interact.dm'), dm)}
         {renderList(props.t('shell.interact.group'), group)}
