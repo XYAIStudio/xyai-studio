@@ -38,7 +38,7 @@ Choose this plugin when an XYAI desktop profile already composes DSH Agent Teams
   name: '@xyai/dsh-ai-employees'
 ```
 
-This package has no plugin config fields. It requires the `connection`, `settings`, `agents`, and `agentTeams` Host services; the browser half requires slots, locale, connection, and Session controllers. The XYAI profile supplies these dependencies.
+This package has no plugin config fields. It requires the `connection`, `settings`, and `agents` Host services; the browser half requires slots, locale, connection, and Session controllers. Team spawn, mailbox, and task RPC need Host `agentTeams` and refuse with a clear error when that service is absent. The XYAI web profile supplies Agent Teams; the desktop seed does not.
 
 -----
 
@@ -48,7 +48,7 @@ This package has no plugin config fields. It requires the `connection`, `setting
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host stores the employee library, draft revisions, and single-chat bindings in the `xyai-ai-team` settings namespace. Its Connection RPC validates browser payloads and delegates teammate, mailbox, and task operations to `ctx.agentTeams`. The browser registers a full conversation View, a composer entry that opens the collaboration dialog, and a team-aware rename control.
+The Host stores the employee library, draft revisions, and single-chat bindings in the `xyai-ai-team` settings namespace. Its Connection RPC validates browser payloads and, when `agentTeams` is present, delegates teammate, mailbox, and task operations to it. The browser registers a full conversation View, a composer entry that opens the collaboration dialog, and a team-aware rename control.
 
 | File | Purpose |
 |---|---|
@@ -92,6 +92,7 @@ Stable published employee instructions remain at the front of a fresh teammate S
 - Scheduled routines remain employee configuration; this package does not register a scheduler job.
 - Marketplace installation and online employee synchronization require their owning commerce or online adapters.
 - Single-chat reuse applies while the bound Session remains in the browser Session list; a deleted Session creates a new binding target on the next start.
+- Team spawn, mailbox, and task operations require Host `agentTeams` and refuse when the desktop seed omits experimental Agent Teams.
 - The package publishes no `./invariant` because Loader composition tests and the DSH registries directly observe every owned registration.
 
 <a id="dev-note"></a>

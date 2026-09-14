@@ -1,6 +1,7 @@
 /** Brand editor translations. */
 export const en = {
   "brand.page": "Brand",
+  "brand.heroKicker": "Desktop development workspace",
   "brand.name": "Brand name",
   "brand.initials": "Brand initials",
   "brand.accent": "Accent color",
@@ -30,6 +31,7 @@ export const en = {
 /** Simplified-Chinese dictionary for the same key set. */
 export const zh = {
   "brand.page": "品牌",
+  "brand.heroKicker": "桌面开发工作台",
   "brand.name": "品牌名称",
   "brand.initials": "品牌标识文字",
   "brand.accent": "强调色",

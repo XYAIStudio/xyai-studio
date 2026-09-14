@@ -1,6 +1,6 @@
 # Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write packages/client/xyai-brand-pack/README.md
-README.md: 69e3854423a2493e084f601ebf5095196719cc30
-README.zh.md: 5ebc7061b4ed438ae141daa55b203b4a328a4bcd
+#   pnpm run verify-translation-pairing --write packages-xyai/xyai-brand-pack/README.md
+README.md: 7f73b76a1eb2c58794bba50a468583ea703e1257
+README.zh.md: a1de37a4f6f19469c5e05136410d1d8d4e45fb1e

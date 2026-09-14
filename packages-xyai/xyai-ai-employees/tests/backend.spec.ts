@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { AiTeamBackend } from '../lib/index.js'
+import { AGENT_TEAMS_UNAVAILABLE, AiTeamBackend } from '../src/index.ts'
 import type { AiTeamAnswer, EmployeeLibrary, TeamOutcome } from '../src/protocol.ts'
 
 function bench() {
@@ -93,5 +93,23 @@ describe('AiTeamBackend', () => {
     const accepted = await value<TeamOutcome>(b.backend.dispatch('outcomes/update', { sessionId: 'lead', outcomeId: created.id, expectedRevision: 3, action: 'accept' }))
     expect(accepted).toMatchObject({ revision: 4, status: 'accepted' })
     expect(await value<TeamOutcome[]>(b.backend.dispatch('outcomes/list', { sessionId: 'lead' }))).toEqual([accepted])
+  })
+
+  it('serves the employee library without Agent Teams and refuses team operations', async () => {
+    let section: { revision?: number; employeesJson?: string; outcomesJson?: string } = {}
+    const lead = { id: 'lead' }
+    const backend = new AiTeamBackend({
+      settings: { register: vi.fn(() => ({ get: () => section, replace: vi.fn(), update: vi.fn(async (next: object) => { section = { ...section, ...next } }) })) },
+      agents: { get: vi.fn((id: string) => id === 'lead' ? lead : undefined) },
+    } as never)
+    const library = await value<EmployeeLibrary>(backend.dispatch('employees/list', null))
+    expect(library.employees).toHaveLength(6)
+    const started = await backend.dispatch('team/start', { sessionId: 'lead', employeeIds: ['architect'], context: 'fork' })
+    expect(started.ok).toBe(true)
+    if (!started.ok) throw new Error(started.error.message)
+    const answer = started.value as AiTeamAnswer
+    expect(answer.ok).toBe(false)
+    if (answer.ok) throw new Error('expected refusal')
+    expect(answer.error.message).toBe(AGENT_TEAMS_UNAVAILABLE)
   })
 })

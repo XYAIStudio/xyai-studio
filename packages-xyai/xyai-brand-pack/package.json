@@ -33,7 +33,8 @@
   },
   "scripts": {
     "bundle": "tsdown",
-    "watch": "tsdown --watch"
+    "watch": "tsdown --watch",
+    "test": "vitest run --config vitest.config.ts"
   },
   "license": "MIT",
   "peerDependencies": {

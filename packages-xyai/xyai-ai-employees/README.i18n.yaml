@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages-xyai/xyai-ai-employees/README.md
-README.md: 90bc8a6a10f99b16d2983a523626bf5a73d2001b
-README.zh.md: 9e339e738a5f147113b6673f327f2eba75741df3
+README.md: 17cd99e7e59809b2b52cef259dfa32a8bd2c4088
+README.zh.md: 2b910e0907c196db36a724f4fb6b9a9ca44a2ea4

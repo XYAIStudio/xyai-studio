@@ -233,4 +233,9 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('conversation.view', () => ctx.slots.register({ name: 'conversation.view', id: 'xyai-ai-team', order: 35, locale: NS, label: () => ctx.locale.bind(NS)('view.title'), inject: shared }, function AiTeamView(props) { return <CollaborationSurface {...props} embedded sessionId={props.sessionId as string}/> }))
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({ name: 'conversation.input.left', id: 'xyai-ai-employee-picker', order: 10, locale: NS }, function PickerChip(props) { return <button type="button" className="xyt-chip" onClick={() => window.dispatchEvent(new CustomEvent('xyai:open-ai-collaboration'))}>{props.t('employee.pick')}</button> }))
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({ name: 'conversation.session.header.utilities', id: 'xyai-ai-team-rename', order: 15, locale: NS, inject: shared }, RenameGroup))
+  ctx.effect(() => {
+    if (typeof document === 'undefined') return () => {}
+    document.documentElement.setAttribute('data-xyai-surface-employees', '')
+    return () => document.documentElement.removeAttribute('data-xyai-surface-employees')
+  }, 'xyai-ai-employees: surface flag')
 }

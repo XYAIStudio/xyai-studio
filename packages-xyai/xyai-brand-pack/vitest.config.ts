@@ -8,13 +8,8 @@ export default defineConfig({
   root: repoRoot,
   plugins: [tsconfigPaths({ projects: [`${repoRoot.replace(/\\/g, '/')}/tsconfig.base.json`] })],
   resolve: { tsconfigPaths: true },
-  css: { modules: { classNameStrategy: 'non-scoped' } },
   test: {
-    environment: 'jsdom',
-    include: [
-      'packages-xyai/xyai-dev-shell/tests/interact.spec.ts',
-      'packages-xyai/xyai-dev-shell/tests/plugin.client.spec.tsx',
-      'packages-xyai/xyai-dev-shell/tests/chrome.spec.ts',
-    ],
+    environment: 'node',
+    include: ['packages-xyai/xyai-brand-pack/tests/hero-layout.spec.ts'],
   },
 })
