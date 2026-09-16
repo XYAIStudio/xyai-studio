@@ -42,28 +42,43 @@ function getHost(): CodexHost {
   return host;
 }
 
+/** Resolve preload; prefer asar.unpacked when electron-builder unpacks it. */
 function preloadPath(): string {
+  const appPath = app.getAppPath();
   const candidates = [
-    path.join(app.getAppPath(), 'preload.cjs'),
+    // unpacked sibling of app.asar
+    path.join(appPath + '.unpacked', 'preload.cjs'),
+    path.join(path.dirname(appPath), 'app.asar.unpacked', 'preload.cjs'),
+    path.join(appPath, 'preload.cjs'),
     path.join(moduleDir, 'preload.cjs'),
     path.join(moduleDir, '../preload/preload.cjs'),
   ];
   for (const c of candidates) {
-    if (existsSync(c)) return c;
+    try {
+      if (existsSync(c)) return c;
+    } catch {
+      /* ignore */
+    }
   }
-  return candidates[0]!;
+  // Last resort: path inside asar (Electron can still load it)
+  return path.join(appPath, 'preload.cjs');
 }
 
 function rendererIndex(): string {
+  const appPath = app.getAppPath();
   const candidates = [
-    path.join(app.getAppPath(), 'renderer', 'index.html'),
+    path.join(appPath, 'renderer', 'index.html'),
     path.join(moduleDir, 'renderer', 'index.html'),
     path.join(moduleDir, '../renderer', 'index.html'),
   ];
   for (const c of candidates) {
-    if (existsSync(c)) return c;
+    try {
+      if (existsSync(c)) return c;
+    } catch {
+      /* ignore */
+    }
   }
-  return candidates[0]!;
+  return path.join(appPath, 'renderer', 'index.html');
 }
 
 function buildMenu(): void {
@@ -87,9 +102,9 @@ function buildMenu(): void {
 function createWindow(): void {
   const preload = preloadPath();
   const indexHtml = rendererIndex();
+  console.log('[xyai] appPath=', app.getAppPath());
   console.log('[xyai] preload=', preload, 'exists=', existsSync(preload));
   console.log('[xyai] renderer=', indexHtml, 'exists=', existsSync(indexHtml));
-  console.log('[xyai] appPath=', app.getAppPath());
 
   mainWindow = new BrowserWindow({
     width: 960,
@@ -102,11 +117,24 @@ function createWindow(): void {
       preload,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      // Packaged preload + asar is unreliable with sandbox:true on Windows NSIS builds.
+      // Keep contextIsolation; revisit sandbox after asarUnpack is proven.
+      sandbox: false,
     },
   });
 
   void mainWindow.loadFile(indexHtml);
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    void mainWindow!.webContents
+      .executeJavaScript('typeof window.xyai + \"|\" + (window.xyai ? Object.keys(window.xyai).join(\",\") : \"\")')
+      .then((v) => console.log('[xyai] renderer bridge=', v))
+      .catch((e) => console.error('[xyai] bridge probe failed', e));
+  });
+
+  mainWindow.webContents.on('preload-error', (_event, preloadPathArg, error) => {
+    console.error('[xyai] preload-error', preloadPathArg, error);
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;

@@ -21,13 +21,13 @@ const shared = {
   external: ['electron'],
   sourcemap: false,
   logLevel: 'info',
-  banner: { js: 'var __xyai_module_dir = __dirname;' },
-};
+  };
 
 await esbuild.build({
   ...shared,
   entryPoints: [path.join(appRoot, 'src/main/main.ts')],
   outfile: path.join(outDir, 'main.cjs'),
+  banner: { js: 'var __xyai_module_dir = __dirname;' },
 });
 
 await esbuild.build({

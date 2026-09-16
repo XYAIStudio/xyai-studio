@@ -7,13 +7,14 @@ directories:
 files:
   - "**/*"
 asar: true
+asarUnpack:
+  - "**/preload.cjs"
 win:
   target:
     - target: nsis
       arch:
         - x64
   signAndEditExecutable: false
-  signingHashAlgorithms: null
 forceCodeSigning: false
 nsis:
   oneClick: false
