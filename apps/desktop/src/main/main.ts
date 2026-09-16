@@ -3,6 +3,7 @@
  */
 
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   app,
@@ -14,17 +15,40 @@ import {
 import type { AgentEvent } from '@xyai/contracts';
 import { CodexHost } from './codex-host.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+declare const __xyai_module_dir: string | undefined;
+
+function getModuleDir(): string {
+  if (typeof __xyai_module_dir === 'string' && __xyai_module_dir.length > 0) {
+    return __xyai_module_dir;
+  }
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+const moduleDir = getModuleDir();
 
 let mainWindow: BrowserWindow | null = null;
 const host = new CodexHost();
 
 function preloadPath(): string {
-  return path.join(__dirname, '../preload/preload.cjs');
+  // dist/main/main.js → ../preload; pack-out/main.cjs → ./preload
+  const candidates = [
+    path.join(moduleDir, 'preload.cjs'),
+    path.join(moduleDir, '../preload/preload.cjs'),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return candidates[0]!;
 }
 
 function rendererIndex(): string {
-  return path.join(__dirname, '../renderer/index.html');
+  const candidates = [
+    path.join(moduleDir, 'renderer/index.html'),
+    path.join(moduleDir, '../renderer/index.html'),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return candidates[0]!;
 }
 
 function buildMenu(): void {

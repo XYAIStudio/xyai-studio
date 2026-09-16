@@ -1,0 +1,24 @@
+appId: studio.xyai.desktop
+productName: XYAI Studio
+copyright: Copyright XYAI Studio
+directories:
+  output: release
+  app: pack-out
+files:
+  - "**/*"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  signAndEditExecutable: false
+  signingHashAlgorithms: null
+forceCodeSigning: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: XYAI Studio
+artifactName: XYAI-Studio-${version}-Setup-${arch}.${ext}
