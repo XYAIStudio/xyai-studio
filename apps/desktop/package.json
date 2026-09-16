@@ -1,0 +1,24 @@
+{
+  "name": "desktop",
+  "version": "0.5.0-dev",
+  "private": true,
+  "type": "module",
+  "main": "./dist/smoke.js",
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "smoke": "tsx src/smoke.ts"
+  },
+  "dependencies": {
+    "@xyai/core": "workspace:*",
+    "@xyai/adapter-codex": "workspace:*",
+    "@xyai/xyos-bridge": "workspace:*",
+    "@xyai/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "tsx": "^4.19.2",
+    "@types/node": "^22.13.4"
+  }
+}

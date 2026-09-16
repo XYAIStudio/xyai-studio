@@ -1,0 +1,50 @@
+{
+  "productVersion": "0.5.0",
+  "profileId": "0.5.0-dev.example",
+  "harnesses": [
+    {
+      "id": "codex",
+      "adapter": "adapter-codex",
+      "enabled": true,
+      "version": "mock",
+      "pinnedBinaryNote": "MOCK only — real Codex binary not wired; do not download from this repo"
+    }
+  ],
+  "modules": [
+    {
+      "id": "conversation",
+      "enabled": true,
+      "note": "M1 thin shell + Codex conversation path"
+    },
+    {
+      "id": "model-catalog",
+      "enabled": true,
+      "optional": true
+    },
+    {
+      "id": "approval",
+      "enabled": true,
+      "optional": true
+    },
+    {
+      "id": "ai-employees",
+      "enabled": false,
+      "optional": true,
+      "note": "M4 deferred — first internal beta MAY omit AI employees"
+    }
+  ],
+  "components": [
+    {
+      "id": "openxyos",
+      "kind": "submodule",
+      "path": "components/openxyos",
+      "required": false,
+      "note": "OpenXYOS is a git submodule. Do NOT invent a fake remote. User must run: git submodule add <url> components/openxyos"
+    }
+  ],
+  "notes": [
+    "Locked: first harness = Codex (adapter-codex first; DSH/Claude later)",
+    "Locked: OpenXYOS = git submodule at components/openxyos",
+    "Locked: first internal beta MAY omit AI employees (M4 deferred)"
+  ]
+}
