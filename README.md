@@ -13,7 +13,7 @@ Cindy 同构分层的 AI 桌面基座脚手架：**自有 Core + Harness Adapter
 ## 仓库布局
 
 ```text
-apps/desktop              # 薄宿主入口（当前为 Node smoke）
+apps/desktop              # Electron 薄宿主 + 最小聊天窗 + smoke CLI
 packages/xyai-contracts   # 平台契约
 packages/xyai-core        # AssemblyGraph / SessionRegistry
 packages/adapter-codex    # Codex Adapter（真实 exec --json + MOCK 回退）
@@ -35,6 +35,9 @@ pnpm install
 pnpm typecheck
 pnpm test
 pnpm --filter desktop smoke
+
+# Electron 聊天窗（需图形界面；无显示时请在 Windows 本机验证）
+XYAI_CODEX_MOCK=1 pnpm --filter desktop dev
 ```
 
 ## 文档

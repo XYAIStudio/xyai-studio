@@ -7,7 +7,7 @@
 | `packages/adapter-codex` | `@xyai/adapter-codex` | **首个** Harness Adapter（真实 `codex exec --json` + MOCK 回退） |
 | `packages/xyos-bridge` | `@xyai/xyos-bridge` | OpenXYOS `healthCheck` 等宿主 API |
 | `packages/xyai-ui-shell` | `@xyai/ui-shell` | UI 壳占位（完整 UI 未落地） |
-| `apps/desktop` | `desktop` | 宿主入口；`src/smoke.ts` 冒烟 |
+| `apps/desktop` | `desktop` | Electron 薄宿主（main/preload/renderer）+ `smoke` CLI |
 | `assembly/profiles/` | — | 声明式装配图 |
 | `components/openxyos/` | — | OpenXYOS **submodule 占位** |
 

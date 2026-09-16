@@ -24,6 +24,7 @@ pnpm install
 pnpm typecheck
 pnpm test
 pnpm --filter desktop smoke
+XYAI_CODEX_MOCK=1 pnpm --filter desktop dev
 ```
 
 工作区根路径：`/workspace/xyai-studio-0.5`（本机 Linux box）。

@@ -3,18 +3,20 @@
   "version": "0.5.0-dev",
   "private": true,
   "type": "module",
-  "main": "./dist/smoke.js",
+  "main": "./dist/main/main.js",
   "scripts": {
-    "build": "tsc -b --pretty false",
-    "typecheck": "tsc -b --pretty false",
+    "build": "tsc -p tsconfig.json --pretty false && tsc -p tsconfig.preload.json --pretty false && tsc -p tsconfig.renderer.json --pretty false && node ./scripts/copy-static.mjs",
+    "typecheck": "tsc -p tsconfig.json --pretty false && tsc -p tsconfig.preload.json --pretty false && tsc -p tsconfig.renderer.json --pretty false",
     "test": "vitest run",
-    "smoke": "tsx src/smoke.ts"
+    "smoke": "tsx src/smoke.ts",
+    "dev": "pnpm run build && electron ."
   },
   "dependencies": {
     "@xyai/core": "workspace:*",
     "@xyai/adapter-codex": "workspace:*",
     "@xyai/xyos-bridge": "workspace:*",
-    "@xyai/contracts": "workspace:*"
+    "@xyai/contracts": "workspace:*",
+    "electron": "34.5.8"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
