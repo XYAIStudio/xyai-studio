@@ -54,7 +54,7 @@ export class StubXyosBridge implements XyosBridge {
         reason: 'not-installed',
         details: {
           componentRoot: this.componentRoot,
-          hint: `git submodule add ${OPENXYOS_REPO_URL} components/openxyos`,
+          hint: `git submodule update --init --recursive components/openxyos`,
           repo: OPENXYOS_REPO_URL,
         },
       };

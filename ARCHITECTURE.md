@@ -51,3 +51,5 @@ Electron 薄宿主（窗口 / IPC / 组件安装）
 2. OpenXYOS 未安装时核心对话仍可启动。
 3. 冷启动与「能对话」不依赖 DOM 注入。
 4. 装配图可机器校验，失败原因人话可读。
+
+OpenXYOS 远程：https://github.com/XYAIStudio/openXYOS
