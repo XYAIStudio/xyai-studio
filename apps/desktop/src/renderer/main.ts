@@ -137,9 +137,27 @@ function boot(): void {
   empty.textContent = '发送一条消息开始对话（Codex Adapter）';
   transcript.appendChild(empty);
 
+  if (!window.xyai) {
+    statusEl.textContent = '预加载失败（请重装最新安装包）';
+    statusEl.classList.add('mock');
+    appendBubble('error', 'window.xyai 不可用：preload 未注入', '错误');
+    return;
+  }
+
   window.xyai.onEvent(handleEvent);
 
-  void window.xyai.getStatus().then(renderStatus).catch((err: unknown) => {
+  const statusTimeout = window.setTimeout(() => {
+    if (statusEl.textContent === '状态加载中…' || statusEl.textContent.includes('加载中')) {
+      statusEl.textContent = '状态超时（仍可尝试发送）';
+      statusEl.classList.add('mock');
+    }
+  }, 3000);
+
+  void window.xyai.getStatus().then((s) => {
+    window.clearTimeout(statusTimeout);
+    renderStatus(s);
+  }).catch((err: unknown) => {
+    window.clearTimeout(statusTimeout);
     statusEl.textContent = '状态不可用';
     statusEl.classList.add('mock');
     console.error(err);

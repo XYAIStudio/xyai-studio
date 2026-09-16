@@ -21,16 +21,30 @@ function getModuleDir(): string {
   if (typeof __xyai_module_dir === 'string' && __xyai_module_dir.length > 0) {
     return __xyai_module_dir;
   }
-  return path.dirname(fileURLToPath(import.meta.url));
+  try {
+    const u = import.meta.url;
+    if (typeof u === 'string' && u.startsWith('file:')) {
+      return path.dirname(fileURLToPath(u));
+    }
+  } catch {
+    /* ignore */
+  }
+  return process.cwd();
 }
+
 const moduleDir = getModuleDir();
 
 let mainWindow: BrowserWindow | null = null;
-const host = new CodexHost();
+let host: CodexHost | null = null;
+
+function getHost(): CodexHost {
+  if (!host) host = new CodexHost();
+  return host;
+}
 
 function preloadPath(): string {
-  // dist/main/main.js → ../preload; pack-out/main.cjs → ./preload
   const candidates = [
+    path.join(app.getAppPath(), 'preload.cjs'),
     path.join(moduleDir, 'preload.cjs'),
     path.join(moduleDir, '../preload/preload.cjs'),
   ];
@@ -42,8 +56,9 @@ function preloadPath(): string {
 
 function rendererIndex(): string {
   const candidates = [
-    path.join(moduleDir, 'renderer/index.html'),
-    path.join(moduleDir, '../renderer/index.html'),
+    path.join(app.getAppPath(), 'renderer', 'index.html'),
+    path.join(moduleDir, 'renderer', 'index.html'),
+    path.join(moduleDir, '../renderer', 'index.html'),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
@@ -70,6 +85,12 @@ function buildMenu(): void {
 }
 
 function createWindow(): void {
+  const preload = preloadPath();
+  const indexHtml = rendererIndex();
+  console.log('[xyai] preload=', preload, 'exists=', existsSync(preload));
+  console.log('[xyai] renderer=', indexHtml, 'exists=', existsSync(indexHtml));
+  console.log('[xyai] appPath=', app.getAppPath());
+
   mainWindow = new BrowserWindow({
     width: 960,
     height: 720,
@@ -78,14 +99,14 @@ function createWindow(): void {
     title: 'XYAI Studio',
     backgroundColor: '#1a1b1e',
     webPreferences: {
-      preload: preloadPath(),
+      preload,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
   });
 
-  void mainWindow.loadFile(rendererIndex());
+  void mainWindow.loadFile(indexHtml);
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -93,7 +114,18 @@ function createWindow(): void {
 }
 
 function registerIpc(): void {
-  ipcMain.handle('xyai:status', () => host.getStatus());
+  ipcMain.handle('xyai:status', () => {
+    try {
+      return getHost().getStatus();
+    } catch (err) {
+      console.error('[xyai] status failed', err);
+      return {
+        isMock: true,
+        binarySource: null,
+        binaryPath: null,
+      };
+    }
+  });
 
   ipcMain.handle(
     'xyai:chat-send',
@@ -101,7 +133,7 @@ function registerIpc(): void {
       const content =
         typeof payload?.content === 'string' ? payload.content : '';
       const sender = event.sender;
-      for await (const ev of host.sendMessage(content)) {
+      for await (const ev of getHost().sendMessage(content)) {
         if (sender.isDestroyed()) break;
         sender.send('xyai:chat-event', ev as AgentEvent);
       }
@@ -113,7 +145,11 @@ function registerIpc(): void {
 app.whenReady().then(async () => {
   buildMenu();
   registerIpc();
-  await host.ensureStarted();
+  try {
+    await getHost().ensureStarted();
+  } catch (err) {
+    console.error('[xyai] ensureStarted failed', err);
+  }
   createWindow();
 
   app.on('activate', () => {
@@ -130,5 +166,5 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  void host.dispose();
+  void host?.dispose();
 });
