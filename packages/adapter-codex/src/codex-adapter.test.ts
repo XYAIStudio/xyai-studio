@@ -3,7 +3,7 @@ import { createCodexAdapter, MOCK_MARKER } from './codex-adapter.js';
 
 describe('@xyai/adapter-codex mock', () => {
   it('returns deterministic mock event stream for one turn', async () => {
-    const adapter = createCodexAdapter();
+    const adapter = createCodexAdapter({ forceMock: true });
     expect(adapter.isMock).toBe(true);
     await adapter.start({ sessionId: 's1', harnessId: 'codex' });
 
@@ -22,8 +22,12 @@ describe('@xyai/adapter-codex mock', () => {
       'message.completed',
     ]);
     const completed = events[2];
-    expect(String((completed?.payload as { text?: string })?.text)).toContain(MOCK_MARKER);
-    expect(String((completed?.payload as { text?: string })?.text)).toContain('hello');
+    expect(String((completed?.payload as { text?: string })?.text)).toContain(
+      MOCK_MARKER,
+    );
+    expect(String((completed?.payload as { text?: string })?.text)).toContain(
+      'hello',
+    );
 
     await adapter.stop('s1');
   });

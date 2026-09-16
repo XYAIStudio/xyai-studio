@@ -12,7 +12,8 @@
 
 - TypeScript strict；契约优先；改契约需同步测试。
 - **禁止 DOM 注入** / 用 `executeJavaScript` 冒充集成。
-- **禁止下载 Codex 二进制**到本仓库；MOCK 须保持标注。
+- **禁止下载 Codex 二进制**到本仓库；通过 `@openai/codex@0.151.0` 解析平台 optional dep；MOCK 须保持标注（`forceMock` / `XYAI_CODEX_MOCK=1`）。
+- 真实接线：`codex exec --json --ephemeral --skip-git-repo-check -s read-only -C <cwd> "<prompt>"`（见 `packages/adapter-codex/README.md`）。
 - **禁止提交密钥**、`.env` 真值、token。
 - 证据优先：结论区分代码证据 / 构建产物 / 人工验收 / 未验证。
 

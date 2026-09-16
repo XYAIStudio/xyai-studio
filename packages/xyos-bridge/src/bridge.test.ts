@@ -24,6 +24,7 @@ describe('@xyai/xyos-bridge', () => {
     const status = await bridge.healthCheck();
     expect(status.ok).toBe(false);
     expect(status.reason).toBe('not-installed');
-    expect(String(status.details?.hint ?? '')).toContain(OPENXYOS_REPO_URL);
+    expect(String(status.details?.hint ?? '')).toMatch(/submodule update|openXYOS/i);
+    expect(String(status.details?.repo ?? '')).toContain('XYAIStudio/openXYOS');
   });
 });

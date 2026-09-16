@@ -17,9 +17,19 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@openai/codex": "0.151.0",
     "@xyai/contracts": "workspace:*"
   },
+  "optionalDependencies": {
+    "@openai/codex-darwin-arm64": "npm:@openai/codex@0.151.0-darwin-arm64",
+    "@openai/codex-darwin-x64": "npm:@openai/codex@0.151.0-darwin-x64",
+    "@openai/codex-linux-arm64": "npm:@openai/codex@0.151.0-linux-arm64",
+    "@openai/codex-linux-x64": "npm:@openai/codex@0.151.0-linux-x64",
+    "@openai/codex-win32-arm64": "npm:@openai/codex@0.151.0-win32-arm64",
+    "@openai/codex-win32-x64": "npm:@openai/codex@0.151.0-win32-x64"
+  },
   "devDependencies": {
+    "@types/node": "^22.13.4",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
   }

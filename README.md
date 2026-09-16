@@ -16,7 +16,7 @@ Cindy 同构分层的 AI 桌面基座脚手架：**自有 Core + Harness Adapter
 apps/desktop              # 薄宿主入口（当前为 Node smoke）
 packages/xyai-contracts   # 平台契约
 packages/xyai-core        # AssemblyGraph / SessionRegistry
-packages/adapter-codex    # Codex Adapter（现阶段 MOCK）
+packages/adapter-codex    # Codex Adapter（真实 exec --json + MOCK 回退）
 packages/xyos-bridge      # OpenXYOS 健康探针桥
 packages/xyai-ui-shell    # UI 壳占位
 assembly/profiles/        # 声明式装配图
@@ -43,11 +43,5 @@ pnpm --filter desktop smoke
 
 ## 注意
 
-- 本脚手架 **不下载** Codex 二进制；`adapter-codex` 为明确标注的 MOCK。
+- 本脚手架 **不下载** Codex 二进制到仓库；通过依赖 `@openai/codex@0.151.0` 解析平台 native；无二进制或 `XYAI_CODEX_MOCK=1` 时回退 MOCK。
 - 不发明密钥或假远程地址。
-
-## OpenXYOS submodule
-
-- 仓库：https://github.com/XYAIStudio/openXYOS
-- 路径：`components/openxyos`
-- 克隆本仓后执行：`git submodule update --init --recursive`
