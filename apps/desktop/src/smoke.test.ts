@@ -8,7 +8,7 @@ import { createXyosBridge } from '@xyai/xyos-bridge';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 describe('desktop smoke path', () => {
-  it('loads example profile and runs mock turn', async () => {
+  it('loads example profile, runs mock Codex turn, detects openXYOS submodule', async () => {
     const validation = await loadAssemblyProfile(
       path.join(repoRoot, 'assembly/profiles/0.5.0-dev.example.json'),
     );
@@ -30,7 +30,7 @@ describe('desktop smoke path', () => {
     const health = await createXyosBridge({
       componentRoot: path.join(repoRoot, 'components/openxyos'),
     }).healthCheck();
-    expect(health.ok).toBe(false);
-    expect(health.reason).toBe('not-installed');
+    expect(health.ok).toBe(true);
+    expect(health.reason).toBe('submodule-present');
   });
 });
