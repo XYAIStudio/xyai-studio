@@ -22,3 +22,9 @@ git submodule update --init --recursive
 ## 占位内容
 
 当前目录仅有 `README.md` 与 `.gitkeep`，用于保留路径与说明，**不等于已安装**。
+
+## 8. 官方源码仓库（已绑定）
+
+- GitHub：https://github.com/XYAIStudio/openXYOS
+- 本仓 submodule：`components/openxyos`（见根目录 `.gitmodules`）
+- 初始化：`git submodule update --init --recursive`

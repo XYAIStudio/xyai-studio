@@ -1,12 +1,15 @@
 /**
- * OpenXYOS 宿主侧桥接 stub。
- * 组件未安装（占位 submodule 无真实内容）时 healthCheck 返回 not-installed。
+ * OpenXYOS host-side bridge stub.
+ * Detects submodule checkout via install markers (e.g. package.json).
+ * Runtime health (HTTP) is a later milestone; detection ≠ service running.
  */
 
 import { access } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import path from 'node:path';
 import type { XyosBridge, XyosHealthStatus } from '@xyai/contracts';
+
+export const OPENXYOS_REPO_URL = 'https://github.com/XYAIStudio/openXYOS.git';
 
 export interface XyosBridgeOptions {
   /** Absolute or relative path to components/openxyos */
@@ -23,11 +26,12 @@ async function pathExists(p: string): Promise<boolean> {
 }
 
 /**
- * 判定 OpenXYOS 是否“已安装”：存在真实入口文件（如 package.json 或 server 主文件），
- * 而非仅有 README / .gitkeep 占位。
+ * Whether OpenXYOS source/component appears present.
+ * Treats package.json (and a few other markers) as installed-for-dev;
+ * ignores README/.gitkeep-only placeholders.
  */
 export async function isOpenXyosInstalled(componentRoot: string): Promise<boolean> {
-  const markers = ['package.json', 'dist/index.js', 'src/main.ts', 'bin/openxyos'];
+  const markers = ['package.json', 'dist/index.js', 'backend/server.ts', 'bin/openxyos'];
   for (const m of markers) {
     if (await pathExists(path.join(componentRoot, m))) return true;
   }
@@ -50,14 +54,19 @@ export class StubXyosBridge implements XyosBridge {
         reason: 'not-installed',
         details: {
           componentRoot: this.componentRoot,
-          hint: 'git submodule add <url> components/openxyos',
+          hint: `git submodule add ${OPENXYOS_REPO_URL} components/openxyos`,
+          repo: OPENXYOS_REPO_URL,
         },
       };
     }
     return {
       ok: true,
-      reason: 'stub-detected-install-markers',
-      details: { componentRoot: this.componentRoot },
+      reason: 'submodule-present',
+      details: {
+        componentRoot: this.componentRoot,
+        repo: OPENXYOS_REPO_URL,
+        note: 'source detected; runtime HTTP probe not implemented yet',
+      },
     };
   }
 }

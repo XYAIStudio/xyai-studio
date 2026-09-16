@@ -45,3 +45,9 @@ pnpm --filter desktop smoke
 
 - 本脚手架 **不下载** Codex 二进制；`adapter-codex` 为明确标注的 MOCK。
 - 不发明密钥或假远程地址。
+
+## OpenXYOS submodule
+
+- 仓库：https://github.com/XYAIStudio/openXYOS
+- 路径：`components/openxyos`
+- 克隆本仓后执行：`git submodule update --init --recursive`

@@ -1,6 +1,6 @@
 /**
- * Desktop smoke entry — 加载装配图、校验、mock Codex 一轮、xyos healthCheck。
- * 适合：pnpm --filter desktop smoke
+ * Desktop smoke: assembly validate → mock Codex one turn → xyos healthCheck.
+ * Run: pnpm --filter desktop smoke
  */
 
 import path from 'node:path';
@@ -66,8 +66,9 @@ async function main(): Promise<void> {
   const health = await bridge.healthCheck();
   console.log('[smoke] xyos healthCheck:', health);
 
-  if (health.ok !== false || health.reason !== 'not-installed') {
-    console.error('[smoke] expected xyos health { ok:false, reason:not-installed } for placeholder');
+  // Submodule present ⇒ source detected. Runtime HTTP probe still future work.
+  if (health.ok !== true || health.reason !== 'submodule-present') {
+    console.error('[smoke] expected xyos health { ok:true, reason:submodule-present } after submodule add');
     process.exitCode = 1;
     return;
   }

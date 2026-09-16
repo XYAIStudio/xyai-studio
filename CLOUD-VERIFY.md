@@ -44,3 +44,9 @@ git submodule add <openxyos-repo-url> components/openxyos
 | pnpm --filter desktop smoke | PASS |
 
 说明：中途有一次 npmmirror 对 pnpm 元数据超时告警，不影响安装与校验完成。
+
+## OpenXYOS submodule（已接入）
+
+- URL：https://github.com/XYAIStudio/openXYOS.git
+- 路径：components/openxyos
+- 当前检出：见 `git submodule status`
