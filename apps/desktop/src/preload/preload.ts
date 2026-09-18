@@ -123,8 +123,18 @@ const api = {
 
   modelSnapshot: (): Promise<unknown> => ipcRenderer.invoke('xyai:model-snapshot'),
 
+  hardwareUsage: (): Promise<unknown> => ipcRenderer.invoke('xyai:hardware-usage'),
+
   installModelDep: (): Promise<{ ok: boolean; message: string }> =>
     ipcRenderer.invoke('xyai:model-install-dep'),
+
+  startOllama: (): Promise<{
+    ok: boolean;
+    running: boolean;
+    started: boolean;
+    message: string;
+    status?: XyaiStatus;
+  }> => ipcRenderer.invoke('xyai:model-start-ollama'),
 
   pullModel: (name: string): Promise<{ ok: boolean; message: string }> =>
     ipcRenderer.invoke('xyai:model-pull', { name }),

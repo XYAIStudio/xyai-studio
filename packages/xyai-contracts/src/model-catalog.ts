@@ -33,14 +33,39 @@ export interface HardwareGpu {
   vendor: 'nvidia' | 'amd' | 'intel' | 'apple' | 'other';
 }
 
+export type HardwarePressure = 'ok' | 'elevated' | 'critical';
+
+export interface HardwareGpuUsage {
+  name: string;
+  vendor: HardwareGpu['vendor'];
+  vramTotalMb: number | null;
+  vramUsedMb: number | null;
+  vramUsedPct: number | null;
+  utilizationPct: number | null;
+}
+
+export interface HardwareUsage {
+  ramTotalMb: number;
+  ramUsedMb: number;
+  ramUsedPct: number;
+  gpus: HardwareGpuUsage[];
+  pressure: HardwarePressure;
+  gpuAccelHint?: string;
+  collectedAt: string;
+}
+
 export interface HardwareProfile {
   platform: string;
   cpuName: string;
   cpuCores: number;
   ramTotalMb: number;
+  /** Optional live snapshot (used/total). */
+  ramUsedMb?: number;
+  ramUsedPct?: number;
   gpus: HardwareGpu[];
   /** Best estimate of usable GPU VRAM for local inference */
   primaryVramMb: number;
+  usage?: HardwareUsage;
   collectedAt: string;
 }
 
@@ -62,4 +87,6 @@ export interface DependencyStatus {
   version: string | null;
   path: string | null;
   installCommand: string;
+  /** Binary/install present but `/api/tags` is down — UI may offer 启动 Ollama. */
+  canStart?: boolean;
 }

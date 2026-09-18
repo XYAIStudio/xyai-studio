@@ -87,7 +87,7 @@ export function mountBizZone(root: HTMLElement): { activate: () => void } {
     status.innerHTML = `
         <div class="zone-status-card">
           <h2>业务空间 · OpenXYOS</h2>
-          <p>${escapeHtml(message)}</p>
+          <pre class="zone-status-message">${escapeHtml(message)}</pre>
           ${meta}
           <div class="zone-status-actions">
             <button type="button" class="capsule-btn" id="biz-retry">刷新</button>

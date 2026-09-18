@@ -10,6 +10,7 @@ import { mountPersonalizePanel } from './personalize/panel.js';
 import { LOGO_SRC } from './chat/mascot.js';
 import { showAboutDialog } from './about.js';
 import { mountBizZone, mountEcoZone, mountBrowserZone } from './zones/index.js';
+import { formatLocalModelScanResult } from './models-scan-copy.js';
 
 let pulling = false;
 
@@ -36,6 +37,91 @@ const btnRefresh = document.getElementById(
 const btnInstall = document.getElementById(
   'btn-install-ollama',
 ) as HTMLButtonElement;
+const btnStartOllama = document.getElementById(
+  'btn-start-ollama',
+) as HTMLButtonElement | null;
+
+let lastOllama = {
+  installed: false,
+  running: false,
+};
+
+let hwPollTimer: number | null = null;
+let modelsTabVisible = false;
+
+function stopHwPoll(): void {
+  if (hwPollTimer != null) {
+    window.clearInterval(hwPollTimer);
+    hwPollTimer = null;
+  }
+}
+
+function renderUsageLine(usage: {
+  ramUsedMb: number;
+  ramTotalMb: number;
+  ramUsedPct: number;
+  gpus: {
+    name: string;
+    vramUsedMb: number | null;
+    vramTotalMb: number | null;
+    vramUsedPct: number | null;
+    utilizationPct: number | null;
+  }[];
+  pressure: string;
+  gpuAccelHint?: string;
+}): void {
+  let box = document.getElementById('hw-usage');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'hw-usage';
+    hwPanel.appendChild(box);
+  }
+  const gpuLines = (usage.gpus || [])
+    .map((g) => {
+      const vram =
+        g.vramUsedMb != null && g.vramTotalMb != null
+          ? `显存 ${(g.vramUsedMb / 1024).toFixed(1)}/${(g.vramTotalMb / 1024).toFixed(1)} GB（${g.vramUsedPct ?? 0}%）`
+          : '显存使用率暂不可用';
+      const util =
+        g.utilizationPct != null ? ` · 利用率 ${g.utilizationPct}%` : '';
+      return `<div class="hw-line">GPU ${g.name}：${vram}${util}</div>`;
+    })
+    .join('');
+  const warn =
+    usage.pressure === 'critical'
+      ? '<div class="hw-line hw-warn">显存/内存压力过高，已限制新的大模型拉取。</div>'
+      : usage.pressure === 'elevated'
+        ? '<div class="hw-line hw-warn">资源占用较高，建议优先小模型。</div>'
+        : '';
+  const hint = usage.gpuAccelHint
+    ? `<div class="hw-line meta">${usage.gpuAccelHint}</div>`
+    : '';
+  box.innerHTML = `
+    <div class="hw-line">内存实时：${(usage.ramUsedMb / 1024).toFixed(1)} / ${(usage.ramTotalMb / 1024).toFixed(1)} GB（${usage.ramUsedPct}%）</div>
+    ${gpuLines}
+    ${warn}
+    ${hint}
+  `;
+}
+
+async function tickHardwareUsage(): Promise<void> {
+  if (!modelsTabVisible || !window.xyai.hardwareUsage) return;
+  try {
+    const usage = await window.xyai.hardwareUsage();
+    renderUsageLine(usage);
+  } catch {
+    /* ignore poll errors */
+  }
+}
+
+function startHwPoll(): void {
+  modelsTabVisible = true;
+  void tickHardwareUsage();
+  stopHwPoll();
+  hwPollTimer = window.setInterval(() => {
+    void tickHardwareUsage();
+  }, 1500);
+}
 
 const CLOUD_META: { id: string; label: string }[] = [
   { id: 'openai', label: 'OpenAI' },
@@ -119,30 +205,56 @@ async function refreshModels(): Promise<void> {
     const hw = snap.hardware;
     const vramGb = (hw.primaryVramMb / 1024).toFixed(1);
     const ramGb = (hw.ramTotalMb / 1024).toFixed(1);
+    const ramUsed =
+      hw.usage?.ramUsedMb != null && hw.usage?.ramUsedPct != null
+        ? `${(hw.usage.ramUsedMb / 1024).toFixed(1)} / ${ramGb} GB（${hw.usage.ramUsedPct}%）`
+        : `${ramGb} GB`;
     hwPanel.innerHTML = `
       <div class="hw-line">CPU：${hw.cpuName}（${hw.cpuCores} 线程）</div>
-      <div class="hw-line">内存：${ramGb} GB</div>
+      <div class="hw-line">内存：${ramUsed}</div>
       <div class="hw-line">主 GPU 显存：${vramGb} GB</div>
       <div class="hw-line">GPU：${(hw.gpus || []).map((g: any) => g.name).join(' / ')}</div>
     `;
+    if (hw.usage) {
+      renderUsageLine(hw.usage);
+    }
+    startHwPoll();
 
     const dep = snap.ollama;
+    lastOllama = {
+      installed: Boolean(dep.installed),
+      running: Boolean(dep.running),
+    };
+    const canStart = Boolean(dep.canStart) || (dep.installed && !dep.running);
     depPanel.innerHTML = `
       <div class="hw-line">Ollama：${dep.installed ? '已安装' : '未安装'}${dep.version ? ` · v${dep.version}` : ''}</div>
       <div class="hw-line">服务：${dep.running ? '运行中' : '未运行'}</div>
       <div class="hw-line meta">${dep.path || dep.installCommand || ''}</div>
+      ${
+        canStart
+          ? '<div class="hw-line">Ollama 已安装但未运行，可点「启动 Ollama」后刷新模型列表。</div>'
+          : ''
+      }
     `;
     btnInstall.disabled = Boolean(dep.installed);
     btnInstall.textContent = dep.installed ? 'Ollama 已安装' : '一键安装 Ollama';
+    if (btnStartOllama) {
+      btnStartOllama.hidden = !canStart;
+      btnStartOllama.disabled = false;
+      btnStartOllama.textContent = '启动 Ollama';
+    }
 
     const installed = snap.installed || [];
     const registryIds = new Set(
       ((snap.registry || []) as { id?: string }[]).map((r) => r.id || ''),
     );
     if (!installed.length) {
-      installedList.appendChild(
-        el('<div class="meta">未检测到本地模型。可点「全盘搜索已下载模型」或从右侧推荐一键下载。</div>'),
-      );
+      const emptyHint = canStart
+        ? 'Ollama 已安装但未运行。请点「启动 Ollama」，启动后再刷新；不必只依赖全盘搜索。'
+        : dep.installed
+          ? '未检测到本地模型。可点「全盘搜索已下载模型」或从右侧推荐一键下载。'
+          : '未检测到 Ollama。请先安装 Ollama，或点「全盘搜索已下载模型」作为兜底。';
+      installedList.appendChild(el(`<div class="meta">${emptyHint}</div>`));
     } else {
       for (const m of installed) {
         const size =
@@ -215,6 +327,9 @@ async function pullModel(name: string): Promise<void> {
   try {
     const res = await window.xyai.pullModel(name);
     pullLog.textContent += (res.ok ? '✓ ' : '✗ ') + res.message + '\n';
+    if (!res.ok && /显存|内存|正在拉取|压力/.test(res.message)) {
+      alert(res.message);
+    }
     await refreshModels();
   } catch (err) {
     pullLog.textContent += String(err) + '\n';
@@ -299,6 +414,12 @@ function wireChrome(onModelsTab: () => void, onKnowledgeTab: () => void = () => 
           (body as HTMLElement).id === `zone-${zone}`,
         );
       });
+      if (zone !== 'dev') {
+        modelsTabVisible = false;
+        stopHwPoll();
+      } else if (document.getElementById('view-models')?.classList.contains('active')) {
+        startHwPoll();
+      }
       if (zone === 'biz') biz.activate();
       if (zone === 'eco') eco.activate();
       if (zone === 'browser') browser.activate();
@@ -321,7 +442,13 @@ function wireChrome(onModelsTab: () => void, onKnowledgeTab: () => void = () => 
       if (kbView) kbView.classList.toggle('active', tab === 'knowledge');
       const pzView = document.getElementById('view-personalize');
       if (pzView) pzView.classList.toggle('active', tab === 'personalize');
-      if (tab === 'models') onModelsTab();
+      if (tab === 'models') {
+        startHwPoll();
+        onModelsTab();
+      } else {
+        modelsTabVisible = false;
+        stopHwPoll();
+      }
       if (tab === 'knowledge') onKnowledgeTab();
       if (tab === 'personalize') onPersonalizeTab();
     });
@@ -479,10 +606,56 @@ async function boot(): Promise<void> {
 
   btnRefresh.addEventListener('click', () => void refreshModels());
   document.getElementById('btn-scan-models')?.addEventListener('click', () => {
-    void refreshModels().then(() => {
-      const n = installedList.querySelectorAll('.list-item').length;
-      alert(n ? `全盘搜索完成，发现 ${n} 个本地模型` : '全盘搜索完成，未发现本地模型');
-    });
+    void (async () => {
+      const scanBtn = document.getElementById(
+        'btn-scan-models',
+      ) as HTMLButtonElement | null;
+      const prevLabel = scanBtn?.textContent || '全盘搜索已下载模型';
+      if (scanBtn) {
+        scanBtn.disabled = true;
+        scanBtn.textContent = '正在启动 Ollama…';
+      }
+      try {
+        // Do not only refreshModels() — API is down until ollama serve.
+        if (window.xyai.startOllama) {
+          await window.xyai.startOllama();
+        }
+        await refreshModels();
+        const n = installedList.querySelectorAll('.list-item').length;
+        alert(
+          formatLocalModelScanResult({
+            count: n,
+            installed: lastOllama.installed,
+            running: lastOllama.running,
+          }),
+        );
+      } catch (err) {
+        alert(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (scanBtn) {
+          scanBtn.disabled = false;
+          scanBtn.textContent = prevLabel;
+        }
+      }
+    })();
+  });
+  btnStartOllama?.addEventListener('click', async () => {
+    if (!window.xyai.startOllama) {
+      alert('启动接口不可用，请重装最新安装包');
+      return;
+    }
+    btnStartOllama.disabled = true;
+    btnStartOllama.textContent = '正在启动 Ollama…';
+    try {
+      const res = await window.xyai.startOllama();
+      alert(res.message);
+      await refreshModels();
+    } catch (err) {
+      alert(String(err));
+    } finally {
+      btnStartOllama.disabled = false;
+      btnStartOllama.textContent = '启动 Ollama';
+    }
   });
   document.querySelectorAll('.models-tab').forEach((btn) => {
     btn.addEventListener('click', () => {

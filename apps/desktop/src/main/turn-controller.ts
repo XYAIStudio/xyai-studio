@@ -13,6 +13,12 @@ import {
 } from '@xyai/contracts';
 import type { CodexAdapter } from '@xyai/adapter-codex';
 import {
+  ensureOllamaRunning,
+  listOllamaModelsFromApi,
+  missingOllamaModelMessage,
+  OLLAMA_NOT_RUNNING_CODE,
+  OLLAMA_NOT_RUNNING_MESSAGE,
+  ollamaTagsIncludeModel,
   streamOllamaChat,
   type OllamaChatMessage,
 } from '@xyai/model-hub';
@@ -102,6 +108,40 @@ export async function* runOllamaTurn(options: {
   let completed = false;
 
   try {
+    const ensured = await ensureOllamaRunning({ timeoutMs: 15000 });
+    if (!ensured.running) {
+      yield {
+        type: 'error',
+        timestamp: now(),
+        sessionId,
+        taskId,
+        payload: {
+          message: ensured.message || OLLAMA_NOT_RUNNING_MESSAGE,
+          code: OLLAMA_NOT_RUNNING_CODE,
+        },
+      };
+      return;
+    }
+
+    try {
+      const installed = await listOllamaModelsFromApi();
+      const names = installed.map((m) => m.displayName);
+      if (!ollamaTagsIncludeModel(names, model)) {
+        yield {
+          type: 'error',
+          timestamp: now(),
+          sessionId,
+          taskId,
+          payload: {
+            message: missingOllamaModelMessage(model),
+          },
+        };
+        return;
+      }
+    } catch {
+      /* listing threw; stream maps fetch failed / HTTP not-found */
+    }
+
     for await (const delta of streamOllamaChat({
       model,
       content,
@@ -153,6 +193,12 @@ export async function* runOllamaTurn(options: {
   } catch (err) {
     const aborted =
       (err instanceof Error && err.name === 'AbortError') || signal.aborted;
+    const code =
+      !aborted &&
+      err instanceof Error &&
+      (err as { code?: string }).code === OLLAMA_NOT_RUNNING_CODE
+        ? OLLAMA_NOT_RUNNING_CODE
+        : undefined;
     yield {
       type: 'error',
       timestamp: now(),
@@ -162,6 +208,7 @@ export async function* runOllamaTurn(options: {
         ? { message: 'cancelled', code: 'ABORTED' }
         : {
             message: err instanceof Error ? err.message : String(err),
+            ...(code ? { code } : {}),
           },
     };
   }

@@ -8,6 +8,8 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XYAI Studio</title>
+    <link rel="icon" type="image/png" href="./assets/logo.png" />
+    <link rel="icon" type="image/x-icon" href="./assets/favicon.ico" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -161,7 +163,10 @@
             <div class="card models-section" id="dep-section">
               <div class="models-section-head">
                 <h2>模型调用依赖区</h2>
-                <button id="btn-install-ollama" type="button" class="primary capsule-btn">一键安装 Ollama</button>
+                <div class="models-section-actions">
+                  <button id="btn-start-ollama" type="button" class="primary capsule-btn" hidden>启动 Ollama</button>
+                  <button id="btn-install-ollama" type="button" class="primary capsule-btn">一键安装 Ollama</button>
+                </div>
               </div>
               <div id="dep-panel"></div>
             </div>

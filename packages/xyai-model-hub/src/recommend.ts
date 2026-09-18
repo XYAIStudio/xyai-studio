@@ -121,12 +121,16 @@ export function recommendModels(
 } {
   const vram = hw.primaryVramMb || 0;
   const ram = hw.ramTotalMb;
+  const pressure = hw.usage?.pressure ?? 'ok';
+  const slack = pressure === 'critical' ? 0.45 : pressure === 'elevated' ? 0.65 : 0.85;
 
   const fit = (d: RecDef): boolean => {
     if (ram < d.minRamMb) return false;
+    if (pressure === 'critical' && d.vramHintMb >= 4000) return false;
+    if (pressure === 'elevated' && d.vramHintMb >= 8000) return false;
     // Allow CPU-offload slack: accept if vram >= 70% of hint OR plenty of system RAM
-    if (vram <= 0) return d.vramHintMb <= 3500;
-    return vram + 1024 >= d.vramHintMb * 0.85;
+    if (vram <= 0) return d.vramHintMb <= (pressure === 'ok' ? 3500 : 1800);
+    return vram + 1024 >= d.vramHintMb * slack;
   };
 
   const toRec = (d: RecDef): ModelRecommendation => {
@@ -142,7 +146,10 @@ export function recommendModels(
         : d.reasonWhenFit + `（估算显存 ~${Math.round(d.vramHintMb / 1024)}GB）`,
       ollamaName: d.ollamaName,
       vramHintMb: d.vramHintMb,
-      priority: d.priority + (installed ? 20 : 0),
+      priority:
+        d.priority +
+        (installed ? 20 : 0) +
+        (pressure !== 'ok' && d.vramHintMb <= 3500 ? 15 : 0),
     };
   };
 

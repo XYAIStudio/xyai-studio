@@ -634,6 +634,10 @@ button {
   color: #991b1b;
   font-size: 13px;
 }
+.bubble.error .error-action {
+  display: inline-flex;
+  margin-top: 8px;
+}
 .bubble.system {
   align-self: center;
   max-width: fit-content;
@@ -1073,6 +1077,15 @@ button {
   font-size: 15px;
   font-weight: 650;
   color: var(--sky-900, #0b3a66);
+}
+.models-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.hw-warn {
+  color: #9a3412;
 }
 .models-tabs {
   display: flex;
@@ -2783,6 +2796,16 @@ webview.browser-webview {
 .zone-status-card h2 {
   margin: 0 0 10px;
   font-size: 18px;
+}
+.zone-status-card .zone-status-message {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.45;
+  max-height: 280px;
+  overflow: auto;
+  font-family: inherit;
 }
 .zone-status-card .meta {
   font-size: 12px;

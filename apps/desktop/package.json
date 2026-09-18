@@ -10,10 +10,11 @@
     "test": "vitest run",
     "smoke": "tsx src/smoke.ts",
     "dev": "pnpm run build && electron .",
-    "bundle:pack": "node ./scripts/bundle-for-pack.mjs",
-    "pack:win": "pnpm run bundle && electron-builder --win nsis",
+    "bundle:pack": "node ./scripts/ensure-icons.mjs && node ./scripts/bundle-for-pack.mjs",
+    "pack:win": "pnpm run build && node ./scripts/ensure-icons.mjs && node ./scripts/bundle-for-pack.mjs && electron-builder --win nsis",
     "bundle": "pnpm run build && node ./scripts/bundle-desktop.mjs",
-    "pack:dir": "pnpm run bundle && electron-builder --dir"
+    "pack:dir": "pnpm run build && node ./scripts/ensure-icons.mjs && node ./scripts/bundle-for-pack.mjs && electron-builder --dir",
+    "icons": "node ./scripts/ensure-icons.mjs"
   },
   "dependencies": {
     "@xyai/adapter-codex": "workspace:*",

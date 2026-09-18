@@ -201,7 +201,29 @@ export interface XyaiApi {
   stopTurn?: () => Promise<{ ok: boolean }>;
   onEvent(callback: (event: XyaiAgentEvent) => void): () => void;
   modelSnapshot(): Promise<any>;
+  hardwareUsage?(): Promise<{
+    ramTotalMb: number;
+    ramUsedMb: number;
+    ramUsedPct: number;
+    gpus: {
+      name: string;
+      vramTotalMb: number | null;
+      vramUsedMb: number | null;
+      vramUsedPct: number | null;
+      utilizationPct: number | null;
+    }[];
+    pressure: 'ok' | 'elevated' | 'critical';
+    gpuAccelHint?: string;
+    collectedAt: string;
+  }>;
   installModelDep(): Promise<{ ok: boolean; message: string }>;
+  startOllama?(): Promise<{
+    ok: boolean;
+    running: boolean;
+    started: boolean;
+    message: string;
+    status?: XyaiStatus;
+  }>;
   pullModel(name: string): Promise<{ ok: boolean; message: string }>;
   onPullProgress(
     callback: (data: { name: string; line: string }) => void,

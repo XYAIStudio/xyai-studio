@@ -13,6 +13,7 @@
  */
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   rmSync,
@@ -80,6 +81,14 @@ function copyRenderer() {
       throw new Error(`[bundle-desktop] missing renderer asset: ${name}`);
     }
     copyFileSync(from, path.join(packDir, 'renderer', name));
+  }
+  const assetsBuilt = path.join(builtRenderer, 'assets');
+  const assetsSrc = path.join(srcRenderer, 'assets');
+  const assetsFrom = existsSync(assetsBuilt) ? assetsBuilt : assetsSrc;
+  if (existsSync(assetsFrom)) {
+    cpSync(assetsFrom, path.join(packDir, 'renderer', 'assets'), {
+      recursive: true,
+    });
   }
 }
 

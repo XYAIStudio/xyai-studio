@@ -11,6 +11,13 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, '..');
 const outDir = path.join(appRoot, 'pack-out');
 
+{
+  const r = spawnSync(process.execPath, [path.join(here, 'ensure-icons.mjs')], {
+    stdio: 'inherit',
+  });
+  if (r.status) process.exit(r.status ?? 1);
+}
+
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(path.join(outDir, 'renderer'), { recursive: true });
 

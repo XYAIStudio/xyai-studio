@@ -29,8 +29,10 @@ Toolbar button **重启前后端服务** (left of **刷新**) calls `restartOpen
 1. Locates a **runtime** root: `backend/server.ts` or `package.json` `scripts.start`, preferring `dist/index.html`.
 2. Search order: `XYAI_OPENXYOS_ROOT` → monorepo candidates (e.g. `E:\XYAI studio\0.5\components\openxyos`, cwd relatives) → packaged `resources/openxyos` last.
 3. Stops prior npm/node child and the in-process static HTTP server.
-4. Spawns `npm start` (or `node --import tsx backend/server.ts`) with `PORT=3000` (or next free), `ALLOW_PUBLIC_REGISTRATION=true` (local register/login), `CORS_ORIGIN` for that port, and ephemeral `JWT_SECRET` / `COOKIE_SECRET` if missing (never logged).
-5. Waits until `http://127.0.0.1:PORT/` is healthy (~55s), then reloads the webview so login/register hit the real Express API.
+4. Spawns via **one** helper (`startOpenXyosFullStack`) — never a PORT-only/`stdio:'ignore'` child. Env always comes from `buildOpenXyosServerEnv`: `PORT`, `NODE_ENV` (defaults to `production`), `ALLOW_PUBLIC_REGISTRATION=true`, `CORS_ORIGIN` for that port (required by `backend/config/runtime.ts` in production), ephemeral `JWT_SECRET` / `COOKIE_SECRET` if missing (never logged), `SEED_*`.
+5. Child **stdout/stderr** are piped to `userData/logs/openxyos-server.log` (redacted in the UI). If the child exits, wait fails immediately instead of spinning 55s.
+6. **Preflight** writes missing `backend/openxyos-identity.ts` (org-talent `MODULE_NOT_FOUND`) and lists other missing `./` imports from `server.ts` before spawn.
+7. Waits until `http://127.0.0.1:PORT/` is healthy (~55s), then reloads the webview so login/register hit the real Express API. Timeout errors include the explained crash (CORS/JWT/MODULE_NOT_FOUND) plus a log tail.
 
 **Static-only packs** (`resources/openxyos` without backend) cannot start the API — set `XYAI_OPENXYOS_ROOT` to the full monorepo OpenXYOS directory for registration/login.
 

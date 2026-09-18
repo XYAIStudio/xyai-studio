@@ -4,7 +4,13 @@
  * Phase C: Stop/ABORTED is not an error (no red banner).
  */
 
-import type { AgentEvent, ChatMsg } from './types.js';
+import type { AgentEvent, ChatMsg, ChatMsgAction } from './types.js';
+
+const OLLAMA_NOT_RUNNING_CODE = 'OLLAMA_NOT_RUNNING';
+const START_OLLAMA_ACTION: ChatMsgAction = {
+  id: 'start-ollama',
+  label: '启动 Ollama',
+};
 import { mountEmptyMascot } from './mascot.js';
 
 export type TranscriptApi = {
@@ -13,7 +19,9 @@ export type TranscriptApi = {
   setActiveId: (id: string) => void;
   clearSession: (id: string) => void;
   appendUser: (text: string) => void;
-  appendError: (text: string) => void;
+  appendError: (text: string, action?: ChatMsgAction) => void;
+  appendSystem: (text: string) => void;
+  onAction: (cb: (action: ChatMsgAction) => void) => void;
   /** Coalesce deltas / complete / error into transcript. */
   handleEvent: (ev: AgentEvent) => void;
   /** Optimistic flush of in-progress streaming bubble (Stop UX §8.2). */
@@ -57,6 +65,7 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
   let streamingId: string | null = null;
   let afterRender: ((msgs: ChatMsg[]) => void) | null = null;
   let disposeEmpty: (() => void) | null = null;
+  let actionHandler: ((action: ChatMsgAction) => void) | null = null;
 
   function ensure(sessionId: string): ChatMsg[] {
     if (!transcripts.has(sessionId)) transcripts.set(sessionId, []);
@@ -123,6 +132,17 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
             row.appendChild(chip);
           }
           bubble.appendChild(row);
+        }
+        if (m.role === 'error' && m.action) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'capsule-btn error-action';
+          btn.textContent = m.action.label;
+          const action = m.action;
+          btn.addEventListener('click', () => {
+            actionHandler?.(action);
+          });
+          bubble.appendChild(btn);
         }
       }
       col.appendChild(bubble);
@@ -193,8 +213,19 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
       const p = (ev.payload || {}) as Record<string, unknown>;
       const message =
         typeof p.message === 'string' ? p.message : 'unknown error';
+      const code = typeof p.code === 'string' ? p.code : '';
+      const looksDown =
+        code === OLLAMA_NOT_RUNNING_CODE ||
+        /fetch failed|Ollama 服务未运行|Ollama 未运行/i.test(message);
       flushStreaming(sid);
-      msgs.push({ id: uid(), role: 'error', text: message });
+      msgs.push({
+        id: uid(),
+        role: 'error',
+        text: looksDown && /fetch failed/i.test(message)
+          ? 'Ollama 服务未运行。请点击「启动 Ollama」后重试。'
+          : message,
+        action: looksDown ? START_OLLAMA_ACTION : undefined,
+      });
       if (sid === activeSessionId) render();
     }
   }
@@ -212,9 +243,26 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
       ensure(activeSessionId).push({ id: uid(), role: 'user', text });
       render();
     },
-    appendError: (text) => {
-      ensure(activeSessionId).push({ id: uid(), role: 'error', text });
+    appendError: (text, action) => {
+      const looksDown =
+        action?.id === 'start-ollama' ||
+        /fetch failed|Ollama 服务未运行|Ollama 未运行/i.test(text);
+      ensure(activeSessionId).push({
+        id: uid(),
+        role: 'error',
+        text: looksDown && /fetch failed/i.test(text)
+          ? 'Ollama 服务未运行。请点击「启动 Ollama」后重试。'
+          : text,
+        action: action || (looksDown ? START_OLLAMA_ACTION : undefined),
+      });
       render();
+    },
+    appendSystem: (text) => {
+      ensure(activeSessionId).push({ id: uid(), role: 'system', text });
+      render();
+    },
+    onAction: (cb) => {
+      actionHandler = cb;
     },
     handleEvent,
     flushStreaming,
