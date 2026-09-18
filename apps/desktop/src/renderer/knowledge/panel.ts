@@ -662,8 +662,10 @@ export function mountKnowledgePanel(root: HTMLElement): KnowledgePanelApi {
         alert(res?.message || '推送失败');
         return;
       }
-      parseStatusEl.textContent = `已推送到业务空间：${m.name}（待安装）`;
-      alert(`已推送到业务空间：${m.name}\n可在业务空间「资产互通」中安装/选用`);
+      parseStatusEl.textContent = `已推送到业务空间：${m.name}（写入 OpenXYOS 知识库）`;
+      alert(
+        `已推送到业务空间：${m.name}\n请刷新 OpenXYOS 知识库页（文件 / 与笔记）查看`,
+      );
     })();
   });
 

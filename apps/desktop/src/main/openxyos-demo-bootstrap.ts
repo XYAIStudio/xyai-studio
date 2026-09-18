@@ -35,6 +35,37 @@ async function postJson(
   return { status: res.status, json };
 }
 
+function readAccessToken(json: Record<string, unknown> | null): string | null {
+  const data = json?.data;
+  if (!data || typeof data !== 'object') return null;
+  const rec = data as Record<string, unknown>;
+  const tokens = rec.tokens;
+  if (tokens && typeof tokens === 'object') {
+    const access = (tokens as Record<string, unknown>).accessToken;
+    if (typeof access === 'string' && access.trim()) return access.trim();
+  }
+  if (typeof rec.token === 'string' && rec.token.trim()) return rec.token.trim();
+  return null;
+}
+
+export async function loginOpenXyosDemoAccessToken(
+  baseUrl: string,
+  email = OPENXYOS_DEMO_EMAIL,
+  password = OPENXYOS_DEMO_PASSWORD,
+): Promise<string | null> {
+  const base = baseUrl.replace(/\/+$/, '');
+  try {
+    const { status, json } = await postJson(`${base}/api/auth/login`, {
+      email,
+      password,
+    });
+    if (status < 200 || status >= 300 || json?.success !== true) return null;
+    return readAccessToken(json);
+  } catch {
+    return null;
+  }
+}
+
 export async function tryDemoLogin(
   baseUrl: string,
   email = OPENXYOS_DEMO_EMAIL,

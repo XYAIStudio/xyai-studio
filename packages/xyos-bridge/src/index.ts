@@ -19,11 +19,15 @@ export {
 export {
   safeAgentSlug,
   buildAgentPublishPlan,
+  buildAgentImportBody,
+  buildKnowledgeImportBody,
   deriveAgentTypeFromInteropId,
   TALENT_UPSERT_SQL,
   RESERVE_EMPLOYEE_UPSERT_SQL,
   type InteropPublishAsset,
   type AgentPublishPlan,
+  type AgentImportBody,
+  type KnowledgeImportBody,
   type TalentUpsertRow,
   type ReserveEmployeeUpsertRow,
 } from './interop-publish.js';

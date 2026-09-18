@@ -24,6 +24,10 @@ import {
   setOpenXyosLogDir,
   stopOpenXyosServer,
 } from './openxyos-host.js';
+import {
+  ensureOpenXyosDemoUsers,
+  loginOpenXyosDemoAccessToken,
+} from './openxyos-demo-bootstrap.js';
 import { createInteropHost, type InteropHost } from '@xyai/xyos-bridge';
 import { setSettingsUserDataDir } from './settings.js';
 import { ModelHubHost } from './model-hub-host.js';
@@ -83,6 +87,23 @@ let host: CodexHost | null = null;
 let modelHub: ModelHubHost | null = null;
 let knowledgeHost: KnowledgeHost | null = null;
 let interopHost: InteropHost | null = null;
+let interopTokenCache: { token: string; at: number } | null = null;
+const INTEROP_TOKEN_TTL_MS = 45 * 60 * 1000;
+
+async function resolveInteropAccessToken(): Promise<string | null> {
+  if (
+    interopTokenCache &&
+    Date.now() - interopTokenCache.at < INTEROP_TOKEN_TTL_MS
+  ) {
+    return interopTokenCache.token;
+  }
+  const base = getOpenXyosServerBaseUrl();
+  if (!base) return null;
+  await ensureOpenXyosDemoUsers(base);
+  const token = await loginOpenXyosDemoAccessToken(base);
+  if (token) interopTokenCache = { token, at: Date.now() };
+  return token;
+}
 
 function getInteropHost(): InteropHost {
   if (!interopHost) {
@@ -92,6 +113,7 @@ function getInteropHost(): InteropHost {
       openXyosBaseUrl: () => getOpenXyosServerBaseUrl(),
       interopSecret: () =>
         process.env.XYAI_INTEROP_SECRET?.trim() || 'studio',
+      openXyosAccessToken: () => resolveInteropAccessToken(),
     });
   }
   return interopHost;

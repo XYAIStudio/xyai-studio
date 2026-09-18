@@ -4,6 +4,7 @@ import {
   OPENXYOS_DEMO_PASSWORD,
   demoLoginCurlExample,
   ensureOpenXyosDemoUsers,
+  loginOpenXyosDemoAccessToken,
 } from './openxyos-demo-bootstrap.js';
 
 describe('openxyos-demo-bootstrap', () => {
@@ -26,6 +27,23 @@ describe('openxyos-demo-bootstrap', () => {
       expect(res.loginOk).toBe(true);
       expect(res.registered).toEqual([]);
       expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('reads accessToken from login JSON', async () => {
+    const fetchMock = vi.fn(async () => ({
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: { tokens: { accessToken: 'jwt-abc' } },
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const token = await loginOpenXyosDemoAccessToken('http://127.0.0.1:3000');
+      expect(token).toBe('jwt-abc');
     } finally {
       vi.unstubAllGlobals();
     }
