@@ -585,9 +585,10 @@ function registerIpc(): void {
 
   ipcMain.handle(
     'xyai:model-speed-test',
-    async (_event, payload: { modelRef?: unknown }) => {
+    async (_event, payload: { modelRef?: unknown; force?: unknown }) => {
       const modelRef = typeof payload?.modelRef === 'string' ? payload.modelRef : '';
-      return getModelHub().speedTest(modelRef);
+      const force = payload?.force === true;
+      return getModelHub().speedTest(modelRef, { force });
     },
   );
 

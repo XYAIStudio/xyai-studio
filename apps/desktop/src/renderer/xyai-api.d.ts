@@ -212,11 +212,16 @@ export interface XyaiApi {
     source?: string;
     path?: string;
   }) => Promise<{ ok: boolean; message: string; status?: XyaiStatus }>;
-  speedTestModel?: (modelRef: string) => Promise<{
+  speedTestModel?: (
+    modelRef: string,
+    options?: { force?: boolean },
+  ) => Promise<{
     ok: boolean;
     message: string;
     tokensPerSec?: number;
     elapsedMs?: number;
+    evalCount?: number;
+    cached?: boolean;
   }>;
   hardwareUsage?(): Promise<{
     ramTotalMb: number;

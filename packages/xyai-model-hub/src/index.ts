@@ -18,12 +18,16 @@ import { LocalModelRegistry } from './registry.js';
 import {
   applyLiveOllamaPresence,
   mergeModelEntries,
+  ollamaTagFromEntry,
   type LocalModelDiscoverySource,
 } from './ollama-discover.js';
 import {
   scanDiskWeightModels,
   type DiskScanMode,
 } from './disk-weights.js';
+import { LocalSpeedCache, lookupSpeedResult } from './speed-cache.js';
+import type { SpeedResultMap } from './speed-cache.js';
+import { hubSpeedRowForEntry, sortByHubSpeed } from './speed-rank.js';
 
 export interface ModelHubSnapshot {
   hardware: HardwareProfile;
@@ -38,6 +42,7 @@ export interface ModelHubSnapshot {
     registry: number;
   };
   defaultModelId?: string;
+  speedResults: SpeedResultMap;
 }
 
 export type CollectSnapshotOptions = {
@@ -62,7 +67,8 @@ export async function collectModelHubSnapshot(
   const registered = registry.load();
   const live = discovered.models.filter((m) => m.installed === true);
   const liveNames = live.map((m) => m.displayName);
-  const installed = applyLiveOllamaPresence(
+  const speedResults = new LocalSpeedCache(userDataPath).load();
+  const merged = applyLiveOllamaPresence(
     mergeModelEntries([discovered.models, diskWeights, registered]),
     liveNames,
     live.map((m) => ({
@@ -72,6 +78,12 @@ export async function collectModelHubSnapshot(
       architecture: m.architecture,
       version: m.version,
     })),
+  );
+  const installed = sortByHubSpeed(merged, (m) =>
+    hubSpeedRowForEntry(
+      { ...m, availableInOllama: m.installed === true },
+      (ref) => lookupSpeedResult(speedResults, ref, ollamaTagFromEntry(m), m.displayName),
+    ),
   );
   const recNames = new Set<string>();
   for (const m of live) {
@@ -96,6 +108,7 @@ export async function collectModelHubSnapshot(
       registry: registered.length,
     },
     defaultModelId: options.defaultModelId,
+    speedResults,
   };
 }
 
@@ -147,6 +160,23 @@ export {
   aliasTagsFor,
 } from './local-model-label.js';
 export { speedTestPreconditions } from './model-ops.js';
+export {
+  LocalSpeedCache,
+  lookupSpeedResult,
+  speedModelKey,
+} from './speed-cache.js';
+export type { SpeedResultMap, StoredSpeedResult } from './speed-cache.js';
+export {
+  compareHubSpeedRows,
+  compareSpeedRanks,
+  formatSpeedChip,
+  hubSpeedRowForEntry,
+  isSpeedEligibleChatModel,
+  sortByHubSpeed,
+} from './speed-rank.js';
+export type { HubSpeedRow, SpeedEligibleView, SpeedRank } from './speed-rank.js';
+export { runPersistedSpeedTest } from './speed-run.js';
+export type { PersistedSpeedTestResult } from './speed-run.js';
 export {
   DISK_WEIGHT_CAP,
   commonModelRoots,

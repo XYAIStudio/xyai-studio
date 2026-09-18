@@ -1206,10 +1206,62 @@ button {
   transform: translateY(-1px);
   box-shadow: var(--shadow-chip);
 }
+.list-item.is-fastest {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: linear-gradient(180deg, rgba(219, 234, 254, 0.72), rgba(255, 255, 255, 0.78));
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.12);
+}
+.list-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.list-title-text {
+  font-weight: 650;
+  color: var(--sky-900, #0b3a66);
+}
+.speed-fastest-tag,
+.speed-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.5;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.speed-fastest-tag {
+  color: #fff;
+  background: linear-gradient(135deg, var(--sky-500, #3b82f6), var(--sky-600, #2563eb));
+}
+.speed-chip-score {
+  color: var(--sky-800, #1e40af);
+  background: rgba(219, 234, 254, 0.9);
+  border: 1px solid rgba(147, 197, 253, 0.55);
+}
+.speed-chip-pending {
+  color: #9a3412;
+  background: rgba(255, 247, 237, 0.92);
+  border: 1px solid rgba(253, 186, 116, 0.55);
+}
+.speed-chip-none {
+  color: var(--muted, #64748b);
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(203, 213, 225, 0.7);
+}
 .list-item .meta {
   color: var(--muted);
   font-size: 12px;
   margin-top: 4px;
+}
+.list-actions .capsule-btn.capsule-btn-primary {
+  background: linear-gradient(135deg, var(--sky-500, #3b82f6), var(--sky-600, #2563eb));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 .list-actions {
   flex-shrink: 0;

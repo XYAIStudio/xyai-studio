@@ -18,7 +18,19 @@ describe('hubActionsFor', () => {
     expect(actions.map((a) => a.label)).toEqual(['注册']);
   });
 
-  it('shows 测速 + 挂接 only when the tag is live in Ollama', () => {
+  it('puts 挂接 before 测速 on a live non-default tag', () => {
+    const actions = hubActionsFor({
+      id: 'ollama:qwen3:1.7b',
+      displayName: 'qwen3:1.7b',
+      source: 'ollama',
+      registered: true,
+      isDefault: false,
+      availableInOllama: true,
+    });
+    expect(actions.map((a) => a.label)).toEqual(['挂接', '测速']);
+  });
+
+  it('shows 解挂 + 测速 only when the tag is live in Ollama', () => {
     const actions = hubActionsFor({
       id: 'ollama:qwen3:1.7b',
       displayName: 'qwen3:1.7b',
@@ -27,7 +39,7 @@ describe('hubActionsFor', () => {
       isDefault: true,
       availableInOllama: true,
     });
-    expect(actions.map((a) => a.label)).toEqual(['测速', '解挂']);
+    expect(actions.map((a) => a.label)).toEqual(['解挂', '测速']);
   });
 
   it('hides 测速 for recommended tags that are not installed', () => {
