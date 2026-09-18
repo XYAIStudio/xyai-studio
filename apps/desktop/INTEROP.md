@@ -1,7 +1,7 @@
 # INTEROP — 开发空间 ↔ 业务空间 资产互通
 
 日期：2026-09-18（CST）  
-范围：XYAI Studio 0.5 本地桥（file + HTTP），对齐 OpenXYOS 官方 Studio 导入合同。
+范围：XYAI Studio 0.5 本地桥（file + HTTP），对齐 OpenXYOS 官方 Studio 导入合同（openXYOS `#15` / `93a959d`）。
 
 ## 产品约定
 
