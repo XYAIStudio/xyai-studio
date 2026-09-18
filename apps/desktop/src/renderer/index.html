@@ -190,8 +190,11 @@
               </div>
               <div class="grid-2">
                 <div class="card">
-                  <h2>本机已有模型</h2>
-                  <p class="hint">Ollama 标签 + 磁盘 GGUF/权重（不仅是 /api/tags）。mmproj 为投影器，不能当对话模型测速。</p>
+                  <div class="models-section-head">
+                    <h2>本机已有模型</h2>
+                    <button id="btn-retest-speeds" type="button" class="capsule-btn">重新测速</button>
+                  </div>
+                  <p class="hint">按测速排序（快→慢）。已安装的对话模型会自动测速或沿用上次结果；mmproj 投影器不测速。最快一行可直接挂接为默认。</p>
                   <div id="installed-list" class="list"></div>
                 </div>
                 <div class="card">

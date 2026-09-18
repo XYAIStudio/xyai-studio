@@ -46,17 +46,15 @@ export function hubActionsFor(view: HubModelView): HubAction[] {
   const live = view.availableInOllama === true;
   const actions: HubAction[] = [];
   if (!projector && live) {
-    actions.push({ id: 'speed', label: '测速' });
-  }
-  if (!view.registered) {
-    actions.push({ id: 'register', label: '注册' });
-  }
-  if (!projector && live) {
     actions.push(
       view.isDefault
         ? { id: 'detach', label: '解挂' }
         : { id: 'attach', label: '挂接' },
     );
+    actions.push({ id: 'speed', label: '测速' });
+  }
+  if (!view.registered) {
+    actions.push({ id: 'register', label: '注册' });
   }
   return actions;
 }

@@ -5,7 +5,7 @@ import type {
   ModelHubSnapshot,
   RegisterModelInput,
   RegisterModelResult,
-  SpeedTestResult,
+  PersistedSpeedTestResult,
   StartOllamaResult,
 } from '@xyai/model-hub';
 import {
@@ -14,8 +14,8 @@ import {
   installOllama,
   pullOllamaModel,
   registerLocalModel,
+  runPersistedSpeedTest,
   shouldRefuseHeavyLocalJob,
-  speedTestOllamaModel,
   startOllama,
 } from '@xyai/model-hub';
 
@@ -47,8 +47,11 @@ export class ModelHubHost {
     return registerLocalModel(this.userDataPath, input);
   }
 
-  speedTest(modelRef: string): Promise<SpeedTestResult> {
-    return speedTestOllamaModel(modelRef);
+  speedTest(
+    modelRef: string,
+    options: { force?: boolean } = {},
+  ): Promise<PersistedSpeedTestResult> {
+    return runPersistedSpeedTest(this.userDataPath, modelRef, options);
   }
 
   async pullModel(

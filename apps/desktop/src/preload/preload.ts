@@ -140,12 +140,19 @@ const api = {
 
   speedTestModel: (
     modelRef: string,
+    options?: { force?: boolean },
   ): Promise<{
     ok: boolean;
     message: string;
     tokensPerSec?: number;
     elapsedMs?: number;
-  }> => ipcRenderer.invoke('xyai:model-speed-test', { modelRef }),
+    evalCount?: number;
+    cached?: boolean;
+  }> =>
+    ipcRenderer.invoke('xyai:model-speed-test', {
+      modelRef,
+      force: options?.force === true,
+    }),
 
   hardwareUsage: (): Promise<unknown> => ipcRenderer.invoke('xyai:hardware-usage'),
 

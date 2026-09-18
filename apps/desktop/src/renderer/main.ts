@@ -22,6 +22,16 @@ import {
   isProjectorModel,
   sourceLabel,
 } from './models-hub-actions.js';
+import {
+  formatSpeedChip,
+  isSpeedEligibleChatModel,
+  lookupStoredSpeed,
+  rankFromStored,
+  refsNeedingAutoSpeed,
+  sortByHubSpeed,
+  speedModelKey,
+  type StoredSpeedView,
+} from './models-hub-speed.js';
 
 let pulling = false;
 
@@ -58,6 +68,33 @@ let lastOllama = {
 };
 
 let lastDiscoveryCounts = { ollama: 0, disk: 0 };
+
+type HubInstalledRow = {
+  id: string;
+  display: string;
+  modelRef: string;
+  source?: string;
+  path?: string;
+  role?: string;
+  registered: boolean;
+  live: boolean;
+  projector: boolean;
+  isDefault: boolean;
+  metaBits: string[];
+  raw: {
+    id?: string;
+    displayName?: string;
+    source?: string;
+    path?: string;
+  };
+};
+
+let lastInstalledRows: HubInstalledRow[] = [];
+let lastSpeedResults: Record<string, StoredSpeedView> = {};
+const speedPending = new Set<string>();
+const speedAutoTried = new Set<string>();
+let speedQueue: Promise<void> = Promise.resolve();
+let lastOllamaRunning = false;
 
 let chatApi: ChatMount | null = null;
 
@@ -191,12 +228,43 @@ function renderListItem(
   meta: string,
   actionLabel?: string,
   onAction?: () => void,
-  extraActions?: { label: string; onClick: () => void }[],
+  extraActions?: {
+    label: string;
+    onClick: () => void;
+    primary?: boolean;
+    title?: string;
+  }[],
+  opts?: {
+    fastest?: boolean;
+    chip?: { text: string; kind: string } | null;
+  },
 ): HTMLElement {
   const row = document.createElement('div');
-  row.className = 'list-item';
+  row.className = opts?.fastest ? 'list-item is-fastest' : 'list-item';
   const left = document.createElement('div');
-  left.innerHTML = `<div>${title}</div><div class="meta">${meta}</div>`;
+  const titleRow = document.createElement('div');
+  titleRow.className = 'list-title';
+  const titleEl = document.createElement('span');
+  titleEl.className = 'list-title-text';
+  titleEl.textContent = title;
+  titleRow.appendChild(titleEl);
+  if (opts?.fastest) {
+    const tag = document.createElement('span');
+    tag.className = 'speed-fastest-tag';
+    tag.textContent = '最快';
+    titleRow.appendChild(tag);
+  }
+  if (opts?.chip) {
+    const chip = document.createElement('span');
+    chip.className = `speed-chip speed-chip-${opts.chip.kind}`;
+    chip.textContent = opts.chip.text;
+    titleRow.appendChild(chip);
+  }
+  const metaEl = document.createElement('div');
+  metaEl.className = 'meta';
+  metaEl.textContent = meta;
+  left.appendChild(titleRow);
+  left.appendChild(metaEl);
   row.appendChild(left);
   const actions = document.createElement('div');
   actions.className = 'list-actions';
@@ -214,8 +282,9 @@ function renderListItem(
     has = true;
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'capsule-btn';
+    btn.className = extra.primary ? 'capsule-btn capsule-btn-primary' : 'capsule-btn';
     btn.textContent = extra.label;
+    if (extra.title) btn.title = extra.title;
     btn.addEventListener('click', () => extra.onClick());
     actions.appendChild(btn);
   }
@@ -272,13 +341,234 @@ async function registerHubModel(m: {
   }
 }
 
+function rememberSpeedResult(
+  modelRef: string,
+  res: { ok: boolean; tokensPerSec?: number },
+): void {
+  lastSpeedResults[speedModelKey(modelRef)] = {
+    ok: res.ok,
+    tokensPerSec: res.ok ? res.tokensPerSec : undefined,
+  };
+}
+
+function enqueueSpeedTest(
+  modelRef: string,
+  options: { force?: boolean; alertResult?: boolean } = {},
+): Promise<void> {
+  const key = speedModelKey(modelRef);
+  speedPending.add(key);
+  renderInstalledList();
+  const run = speedQueue.then(async () => {
+    if (!window.xyai.speedTestModel) {
+      if (options.alertResult) alert('测速接口不可用，请重装最新安装包');
+      return;
+    }
+    try {
+      const res = await window.xyai.speedTestModel(modelRef, {
+        force: options.force === true,
+      });
+      rememberSpeedResult(modelRef, res);
+      if (options.alertResult) alert(res.message);
+    } catch (err) {
+      if (options.alertResult) {
+        alert(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      speedPending.delete(key);
+      renderInstalledList();
+    }
+  });
+  speedQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
 async function speedTestHubModel(modelRef: string): Promise<void> {
-  if (!window.xyai.speedTestModel) {
-    alert('测速接口不可用，请重装最新安装包');
+  await enqueueSpeedTest(modelRef, { force: true, alertResult: true });
+}
+
+function queueMissingAutoSpeedTests(): void {
+  if (!lastOllamaRunning) return;
+  const views = lastInstalledRows.map((row) => ({
+    id: row.id,
+    displayName: row.display,
+    source: row.source,
+    path: row.path,
+    role: row.role,
+    registered: row.registered,
+    isDefault: row.isDefault,
+    availableInOllama: row.live,
+    modelRef: row.modelRef,
+  }));
+  for (const ref of refsNeedingAutoSpeed(views, lastSpeedResults)) {
+    const key = speedModelKey(ref);
+    if (speedAutoTried.has(key) || speedPending.has(key)) continue;
+    speedAutoTried.add(key);
+    void enqueueSpeedTest(ref, { force: false, alertResult: false });
+  }
+}
+
+async function retestAllEligibleSpeeds(): Promise<void> {
+  const btn = document.getElementById('btn-retest-speeds') as HTMLButtonElement | null;
+  const eligible = lastInstalledRows.filter((row) =>
+    isSpeedEligibleChatModel({
+      id: row.id,
+      displayName: row.display,
+      path: row.path,
+      role: row.role,
+      registered: row.registered,
+      isDefault: row.isDefault,
+      availableInOllama: row.live,
+    }),
+  );
+  if (!eligible.length) {
+    alert('没有可测速的已安装对话模型');
     return;
   }
-  const res = await window.xyai.speedTestModel(modelRef);
-  alert(res.message);
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '测速中…';
+  }
+  try {
+    for (const row of eligible) {
+      speedAutoTried.add(speedModelKey(row.modelRef));
+      await enqueueSpeedTest(row.modelRef, { force: true, alertResult: false });
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '重新测速';
+    }
+  }
+}
+
+function renderInstalledList(): void {
+  if (!installedList) return;
+  installedList.innerHTML = '';
+  if (!lastInstalledRows.length) return;
+  const sorted = sortByHubSpeed(lastInstalledRows, (row) => {
+    const eligible = isSpeedEligibleChatModel({
+      id: row.id,
+      displayName: row.display,
+      path: row.path,
+      role: row.role,
+      registered: row.registered,
+      isDefault: row.isDefault,
+      availableInOllama: row.live,
+    });
+    const stored = lookupStoredSpeed(
+      lastSpeedResults,
+      row.modelRef,
+      row.id,
+      row.display,
+    );
+    return {
+      eligible,
+      rank: rankFromStored(stored, speedPending.has(speedModelKey(row.modelRef))),
+    };
+  });
+  const fastestRef = sorted.find((row) => {
+    if (
+      !isSpeedEligibleChatModel({
+        id: row.id,
+        displayName: row.display,
+        path: row.path,
+        role: row.role,
+        registered: row.registered,
+        isDefault: row.isDefault,
+        availableInOllama: row.live,
+      })
+    ) {
+      return false;
+    }
+    const stored = lookupStoredSpeed(
+      lastSpeedResults,
+      row.modelRef,
+      row.id,
+      row.display,
+    );
+    return Boolean(stored?.ok && stored.tokensPerSec != null);
+  })?.modelRef;
+
+  for (const row of sorted) {
+    const eligible = isSpeedEligibleChatModel({
+      id: row.id,
+      displayName: row.display,
+      path: row.path,
+      role: row.role,
+      registered: row.registered,
+      isDefault: row.isDefault,
+      availableInOllama: row.live,
+    });
+    const stored = lookupStoredSpeed(
+      lastSpeedResults,
+      row.modelRef,
+      row.id,
+      row.display,
+    );
+    const rank = rankFromStored(
+      stored,
+      speedPending.has(speedModelKey(row.modelRef)),
+    );
+    const extras = hubActionsFor({
+      id: row.id || row.modelRef,
+      displayName: row.display,
+      source: row.source,
+      path: row.path,
+      role: row.role,
+      registered: row.registered,
+      isDefault: row.isDefault,
+      availableInOllama: row.live,
+    }).map((action) => ({
+      label: action.label,
+      primary: action.id === 'attach' || action.id === 'detach',
+      title:
+        action.id === 'attach'
+          ? '设为默认对话模型'
+          : action.id === 'detach'
+            ? '取消默认对话模型'
+            : action.id === 'speed'
+              ? '重新测速此模型'
+              : undefined,
+      onClick: () => {
+        if (action.id === 'speed') {
+          void speedTestHubModel(row.modelRef);
+          return;
+        }
+        if (action.id === 'register') {
+          void registerHubModel({
+            id: row.raw.id,
+            displayName: row.raw.displayName || row.display,
+            source: row.raw.source,
+            path: row.raw.path,
+          });
+          return;
+        }
+        if (action.id === 'attach') {
+          void setDefaultModel(row.modelRef);
+          return;
+        }
+        if (action.id === 'detach') {
+          void clearDefaultModel(row.modelRef);
+        }
+      },
+    }));
+    installedList.appendChild(
+      renderListItem(
+        row.display,
+        row.metaBits.join(' · '),
+        undefined,
+        undefined,
+        extras,
+        {
+          fastest: Boolean(fastestRef && row.modelRef === fastestRef),
+          chip: formatSpeedChip(rank, eligible),
+        },
+      ),
+    );
+  }
 }
 
 function readScanOptions(): {
@@ -337,6 +627,7 @@ async function refreshModels(scan?: {
       installed: Boolean(dep.installed),
       running: Boolean(dep.running),
     };
+    lastOllamaRunning = Boolean(dep.running);
     const canStart = Boolean(dep.canStart) || (dep.installed && !dep.running);
     depPanel.innerHTML = `
       <div class="hw-line">Ollama：${dep.installed ? '已安装' : '未安装'}${dep.version ? ` · v${dep.version}` : ''}</div>
@@ -365,6 +656,18 @@ async function refreshModels(scan?: {
       ((snap.registry || []) as { id?: string }[]).map((r) => r.id || ''),
     );
     const defaultId = snap.defaultModelId || (await currentDefaultModelId());
+    lastSpeedResults = {};
+    const incomingSpeeds = (snap.speedResults || {}) as Record<string, StoredSpeedView>;
+    for (const [key, value] of Object.entries(incomingSpeeds)) {
+      lastSpeedResults[speedModelKey(key)] = {
+        ok: Boolean(value?.ok),
+        tokensPerSec:
+          value?.ok && typeof value.tokensPerSec === 'number'
+            ? value.tokensPerSec
+            : undefined,
+      };
+    }
+    lastInstalledRows = [];
     if (!installed.length) {
       const emptyHint = canStart
         ? 'Ollama 已安装但未运行。请点「启动 Ollama」，启动后再刷新；也可用「搜索本机模型」扫磁盘 GGUF。'
@@ -429,44 +732,28 @@ async function refreshModels(scan?: {
           isDefault ? '当前默认' : '',
           size,
         ].filter(Boolean);
-        const extras = hubActionsFor({
+        lastInstalledRows.push({
           id: String(m.id || modelRef),
-          displayName: String(display),
+          display: String(display),
+          modelRef,
           source: m.source,
           path: m.path,
           role: m.role,
           registered,
+          live,
+          projector,
           isDefault,
-          availableInOllama: live,
-        }).map((action) => ({
-          label: action.label,
-          onClick: () => {
-            if (action.id === 'speed') {
-              void speedTestHubModel(modelRef);
-              return;
-            }
-            if (action.id === 'register') {
-              void registerHubModel({
-                id: m.id,
-                displayName: display,
-                source: m.source,
-                path: m.path,
-              });
-              return;
-            }
-            if (action.id === 'attach') {
-              void setDefaultModel(modelRef);
-              return;
-            }
-            if (action.id === 'detach') {
-              void clearDefaultModel(modelRef);
-            }
+          metaBits,
+          raw: {
+            id: m.id,
+            displayName: display,
+            source: m.source,
+            path: m.path,
           },
-        }));
-        installedList.appendChild(
-          renderListItem(String(display), metaBits.join(' · '), undefined, undefined, extras),
-        );
+        });
       }
+      renderInstalledList();
+      queueMissingAutoSpeedTests();
     }
 
     const chatRec = [
@@ -812,6 +1099,9 @@ async function boot(): Promise<void> {
   window.xyai.onEvent(chat.handleEvent);
 
   btnRefresh.addEventListener('click', () => void refreshModels());
+  document.getElementById('btn-retest-speeds')?.addEventListener('click', () => {
+    void retestAllEligibleSpeeds();
+  });
   document.getElementById('btn-pick-scan-dir')?.addEventListener('click', () => {
     void (async () => {
       const pick = await window.xyai.pickModelScanDir?.();
