@@ -5,7 +5,17 @@
 > **Local-first agent workspace**: install, chat, mount knowledge, customize agents — add XYOS when you need a business workspace.  
 > Open source for trust & adoption · enterprise rollout via XYOS / private deploy.
 
-**Release: `v0.3.1-20260904-r2` (preview)** · Site [www.cnxyai.cn](https://www.cnxyai.cn/) · [Release notes](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
+**Latest desktop beta: `v0.5.0`** · source branch [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
+
+| Goal | Platform | Link |
+| --- | --- | --- |
+| **0.5 desktop installer (recommended trial)** | Windows x64 | [XYAI-Studio-0.5.0-Setup-x64.exe](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
+
+> 0.5: local-first Electron + Codex chat path + OpenXYOS business space. Uninstall older builds before installing.
+
+---
+
+**Previous preview: `v0.3.1-20260904-r2`** · Site [www.cnxyai.cn](https://www.cnxyai.cn/) · [Release notes](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
 
 ### Downloads
 
