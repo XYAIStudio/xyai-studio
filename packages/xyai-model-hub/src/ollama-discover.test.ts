@@ -4,6 +4,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   applyLiveOllamaPresence,
+  enrichEntriesWithShow,
   formatLocalModelScanResult,
   inferOllamaRole,
   listOllamaNamesFromDiskRoot,
@@ -11,6 +12,8 @@ import {
   ollamaApiModelToEntry,
   parseOllamaListOutput,
   parseOllamaListRows,
+  parseOllamaShowJson,
+  parseOllamaShowText,
   pickDiscoverySource,
   toOllamaModelEntry,
 } from './ollama-discover.js';
@@ -140,6 +143,50 @@ describe('applyLiveOllamaPresence', () => {
     expect(out.find((m) => m.displayName === 'gemma3:4b')?.installed).toBe(
       false,
     );
+  });
+});
+
+describe('ollama show parsers', () => {
+  it('reads architecture and parameters from CLI text', () => {
+    const text = [
+      '  Model',
+      '    architecture        qwen25vl',
+      '    parameters          3.8B',
+      '    quantization        Q4_K_M',
+    ].join('\n');
+    expect(parseOllamaShowText(text)).toEqual({
+      architecture: 'qwen25vl',
+      parameterSize: '3.8B',
+    });
+  });
+
+  it('prefers general.architecture from /api/show JSON', () => {
+    expect(
+      parseOllamaShowJson({
+        details: { family: 'qwen2', parameter_size: '3.8B' },
+        model_info: { 'general.architecture': 'qwen25vl' },
+      }),
+    ).toEqual({
+      architecture: 'qwen25vl',
+      family: 'qwen2',
+      parameterSize: '3.8B',
+    });
+  });
+});
+
+describe('enrichEntriesWithShow', () => {
+  it('writes architecture from show onto the live tag', async () => {
+    const entry = toOllamaModelEntry('deepseek-v4-flash:latest', {
+      installed: true,
+      digest: 'fb90415cde1e',
+    });
+    const [out] = await enrichEntriesWithShow([entry], async () => ({
+      architecture: 'qwen25vl',
+      family: 'qwen2',
+      parameterSize: '3.8B',
+    }));
+    expect(out!.architecture).toBe('qwen25vl');
+    expect(out!.version).toBe('3.8B');
   });
 });
 

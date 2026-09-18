@@ -53,6 +53,7 @@ export function toOllamaModelEntry(
     installed: extra.installed === true,
     digest: extra.digest,
     family: extra.family,
+    architecture: extra.architecture,
     capabilities,
     path: extra.path,
   };
@@ -201,6 +202,7 @@ export function mergeModelEntries(groups: ModelEntry[][]): ModelEntry[] {
         capabilities: m.capabilities?.length ? m.capabilities : prev.capabilities,
         digest: m.digest || prev.digest,
         family: m.family || prev.family,
+        architecture: m.architecture || prev.architecture,
         installed: Boolean(prev.installed || m.installed),
         version:
           m.version && m.version !== 'local'
@@ -289,6 +291,7 @@ export function applyLiveOllamaPresence(
     name: string;
     digest?: string;
     family?: string;
+    architecture?: string;
     version?: string;
   }> = [],
 ): ModelEntry[] {
@@ -309,12 +312,118 @@ export function applyLiveOllamaPresence(
       installed: live,
       digest: m.digest || meta?.digest,
       family: m.family || meta?.family,
+      architecture: m.architecture || meta?.architecture,
       version:
         m.version && m.version !== 'local'
           ? m.version
           : (meta?.version ?? m.version),
     };
   });
+}
+
+export type OllamaShowDetails = {
+  architecture?: string;
+  family?: string;
+  parameterSize?: string;
+};
+
+/** Parse `ollama show` text (`architecture qwen25vl` / `parameters 3.8B`). */
+export function parseOllamaShowText(stdout: string): OllamaShowDetails {
+  const architecture = stdout.match(/architecture\s+([A-Za-z0-9._-]+)/i)?.[1];
+  const parameterSize = stdout.match(/parameters?\s+(\d+(?:\.\d+)?[BbMm])/i)?.[1];
+  return {
+    architecture,
+    parameterSize: parameterSize ? parameterSize.toUpperCase() : undefined,
+  };
+}
+
+/** Parse `/api/show` JSON, preferring `general.architecture` over details.family. */
+export function parseOllamaShowJson(body: {
+  details?: { family?: string; families?: string[]; parameter_size?: string };
+  model_info?: Record<string, unknown>;
+}): OllamaShowDetails {
+  const info = body.model_info ?? {};
+  const archRaw = info['general.architecture'];
+  const architecture = typeof archRaw === 'string' ? archRaw : undefined;
+  return {
+    architecture,
+    family: body.details?.family || body.details?.families?.[0],
+    parameterSize: body.details?.parameter_size,
+  };
+}
+
+export function applyShowDetails(
+  entry: ModelEntry,
+  details: OllamaShowDetails,
+): ModelEntry {
+  return {
+    ...entry,
+    architecture: details.architecture || entry.architecture,
+    family: details.family || entry.family,
+    version:
+      details.parameterSize && details.parameterSize !== 'local'
+        ? details.parameterSize
+        : entry.version,
+  };
+}
+
+/** Copy architecture/family/size onto other tags that share the same digest. */
+export function propagateArchitectureAcrossAliases(
+  entries: ModelEntry[],
+): ModelEntry[] {
+  return entries.map((e) => {
+    if (!e.digest || (e.architecture && e.family && e.version !== 'local')) {
+      return e;
+    }
+    const donor = entries.find(
+      (o) =>
+        o.id !== e.id &&
+        digestsMatch(e.digest, o.digest) &&
+        (o.architecture || o.family),
+    );
+    if (!donor) return e;
+    return {
+      ...e,
+      architecture: e.architecture || donor.architecture,
+      family: e.family || donor.family,
+      version:
+        e.version && e.version !== 'local' ? e.version : donor.version,
+    };
+  });
+}
+
+export async function enrichEntriesWithShow(
+  entries: ModelEntry[],
+  show: (name: string) => Promise<OllamaShowDetails | null>,
+): Promise<ModelEntry[]> {
+  const out = entries.slice();
+  const liveIdx = out
+    .map((e, i) => ({ e, i }))
+    .filter(
+      ({ e }) =>
+        e.installed === true &&
+        (e.source === 'ollama' || e.id.startsWith('ollama:')),
+    );
+  const concurrency = 4;
+  let cursor = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, liveIdx.length) },
+    async () => {
+      while (cursor < liveIdx.length) {
+        const job = liveIdx[cursor]!;
+        cursor += 1;
+        let details: OllamaShowDetails | null = null;
+        try {
+          details = await show(ollamaTagFromEntry(job.e));
+        } catch {
+          details = null;
+        }
+        if (details) out[job.i] = applyShowDetails(job.e, details);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return propagateArchitectureAcrossAliases(out);
 }
 
 export function liveOllamaNames(entries: ModelEntry[]): string[] {

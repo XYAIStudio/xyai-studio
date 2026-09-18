@@ -91,33 +91,37 @@ describe('Phase A model-catalog-facade', () => {
         id: 'ollama:deepseek-v4-flash:latest',
         displayName: 'deepseek-v4-flash:latest',
         provider: 'local',
-        version: '3.2B',
+        version: '3.8B',
         harnessIds: ['ollama'],
         role: 'chat',
         source: 'ollama',
         installed: true,
         digest: 'fb90415cde1e',
         family: 'qwen2',
+        architecture: 'qwen25vl',
       },
       {
         id: 'ollama:qwen2.5vl:3b',
         displayName: 'qwen2.5vl:3b',
         provider: 'local',
-        version: '3.2B',
+        version: '3.8B',
         harnessIds: ['ollama'],
         role: 'vision',
         source: 'ollama',
         installed: true,
         digest: 'sha256:fb90415cde1eabcd',
         family: 'qwen2',
+        architecture: 'qwen25vl',
       },
     ]);
     expect(local.map((m) => m.id)).toEqual([
       'ollama:deepseek-v4-flash:latest',
       'ollama:qwen2.5vl:3b',
     ]);
-    expect(local[0]!.label).toBe('Qwen2 3.2B（deepseek-v4-flash）');
-    expect(local[0]!.hint).toMatch(/同权重/);
+    expect(local[0]!.label).toBe('Qwen2.5-VL 3.8B');
+    expect(local[0]!.label).not.toMatch(/deepseek/i);
+    expect(local[0]!.hint).toMatch(/别名 deepseek-v4-flash/);
+    expect(local[1]!.label).toBe('Qwen2.5-VL 3.8B');
   });
 
   it('loadUnifiedModelCatalog merges without Electron', async () => {

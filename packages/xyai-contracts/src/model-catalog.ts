@@ -30,6 +30,8 @@ export interface ModelEntry {
   digest?: string;
   /** GGUF/Ollama family from `/api/tags` details — not a marketing name. */
   family?: string;
+  /** GGUF architecture from `ollama show` / `model_info['general.architecture']`. */
+  architecture?: string;
 }
 
 export interface ModelCatalog {

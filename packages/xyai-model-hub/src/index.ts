@@ -69,6 +69,7 @@ export async function collectModelHubSnapshot(
       name: m.displayName,
       digest: m.digest,
       family: m.family,
+      architecture: m.architecture,
       version: m.version,
     })),
   );
@@ -132,12 +133,17 @@ export {
   ollamaTagFromEntry,
   digestsMatch,
   shortDigest,
+  parseOllamaShowText,
+  parseOllamaShowJson,
+  enrichEntriesWithShow,
+  propagateArchitectureAcrossAliases,
 } from './ollama-discover.js';
 export {
   presentLocalPickerItems,
   presentLocalPickerItem,
   formatOllamaTagLabel,
   formatFamilyLabel,
+  formatArchToken,
   aliasTagsFor,
 } from './local-model-label.js';
 export { speedTestPreconditions } from './model-ops.js';
