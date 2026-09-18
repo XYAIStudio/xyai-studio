@@ -4,6 +4,16 @@
 
 > 讓專業經驗，進化為生產力。
 
+**最新桌面 Beta：`v0.5.0`** · 原始碼分支 [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
+
+| 目標 | 平台 | 連結 |
+| --- | --- | --- |
+| **0.5 桌面安裝包（建議試用）** | Windows x64 | [XYAI-Studio-0.5.0-Setup-x64.exe](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
+
+> 0.5：本地優先 Electron + Codex 對話路徑 + OpenXYOS 業務空間；安裝前請先解除安裝舊版。
+
+---
+
 XYAI Studio 是一款本地優先的桌面智慧工作台。本儲存庫發布 v0.3 的 XYAI 開源層：Electron 桌面殼、XYOS 本地服務、產業智慧體模組，以及相對於 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的整合修補程式。
 
 ## v0.3 已包含的能力
