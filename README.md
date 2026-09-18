@@ -5,7 +5,17 @@
 > **本地优先的智能体工作台**：装上就能对话、挂知识库、定制智能体；需要业务空间时再上 XYOS。  
 > 开源获客与信任 · 企业落地走 XYOS / 私有化（边界见下文）。
 
-**当前发版：`v0.3.1-20260904-r2`（内测预览）** · 官网 [www.cnxyai.cn](https://www.cnxyai.cn/) · [Release 说明](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
+**最新桌面 Beta：`v0.5.0`** · 源码分支 [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
+
+| 目标 | 平台 | 链接 |
+| --- | --- | --- |
+| **0.5 桌面安装包（推荐试用）** | Windows x64 | [XYAI-Studio-0.5.0-Setup-x64.exe](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
+
+> 0.5：本地优先 Electron + Codex 对话路径 + OpenXYOS 业务空间；安装前请先卸载旧版。
+
+---
+
+**上一稳定预览：`v0.3.1-20260904-r2`** · 官网 [www.cnxyai.cn](https://www.cnxyai.cn/) · [Release 说明](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
 
 ### 下载（点哪个？）
 
