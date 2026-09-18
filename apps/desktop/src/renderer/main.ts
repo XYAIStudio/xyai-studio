@@ -10,6 +10,7 @@ import { mountPersonalizePanel } from './personalize/panel.js';
 import { LOGO_SRC } from './chat/mascot.js';
 import { showAboutDialog } from './about.js';
 import { mountBizZone, mountEcoZone, mountBrowserZone } from './zones/index.js';
+import { formatLocalModelScanResult } from './models-scan-copy.js';
 
 let pulling = false;
 
@@ -36,6 +37,14 @@ const btnRefresh = document.getElementById(
 const btnInstall = document.getElementById(
   'btn-install-ollama',
 ) as HTMLButtonElement;
+const btnStartOllama = document.getElementById(
+  'btn-start-ollama',
+) as HTMLButtonElement | null;
+
+let lastOllama = {
+  installed: false,
+  running: false,
+};
 
 const CLOUD_META: { id: string; label: string }[] = [
   { id: 'openai', label: 'OpenAI' },
@@ -127,22 +136,40 @@ async function refreshModels(): Promise<void> {
     `;
 
     const dep = snap.ollama;
+    lastOllama = {
+      installed: Boolean(dep.installed),
+      running: Boolean(dep.running),
+    };
+    const canStart = Boolean(dep.canStart) || (dep.installed && !dep.running);
     depPanel.innerHTML = `
       <div class="hw-line">Ollama：${dep.installed ? '已安装' : '未安装'}${dep.version ? ` · v${dep.version}` : ''}</div>
       <div class="hw-line">服务：${dep.running ? '运行中' : '未运行'}</div>
       <div class="hw-line meta">${dep.path || dep.installCommand || ''}</div>
+      ${
+        canStart
+          ? '<div class="hw-line">Ollama 已安装但未运行，可点「启动 Ollama」后刷新模型列表。</div>'
+          : ''
+      }
     `;
     btnInstall.disabled = Boolean(dep.installed);
     btnInstall.textContent = dep.installed ? 'Ollama 已安装' : '一键安装 Ollama';
+    if (btnStartOllama) {
+      btnStartOllama.hidden = !canStart;
+      btnStartOllama.disabled = false;
+      btnStartOllama.textContent = '启动 Ollama';
+    }
 
     const installed = snap.installed || [];
     const registryIds = new Set(
       ((snap.registry || []) as { id?: string }[]).map((r) => r.id || ''),
     );
     if (!installed.length) {
-      installedList.appendChild(
-        el('<div class="meta">未检测到本地模型。可点「全盘搜索已下载模型」或从右侧推荐一键下载。</div>'),
-      );
+      const emptyHint = canStart
+        ? 'Ollama 已安装但未运行。请点「启动 Ollama」，启动后再刷新；不必只依赖全盘搜索。'
+        : dep.installed
+          ? '未检测到本地模型。可点「全盘搜索已下载模型」或从右侧推荐一键下载。'
+          : '未检测到 Ollama。请先安装 Ollama，或点「全盘搜索已下载模型」作为兜底。';
+      installedList.appendChild(el(`<div class="meta">${emptyHint}</div>`));
     } else {
       for (const m of installed) {
         const size =
@@ -481,8 +508,32 @@ async function boot(): Promise<void> {
   document.getElementById('btn-scan-models')?.addEventListener('click', () => {
     void refreshModels().then(() => {
       const n = installedList.querySelectorAll('.list-item').length;
-      alert(n ? `全盘搜索完成，发现 ${n} 个本地模型` : '全盘搜索完成，未发现本地模型');
+      alert(
+        formatLocalModelScanResult({
+          count: n,
+          installed: lastOllama.installed,
+          running: lastOllama.running,
+        }),
+      );
     });
+  });
+  btnStartOllama?.addEventListener('click', async () => {
+    if (!window.xyai.startOllama) {
+      alert('启动接口不可用，请重装最新安装包');
+      return;
+    }
+    btnStartOllama.disabled = true;
+    btnStartOllama.textContent = '正在启动 Ollama…';
+    try {
+      const res = await window.xyai.startOllama();
+      alert(res.message);
+      await refreshModels();
+    } catch (err) {
+      alert(String(err));
+    } finally {
+      btnStartOllama.disabled = false;
+      btnStartOllama.textContent = '启动 Ollama';
+    }
   });
   document.querySelectorAll('.models-tab').forEach((btn) => {
     btn.addEventListener('click', () => {

@@ -157,6 +157,37 @@ export function mountChat(): ChatMount {
   const attachChipsEl = requireEl<HTMLElement>('attach-chips');
 
   const transcript = createTranscript(transcriptEl);
+  transcript.onAction((action) => {
+    if (action.id !== 'start-ollama') return;
+    void (async () => {
+      if (!window.xyai.startOllama) {
+        transcript.appendError('启动接口不可用，请重装最新安装包');
+        return;
+      }
+      transcript.appendSystem('正在启动 Ollama…');
+      try {
+        const res = await window.xyai.startOllama();
+        if (res.status) {
+          lastStatus = res.status;
+          picker.applyStatus(res.status);
+        }
+        if (res.ok && res.running) {
+          transcript.appendSystem('Ollama 已启动，请再次发送消息');
+          return;
+        }
+        transcript.appendError(
+          res.message || 'Ollama 仍未就绪',
+          { id: 'start-ollama', label: '启动 Ollama' },
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        transcript.appendError(msg, {
+          id: 'start-ollama',
+          label: '启动 Ollama',
+        });
+      }
+    })();
+  });
   const historyRail = createHistoryNavRail({
     mountParent: transcriptWrap,
     transcriptEl,
@@ -827,6 +858,13 @@ export function mountChat(): ChatMount {
       const msg = err instanceof Error ? err.message : String(err);
       if (/abort|cancel|已停止/i.test(msg) || msg === 'cancelled') {
         transcript.flushStreaming();
+        return;
+      }
+      if (/fetch failed|ECONNREFUSED|Ollama 服务未运行/i.test(msg)) {
+        transcript.appendError(
+          'Ollama 服务未运行。请点击「启动 Ollama」后重试。',
+          { id: 'start-ollama', label: '启动 Ollama' },
+        );
         return;
       }
       transcript.appendError(msg);

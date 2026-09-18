@@ -34,12 +34,18 @@ export type ChatCitation = {
   snippet: string;
 };
 
+export type ChatMsgAction = {
+  id: 'start-ollama';
+  label: string;
+};
+
 export type ChatMsg = {
   id: string;
   role: 'user' | 'assistant' | 'error' | 'system';
   text: string;
   streaming?: boolean;
   citations?: ChatCitation[];
+  action?: ChatMsgAction;
 };
 
 export type AgentEvent = {

@@ -14,9 +14,10 @@ Source is ESM; `bundle-for-pack` emits CJS (`main.cjs`). Bare `import.meta.url` 
 `settings.ts` must never `require('electron')`. Main calls `setSettingsUserDataDir(app.getPath('userData'))` before `CodexHost`.
 
 ## Windows icon embed
-`signAndEditExecutable: false` skips embedding icons into `XYAI Studio.exe`.
-After `electron-builder --dir`, always run:
+`signAndEditExecutable: false` skips electron-builder's own exe icon edit.
+`pnpm --filter desktop pack:win` now: `ensure-icons` → `bundle-for-pack` (pack-out) → `electron-builder --win nsis`.
+`afterPack` (`scripts/after-pack.cjs`) runs `rcedit --set-icon build/icon.ico` when rcedit is available.
+Keep tracked `build/icon.ico` multi-size (>=256, 16–256) and `build/icon.png` at 512px.
+Manual fallback on Windows:
 `rcedit-x64.exe "release/win-unpacked/XYAI Studio.exe" --set-icon build/icon.ico`
-then NSIS with `--prepackaged release/win-unpacked`.
-Keep `build/icon.ico` multi-size (>=256) and `build/icon.png` at 512px.
 

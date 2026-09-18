@@ -180,12 +180,37 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function resolveAppIcon(): string | undefined {
+  const candidates = [
+    path.join(process.resourcesPath, 'icon.ico'),
+    path.join(process.resourcesPath, 'icon.png'),
+    path.join(app.getAppPath(), 'icon.ico'),
+    path.join(app.getAppPath(), 'icon.png'),
+    path.join(moduleDir, 'icon.ico'),
+    path.join(moduleDir, 'icon.png'),
+    path.join(moduleDir, '../build/icon.ico'),
+    path.join(moduleDir, '../build/icon.png'),
+    path.join(moduleDir, '../../build/icon.ico'),
+    path.join(moduleDir, '../../build/icon.png'),
+  ];
+  for (const c of candidates) {
+    try {
+      if (existsSync(c)) return c;
+    } catch {
+      /* ignore */
+    }
+  }
+  return undefined;
+}
+
 function createWindow(): void {
   const preload = preloadPath();
   const indexHtml = rendererIndex();
+  const icon = resolveAppIcon();
   console.log('[xyai] appPath=', app.getAppPath());
   console.log('[xyai] preload=', preload, 'exists=', existsSync(preload));
   console.log('[xyai] renderer=', indexHtml, 'exists=', existsSync(indexHtml));
+  console.log('[xyai] icon=', icon || '(none)');
 
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -194,6 +219,7 @@ function createWindow(): void {
     minHeight: 640,
     title: 'XYAI Studio',
     backgroundColor: '#eef4ff',
+    ...(icon ? { icon } : {}),
     webPreferences: {
       preload,
       contextIsolation: true,
@@ -464,6 +490,16 @@ function registerIpc(): void {
 
   ipcMain.handle('xyai:model-install-dep', async () => {
     return getModelHub().installDependency();
+  });
+
+  ipcMain.handle('xyai:model-start-ollama', async () => {
+    const result = await getModelHub().startOllama();
+    try {
+      await getHost().refreshLocalModels();
+    } catch {
+      /* catalog refresh is best-effort */
+    }
+    return { ...result, status: getHost().getStatus() };
   });
 
   ipcMain.handle(
@@ -745,6 +781,10 @@ ipcMain.handle('xyai:status', () => {
 }
 
 registerKbPreviewSchemePrivileged();
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId('studio.xyai.desktop');
+}
 
 app.whenReady().then(async () => {
   registerKbPreviewProtocolHandler();

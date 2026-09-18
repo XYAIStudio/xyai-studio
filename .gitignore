@@ -1,6 +1,10 @@
 node_modules/
 dist/
 build/
+# Brand icons must ship with the repo so NSIS/shortcuts are not the Electron atom.
+!/apps/desktop/build/
+!/apps/desktop/build/icon.png
+!/apps/desktop/build/icon.ico
 *.tsbuildinfo
 .turbo/
 .cache/

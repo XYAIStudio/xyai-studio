@@ -634,6 +634,10 @@ button {
   color: #991b1b;
   font-size: 13px;
 }
+.bubble.error .error-action {
+  display: inline-flex;
+  margin-top: 8px;
+}
 .bubble.system {
   align-self: center;
   max-width: fit-content;
@@ -1073,6 +1077,12 @@ button {
   font-size: 15px;
   font-weight: 650;
   color: var(--sky-900, #0b3a66);
+}
+.models-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .models-tabs {
   display: flex;

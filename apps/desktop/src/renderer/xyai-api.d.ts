@@ -202,6 +202,13 @@ export interface XyaiApi {
   onEvent(callback: (event: XyaiAgentEvent) => void): () => void;
   modelSnapshot(): Promise<any>;
   installModelDep(): Promise<{ ok: boolean; message: string }>;
+  startOllama?(): Promise<{
+    ok: boolean;
+    running: boolean;
+    started: boolean;
+    message: string;
+    status?: XyaiStatus;
+  }>;
   pullModel(name: string): Promise<{ ok: boolean; message: string }>;
   onPullProgress(
     callback: (data: { name: string; line: string }) => void,

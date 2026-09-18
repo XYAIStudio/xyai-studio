@@ -5,7 +5,7 @@
 | Asset | Path | Use |
 | --- | --- | --- |
 | Circular brand mark | `src/renderer/assets/logo.png` | Chrome wordmark companion, 通用智能体 avatar, About |
-| App icon | `build/icon.png` (square) + `build/icon.ico` | electron-builder / Windows shortcut |
+| App icon | `brand/xyai-logo.png` + `build/icon.png` (512) + `build/icon.ico` (16–256) | electron-builder / Windows shortcut / taskbar / installer |
 | 小精灵 mascot | `src/renderer/assets/mascot/{wave,thumbs,hearts,idea,think}.png` | Empty transcript (pose cycle), About |
 
 Wordmark text stays **XYAI Studio** beside the circular logo in the chrome header.
@@ -23,3 +23,5 @@ Skipped on purpose: floating composer mascot and any brand option menus.
 
 - Mascot PNGs ship on black backgrounds; UI wraps them in rounded navy/black circles so they sit cleanly on the light-sky theme.
 - `scripts/copy-static.mjs` recursively copies `src/renderer/assets/` (including `mascot/`) into `dist/renderer/assets/`.
+- `build/` is gitignored except `icon.png` / `icon.ico` (see repo `.gitignore`). Pack scripts run `scripts/ensure-icons.mjs` and `afterPack` embeds the ICO into `XYAI Studio.exe` via rcedit (needed because `signAndEditExecutable: false`).
+- After reinstalling a new NSIS build: delete the old desktop shortcut, install the new Setup, then confirm the pinwheel logo (not the Electron atom). If Windows still shows atom, refresh the icon cache (`ie4uinit.exe -show`) or sign out/in — Explorer caches shortcut icons.

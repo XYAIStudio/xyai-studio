@@ -1,8 +1,9 @@
-import type { ModelHubSnapshot } from '@xyai/model-hub';
+import type { ModelHubSnapshot, StartOllamaResult } from '@xyai/model-hub';
 import {
   collectModelHubSnapshot,
   installOllama,
   pullOllamaModel,
+  startOllama,
 } from '@xyai/model-hub';
 
 export class ModelHubHost {
@@ -14,6 +15,10 @@ export class ModelHubHost {
 
   installDependency(): Promise<{ ok: boolean; message: string }> {
     return installOllama();
+  }
+
+  startOllama(): Promise<StartOllamaResult> {
+    return startOllama({ timeoutMs: 20000 });
   }
 
   pullModel(

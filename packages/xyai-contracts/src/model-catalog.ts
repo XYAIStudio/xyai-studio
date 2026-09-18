@@ -62,4 +62,6 @@ export interface DependencyStatus {
   version: string | null;
   path: string | null;
   installCommand: string;
+  /** Binary/install present but `/api/tags` is down — UI may offer 启动 Ollama. */
+  canStart?: boolean;
 }

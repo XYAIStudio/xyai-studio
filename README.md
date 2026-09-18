@@ -57,7 +57,7 @@ pnpm --filter desktop pack:win
 
 等价根脚本：`pnpm pack:win`。
 
-打包流水线：`build` → `scripts/bundle-desktop.mjs`（esbuild 内联 `@xyai/*`）→ `electron-builder --win nsis`。  
+打包流水线：`build` → `scripts/ensure-icons.mjs` → `scripts/bundle-for-pack.mjs`（CJS `pack-out/`）→ `electron-builder --win nsis`（`afterPack` 把 XYAI `build/icon.ico` 写入 exe）。  
 Codex 原生二进制 **不强制打入安装包**；运行时用 PATH / `XYAI_CODEX_BIN`，否则 MOCK。用户说明见 `apps/desktop/RELEASE.md`。
 
 ## 文档
