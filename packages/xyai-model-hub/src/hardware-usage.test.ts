@@ -39,4 +39,53 @@ describe('hardware usage', () => {
     expect(hint).toMatch(/NVIDIA/);
     expect(hint).not.toMatch(/winget|一键安装 CUDA/);
   });
+
+  it('hints AMD/Intel drivers without a fake installer', () => {
+    const amd = gpuAccelHintFor([
+      { name: 'Radeon RX 7600', vramTotalMb: 8192, vendor: 'amd' },
+    ]);
+    expect(amd).toMatch(/AMD/);
+    expect(amd).not.toMatch(/winget|一键安装/);
+    const intel = gpuAccelHintFor([
+      { name: 'Intel Arc', vramTotalMb: 8192, vendor: 'intel' },
+    ]);
+    expect(intel).toMatch(/Intel/);
+  });
+
+  it('refuses 14B pulls when pressure is elevated', () => {
+    const elevated = shouldRefuseHeavyLocalJob(
+      {
+        ramTotalMb: 16000,
+        ramUsedMb: 13000,
+        ramUsedPct: 82,
+        gpus: [
+          {
+            name: 'x',
+            vendor: 'nvidia',
+            vramTotalMb: 8,
+            vramUsedMb: 7,
+            vramUsedPct: 85,
+            utilizationPct: 88,
+          },
+        ],
+        pressure: 'elevated',
+        collectedAt: new Date().toISOString(),
+      },
+      { modelName: 'qwen2.5:14b' },
+    );
+    expect(elevated.refuse).toBe(true);
+    expect(
+      shouldRefuseHeavyLocalJob(
+        {
+          ramTotalMb: 16000,
+          ramUsedMb: 13000,
+          ramUsedPct: 82,
+          gpus: [],
+          pressure: 'elevated',
+          collectedAt: new Date().toISOString(),
+        },
+        { modelName: 'qwen3:1.7b' },
+      ).refuse,
+    ).toBe(false);
+  });
 });

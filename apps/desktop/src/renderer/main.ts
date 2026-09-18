@@ -205,9 +205,13 @@ async function refreshModels(): Promise<void> {
     const hw = snap.hardware;
     const vramGb = (hw.primaryVramMb / 1024).toFixed(1);
     const ramGb = (hw.ramTotalMb / 1024).toFixed(1);
+    const ramUsed =
+      hw.usage?.ramUsedMb != null && hw.usage?.ramUsedPct != null
+        ? `${(hw.usage.ramUsedMb / 1024).toFixed(1)} / ${ramGb} GB（${hw.usage.ramUsedPct}%）`
+        : `${ramGb} GB`;
     hwPanel.innerHTML = `
       <div class="hw-line">CPU：${hw.cpuName}（${hw.cpuCores} 线程）</div>
-      <div class="hw-line">内存：${ramGb} GB</div>
+      <div class="hw-line">内存：${ramUsed}</div>
       <div class="hw-line">主 GPU 显存：${vramGb} GB</div>
       <div class="hw-line">GPU：${(hw.gpus || []).map((g: any) => g.name).join(' / ')}</div>
     `;
@@ -323,6 +327,9 @@ async function pullModel(name: string): Promise<void> {
   try {
     const res = await window.xyai.pullModel(name);
     pullLog.textContent += (res.ok ? '✓ ' : '✗ ') + res.message + '\n';
+    if (!res.ok && /显存|内存|正在拉取|压力/.test(res.message)) {
+      alert(res.message);
+    }
     await refreshModels();
   } catch (err) {
     pullLog.textContent += String(err) + '\n';
@@ -407,6 +414,12 @@ function wireChrome(onModelsTab: () => void, onKnowledgeTab: () => void = () => 
           (body as HTMLElement).id === `zone-${zone}`,
         );
       });
+      if (zone !== 'dev') {
+        modelsTabVisible = false;
+        stopHwPoll();
+      } else if (document.getElementById('view-models')?.classList.contains('active')) {
+        startHwPoll();
+      }
       if (zone === 'biz') biz.activate();
       if (zone === 'eco') eco.activate();
       if (zone === 'browser') browser.activate();
@@ -430,6 +443,7 @@ function wireChrome(onModelsTab: () => void, onKnowledgeTab: () => void = () => 
       const pzView = document.getElementById('view-personalize');
       if (pzView) pzView.classList.toggle('active', tab === 'personalize');
       if (tab === 'models') {
+        startHwPoll();
         onModelsTab();
       } else {
         modelsTabVisible = false;

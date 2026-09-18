@@ -95,5 +95,6 @@ export { startOllamaWithDeps } from './ollama-start.js';
 export {
   detectHardwareUsage,
   gpuAccelHintFor,
+  isHeavyLocalModelName,
   shouldRefuseHeavyLocalJob,
 } from './hardware-usage.js';

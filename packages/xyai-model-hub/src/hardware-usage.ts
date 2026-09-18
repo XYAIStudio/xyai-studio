@@ -72,20 +72,52 @@ export function assessHardwarePressure(input: {
 
 export function gpuAccelHintFor(gpus: HardwareGpu[]): string | undefined {
   const nvidia = gpus.filter((g) => g.vendor === 'nvidia');
-  if (nvidia.length === 0) return undefined;
-  return '已检测到 NVIDIA GPU。Ollama 会尽量使用 GPU；若推理很慢，请安装/更新 NVIDIA 驱动（含 nvidia-smi）。CUDA 工具包说明见 NVIDIA 官网，Studio 不会代为下载安装包。';
+  const amd = gpus.filter((g) => g.vendor === 'amd');
+  const intel = gpus.filter((g) => g.vendor === 'intel');
+  if (nvidia.length) {
+    return '已检测到 NVIDIA GPU。Ollama 会尽量使用 GPU；若推理很慢，请安装/更新 NVIDIA 驱动（含 nvidia-smi）。CUDA/cuBLAS 说明见 NVIDIA 官网，Studio 不会代为下载安装包。';
+  }
+  if (amd.length) {
+    return '已检测到 AMD GPU。请安装/更新 AMD Adrenalin 驱动。Linux 上 Ollama 可走 ROCm（见 ollama.com）；Studio 不会代为下载安装包。';
+  }
+  if (intel.length) {
+    return '已检测到 Intel GPU。请安装/更新 Intel 显卡驱动；本地加速取决于 Ollama 对该设备的支持。Studio 不会代为下载安装包。';
+  }
+  return undefined;
 }
 
-export function shouldRefuseHeavyLocalJob(usage: HardwareUsage): {
+/** 14B+ class names are treated as heavy pulls under elevated GPU/RAM pressure. */
+export function isHeavyLocalModelName(name: string): boolean {
+  const n = name.toLowerCase();
+  return /\b(1[4-9]b|2[0-9]b|[3-9][0-9]b|70b|72b)\b/.test(n);
+}
+
+export function shouldRefuseHeavyLocalJob(
+  usage: HardwareUsage,
+  opts?: { modelName?: string },
+): {
   refuse: boolean;
   message?: string;
 } {
-  if (usage.pressure !== 'critical') return { refuse: false };
-  return {
-    refuse: true,
-    message:
-      '本机内存或 GPU 显存压力过高，已暂停新的大模型拉取/重任务。请关闭其他占显存程序后再试。',
-  };
+  if (usage.pressure === 'critical') {
+    return {
+      refuse: true,
+      message:
+        '本机内存或 GPU 显存压力过高，已暂停新的大模型拉取/重任务。请关闭其他占显存程序后再试。',
+    };
+  }
+  if (
+    usage.pressure === 'elevated' &&
+    opts?.modelName &&
+    isHeavyLocalModelName(opts.modelName)
+  ) {
+    return {
+      refuse: true,
+      message:
+        '当前 GPU/内存占用较高，已暂缓拉取该大模型。请先选更小的模型，或关闭占显存程序后再试。',
+    };
+  }
+  return { refuse: false };
 }
 
 export async function detectHardwareUsage(
