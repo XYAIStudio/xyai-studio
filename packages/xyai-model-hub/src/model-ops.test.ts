@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatSpeedTestMessage,
   ollamaNameForRegister,
+  speedTestPreconditions,
   tokensPerSecFromOllamaGenerate,
 } from './model-ops.js';
 
@@ -17,6 +18,29 @@ describe('tokensPerSecFromOllamaGenerate', () => {
       evalCount: 16,
     });
     expect(formatSpeedTestMessage(r!)).toMatch(/8\.0 tok\/s/);
+  });
+});
+
+describe('speedTestPreconditions', () => {
+  it('refuses recommended tags that are not in the live list', () => {
+    const miss = speedTestPreconditions('ollama:qwen3:8b', ['qwen3:1.7b']);
+    expect(miss.ok).toBe(false);
+    if (!miss.ok) expect(miss.message).toMatch(/没有模型/);
+  });
+
+  it('refuses mmproj even when the tag exists', () => {
+    const proj = speedTestPreconditions('mmproj-f16:latest', [
+      'mmproj-f16:latest',
+    ]);
+    expect(proj.ok).toBe(false);
+    if (!proj.ok) expect(proj.message).toMatch(/投影器/);
+  });
+
+  it('allows a live chat tag', () => {
+    expect(speedTestPreconditions('qwen3:1.7b', ['qwen3:1.7b'])).toEqual({
+      ok: true,
+      model: 'qwen3:1.7b',
+    });
   });
 });
 

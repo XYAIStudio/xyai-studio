@@ -6,32 +6,49 @@ import {
 } from './models-hub-actions.js';
 
 describe('hubActionsFor', () => {
-  it('shows 测速 + 注册 + 挂接 for an unregistered disk GGUF', () => {
+  it('shows only 注册 for an unregistered disk GGUF until it exists in Ollama', () => {
     const actions = hubActionsFor({
       id: 'gguf:qwen3-1.7b-q4_k_m',
       displayName: 'Qwen3-1.7B-Q4_K_M.gguf',
       source: 'gguf',
       registered: false,
       isDefault: false,
+      availableInOllama: false,
     });
-    expect(actions.map((a) => a.label)).toEqual(['测速', '注册', '挂接']);
+    expect(actions.map((a) => a.label)).toEqual(['注册']);
   });
 
-  it('shows 解挂 when the model is the default chat model', () => {
+  it('shows 测速 + 挂接 only when the tag is live in Ollama', () => {
     const actions = hubActionsFor({
       id: 'ollama:qwen3:1.7b',
       displayName: 'qwen3:1.7b',
       source: 'ollama',
       registered: true,
       isDefault: true,
+      availableInOllama: true,
     });
     expect(actions.map((a) => a.label)).toEqual(['测速', '解挂']);
+  });
+
+  it('hides 测速 for recommended tags that are not installed', () => {
+    const actions = hubActionsFor({
+      id: 'ollama:qwen3:8b',
+      displayName: 'qwen3:8b',
+      source: 'ollama',
+      registered: false,
+      isDefault: false,
+      availableInOllama: false,
+    });
+    expect(actions.map((a) => a.id)).toEqual(['register']);
   });
 
   it('lists mmproj without 测速/挂接 but still allows 注册 to be refused in host', () => {
     expect(
       isProjectorModel({ displayName: 'mmproj-f16.gguf', role: 'vision' }),
     ).toBe(true);
+    expect(
+      isProjectorModel({ displayName: 'qwen2.5vl:3b', role: 'vision' }),
+    ).toBe(false);
     const actions = hubActionsFor({
       id: 'gguf:mmproj-f16',
       displayName: 'mmproj-f16.gguf',
@@ -39,6 +56,7 @@ describe('hubActionsFor', () => {
       role: 'vision',
       registered: false,
       isDefault: false,
+      availableInOllama: true,
     });
     expect(actions.map((a) => a.label)).toEqual(['注册']);
   });

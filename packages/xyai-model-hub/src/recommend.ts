@@ -138,9 +138,11 @@ export function recommendModels(
   };
 
   const toRec = (d: RecDef): ModelRecommendation => {
-    const installed = [...installedOllamaNames].some(
-      (n) => n === d.ollamaName || n.startsWith(d.ollamaName + ':') || n.includes(d.ollamaName),
-    );
+    const want = d.ollamaName.replace(/:latest$/i, '').toLowerCase();
+    const installed = [...installedOllamaNames].some((n) => {
+      const have = n.replace(/:latest$/i, '').toLowerCase();
+      return have === want;
+    });
     return {
       id: d.id,
       displayName: d.displayName + (installed ? '（已安装）' : ''),

@@ -39,21 +39,18 @@ export function missingOllamaModelMessage(model: string): string {
   return `本地 Ollama 中没有模型「${model}」。请到「模型」页刷新列表或重新拉取后再发送。`;
 }
 
-/** Match `ollama list` / `/api/tags` names against a picker/chat ref. */
+export function normalizeOllamaTag(name: string): string {
+  return name.replace(/^ollama:/i, '').replace(/:latest$/i, '').toLowerCase();
+}
+
+/**
+ * Exact tag match with `:latest` equivalence only.
+ * `qwen3` does not satisfy `qwen3:8b`; `qwen3:1.7b` does not satisfy `qwen3:8b`.
+ */
 export function ollamaTagsIncludeModel(names: string[], want: string): boolean {
-  const w = want.replace(/^ollama:/i, '').toLowerCase();
+  const w = normalizeOllamaTag(want);
   if (!w) return false;
-  return names.some((raw) => {
-    const n = raw.replace(/^ollama:/i, '').toLowerCase();
-    return (
-      n === w ||
-      n === `${w}:latest` ||
-      w === `${n}:latest` ||
-      n.startsWith(`${w}:`) ||
-      w.startsWith(`${n}:`) ||
-      n.replace(/:latest$/, '') === w.replace(/:latest$/, '')
-    );
-  });
+  return names.some((raw) => normalizeOllamaTag(raw) === w);
 }
 
 export function explainOllamaHttpFailure(

@@ -189,6 +189,7 @@ export function weightFileToEntry(hit: DiskWeightHit): ModelEntry {
       sizeBytes: hit.sizeBytes,
       source: hit.kind === 'huggingface' ? 'huggingface' : 'gguf',
       harnessIds: ['ollama'],
+      installed: false,
     }),
     id,
     path: hit.filePath,

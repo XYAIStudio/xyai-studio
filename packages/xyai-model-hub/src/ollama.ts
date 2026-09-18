@@ -5,11 +5,13 @@ import { promisify } from 'node:util';
 import type { DependencyStatus, ModelEntry } from '@xyai/contracts';
 import {
   listOllamaNamesFromDiskRoot,
+  ollamaApiModelToEntry,
   ollamaModelsRoots,
-  parseOllamaListOutput,
+  parseOllamaListRows,
   pickDiscoverySource,
   toOllamaModelEntry,
   type LocalModelDiscoverySource,
+  type OllamaApiTagModel,
 } from './ollama-discover.js';
 import { explainOllamaHttpFailure, mapOllamaNetworkError } from './ollama-errors.js';
 import { startOllamaWithDeps, type StartOllamaResult } from './ollama-start.js';
@@ -113,13 +115,6 @@ export async function getOllamaDependencyStatus(): Promise<DependencyStatus> {
   };
 }
 
-interface OllamaTagModel {
-  name: string;
-  size?: number;
-  modified_at?: string;
-  details?: { family?: string; parameter_size?: string };
-}
-
 export async function listOllamaModelsFromApi(): Promise<ModelEntry[]> {
   try {
     const ctrl = new AbortController();
@@ -127,13 +122,8 @@ export async function listOllamaModelsFromApi(): Promise<ModelEntry[]> {
     const res = await fetch(`${OLLAMA_API}/api/tags`, { signal: ctrl.signal });
     clearTimeout(t);
     if (!res.ok) return [];
-    const data = (await res.json()) as { models?: OllamaTagModel[] };
-    return (data.models ?? []).map((m) =>
-      toOllamaModelEntry(m.name, {
-        version: m.details?.parameter_size ?? 'local',
-        sizeBytes: m.size,
-      }),
-    );
+    const data = (await res.json()) as { models?: OllamaApiTagModel[] };
+    return (data.models ?? []).map((m) => ollamaApiModelToEntry(m));
   } catch {
     return [];
   }
@@ -142,8 +132,12 @@ export async function listOllamaModelsFromApi(): Promise<ModelEntry[]> {
 export async function listOllamaModelsFromCli(): Promise<ModelEntry[]> {
   const listed = await runOllama(['list']);
   if (!listed.ok) return [];
-  return parseOllamaListOutput(listed.stdout).map((name) =>
-    toOllamaModelEntry(name),
+  return parseOllamaListRows(listed.stdout).map((row) =>
+    toOllamaModelEntry(row.name, {
+      digest: row.digest,
+      installed: true,
+      source: 'ollama',
+    }),
   );
 }
 
@@ -152,7 +146,9 @@ export async function listOllamaModelsFromDisk(): Promise<ModelEntry[]> {
   for (const root of ollamaModelsRoots()) {
     names.push(...listOllamaNamesFromDiskRoot(root));
   }
-  return [...new Set(names)].map((name) => toOllamaModelEntry(name));
+  return [...new Set(names)].map((name) =>
+    toOllamaModelEntry(name, { installed: false, source: 'ollama' }),
+  );
 }
 
 export async function discoverOllamaModels(): Promise<{

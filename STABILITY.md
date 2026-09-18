@@ -22,6 +22,9 @@ Branch: `release/0.5`. This is a living audit of P0/P1 items found while fixing 
 | S16 | P0 | Chat composer stopped accepting text (Windows). Hidden Electron `<webview>`s in 业务/浏览器 zones plus portaled model panel/`#view-models` could sit above `#input` | **Fixed** — inactive views/webviews `display:none` + `pointer-events:none`; `#input` isolated `no-drag`; pointerdown re-unlocks |
 | S17 | P0 | Local inventory used only Ollama `/api/tags` (3 tags) and first-wins discovery; FreeOS probe lists disk GGUF under common roots + user dirs (`E:\models`, `%USERPROFILE%\.dsh\xyai\models`, `360Downloads\Freework Models`) | **Fixed** — union API+CLI+manifests + capped disk weight scan (GGUF/GGML/HF, cap 40); scan bar 搜索本机模型 / 选择文件夹 / 全盘 |
 | S18 | P0 | Hub cards dropped 测速 / 注册 / 挂接 / 解挂 | **Fixed** — 注册 = GGUF `ollama create` or tag→registry; 测速 = `/api/generate`; 挂接/解挂 = set/clear default chat model |
+| S19 | P1 | Chat picker labeled `本地 · raw-tag` and repeated `ollama:tag`; mis-tagged aliases (same digest) looked like different families | **Fixed** — family/size or formatted tag; shared digest → 同权重 |
+| S20 | P0 | Hub 测速 POSTed `/api/generate` for catalog/stale tags (`qwen3:8b` 404); mmproj/`role:vision` confused with VL chat | **Fixed** — 测速/挂接 only when live tags include the name; projectors by filename; recs use exact tag match |
+| S21 | P0 | 挂接/注册 did not refresh composer `本地已注册` (fire-and-forget catalog) | **Fixed** — await `refreshLocalModels` on modelId/register/snapshot; renderer `syncChatCatalog` |
 
 ## Verify (Windows, after reinstall)
 
@@ -31,7 +34,8 @@ Branch: `release/0.5`. This is a living audit of P0/P1 items found while fixing 
 4. 业务空间 timeout → error card includes child log / identity / CORS hint (multi-line), not only “55s 未就绪”.
 5. 模型 hardware：任意机器都有 RAM%；无独显/AMD 显示「暂无利用率数据」，不出现「请安装 CUDA」作为唯一路径。推荐随配置缩放。
 6. Pack gate (`apps/desktop/PACK-GATE.md`): no bare `createRequire(import.meta)` / `fileURLToPath(import.meta)` in main/preload/adapter-codex; `bundle-for-pack` → `pack-out/main.cjs`; `pnpm --filter desktop smoke`; win-unpacked stays up ≥5s before NSIS.
-7. 本机已有模型 shows disk GGUF (mmproj marked 非对话) plus Ollama tags; each row has 测速 / 注册 / 挂接 or 解挂. Composer on 对话 tab accepts typing after visiting 业务空间.
+7. 本机已有模型 shows disk GGUF (mmproj marked 非对话) plus Ollama tags; 测速/挂接 only on live Ollama tags; disk GGUF starts as 注册. Composer on 对话 tab accepts typing after visiting 业务空间.
+8. 挂接/注册 a live tag → 对话 ModelPicker「本地已注册」updates without restart. Shared-digest aliases show the same family + 同权重.
 
 ## Evidence
 

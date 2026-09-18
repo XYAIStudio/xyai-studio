@@ -509,7 +509,13 @@ function registerIpc(): void {
       } catch {
         defaultModelId = undefined;
       }
-      return getModelHub().snapshot({ extraRoots, mode, defaultModelId });
+      const snap = await getModelHub().snapshot({ extraRoots, mode, defaultModelId });
+      try {
+        await getHost().refreshLocalModels();
+      } catch {
+        /* picker catalog refresh is best-effort after hub scan */
+      }
+      return snap;
     },
   );
 
@@ -539,13 +545,19 @@ function registerIpc(): void {
         path?: unknown;
       },
     ) => {
-      return getModelHub().registerModel({
+      const result = await getModelHub().registerModel({
         id: typeof payload?.id === 'string' ? payload.id : undefined,
         displayName:
           typeof payload?.displayName === 'string' ? payload.displayName : undefined,
         source: typeof payload?.source === 'string' ? payload.source : undefined,
         path: typeof payload?.path === 'string' ? payload.path : undefined,
       });
+      try {
+        await getHost().refreshLocalModels();
+      } catch {
+        /* catalog refresh is best-effort after register */
+      }
+      return { ...result, status: getHost().getStatus() };
     },
   );
 
