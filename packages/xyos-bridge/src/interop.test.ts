@@ -9,7 +9,7 @@ describe('InteropHost', () => {
     vi.unstubAllGlobals();
   });
 
-  it('pushes agent Dev→Biz and installs as selectable candidate', async () => {
+  it('pushes agent Dev→Biz with official import body + JWT', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'interop-'));
     const oxy = mkdtempSync(path.join(tmpdir(), 'oxyos-'));
     const fetchMock = vi.fn(async () => ({
@@ -17,10 +17,9 @@ describe('InteropHost', () => {
       json: async () => ({
         success: true,
         data: {
-          message: '已写入人才市场与备选员工',
-          agent_type: 'xyai-test',
-          talent: { id: 11, action: 'created' },
-          employee: { id: 22, action: 'created' },
+          message: '已写入备选员工',
+          talent_id: 11,
+          employee_id: 22,
         },
       }),
     }));
@@ -30,6 +29,7 @@ describe('InteropHost', () => {
         userDataDir: dir,
         openXyosRoot: () => oxy,
         openXyosBaseUrl: () => 'http://127.0.0.1:3000',
+        openXyosAccessToken: () => 'demo-jwt',
       });
       const pushed = await host.pushToBiz({
         kind: 'agent',
@@ -43,12 +43,22 @@ describe('InteropHost', () => {
         true,
       );
       expect(host.lastPublishResult?.ok).toBe(true);
+      expect(host.lastPublishResult?.employeeId).toBe(22);
       expect(fetchMock).toHaveBeenCalled();
       const firstCall = fetchMock.mock.calls[0];
       expect(String(firstCall[0])).toContain('/api/xyai/agents/import');
       const init = firstCall[1] as { headers?: Record<string, string>; body?: string };
       expect(init.headers?.['X-XYAI-Interop']).toBe('studio');
-      const body = JSON.parse(String(init.body)) as { asset: { kind: string } };
+      expect(init.headers?.Authorization).toBe('Bearer demo-jwt');
+      const body = JSON.parse(String(init.body)) as {
+        name: string;
+        external_id: string;
+        employee_type: string;
+        asset: { kind: string };
+      };
+      expect(body.name).toBe('通用智能体');
+      expect(body.external_id).toBe(pushed.id);
+      expect(body.employee_type).toBe('ai');
       expect(body.asset.kind).toBe('agent');
 
       const inboxFile = path.join(
@@ -63,7 +73,6 @@ describe('InteropHost', () => {
       expect(installed.status).toBe('installed');
       expect(host.listPendingBizInstalls().length).toBe(0);
       expect(host.listInstalledBiz().some((a) => a.id === pushed.id)).toBe(true);
-      // install re-publishes idempotently
       expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
 
       const selected = await host.selectAsset(pushed.id, 'biz');
@@ -71,6 +80,47 @@ describe('InteropHost', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
       rmSync(oxy, { recursive: true, force: true });
+    }
+  });
+
+  it('publishes knowledge-mount to /api/xyai/knowledge/import', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'interop-kb-'));
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        success: true,
+        data: { file_id: 7, note_id: 8, folder: '/' },
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const host = createInteropHost({
+        userDataDir: dir,
+        openXyosBaseUrl: () => 'http://127.0.0.1:3000',
+        openXyosAccessToken: () => 'demo-jwt',
+      });
+      const pushed = await host.pushToBiz({
+        kind: 'knowledge-mount',
+        name: '政策库',
+        payload: { kbId: 'kb-1', mountKind: 'local', sourceRoot: '/docs' },
+      });
+      expect(host.lastPublishResult?.ok).toBe(true);
+      expect(host.lastPublishResult?.fileId).toBe(7);
+      expect(host.lastPublishResult?.noteId).toBe(8);
+      const firstCall = fetchMock.mock.calls[0];
+      expect(String(firstCall[0])).toContain('/api/xyai/knowledge/import');
+      const init = firstCall[1] as { headers?: Record<string, string>; body?: string };
+      expect(init.headers?.Authorization).toBe('Bearer demo-jwt');
+      const body = JSON.parse(String(init.body)) as {
+        name: string;
+        external_id: string;
+        payload: { kbId: string };
+      };
+      expect(body.name).toBe('政策库');
+      expect(body.external_id).toBe(pushed.id);
+      expect(body.payload.kbId).toBe('kb-1');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 
@@ -104,6 +154,26 @@ describe('InteropHost', () => {
       expect(pushed.status).toBe('pending');
       expect(host.lastPublishResult?.ok).toBe(false);
       expect(host.lastPublishResult?.message).toMatch(/OpenXYOS/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('agent push without JWT reports login requirement', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'interop-notoken-'));
+    try {
+      const host = createInteropHost({
+        userDataDir: dir,
+        openXyosBaseUrl: () => 'http://127.0.0.1:3000',
+      });
+      const pushed = await host.pushToBiz({
+        kind: 'agent',
+        name: '未登录助手',
+        payload: {},
+      });
+      expect(pushed.status).toBe('pending');
+      expect(host.lastPublishResult?.ok).toBe(false);
+      expect(host.lastPublishResult?.message).toMatch(/JWT|登录/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -1,7 +1,8 @@
 /**
  * Dev ↔ Biz asset interop — file manifests under userData/interop/.
  * Optionally mirrors packages into OpenXYOS uploads/xyai-inbox/ when a root is known.
- * Agent assets: auto-publish into OpenXYOS talent_pool + reserve employees via HTTP.
+ * Agents: POST /api/xyai/agents/import (JWT + X-XYAI-Interop).
+ * Knowledge: POST /api/xyai/knowledge/import.
  */
 
 import {
@@ -19,7 +20,9 @@ import type {
   XyosInteropBridge,
 } from '@xyai/contracts';
 import {
+  buildAgentImportBody,
   buildAgentPublishPlan,
+  buildKnowledgeImportBody,
   deriveAgentTypeFromInteropId,
 } from './interop-publish.js';
 
@@ -83,6 +86,8 @@ export type OpenXyosPublishResult = {
   employeeId?: number;
   talentAction?: string;
   employeeAction?: string;
+  fileId?: number;
+  noteId?: number;
 };
 
 export type InteropHostOptions = {
@@ -93,6 +98,8 @@ export type InteropHostOptions = {
   openXyosBaseUrl?: () => string | null | undefined;
   /** Shared secret for X-XYAI-Interop header (default studio). */
   interopSecret?: () => string | null | undefined;
+  /** Tenant JWT required by OpenXYOS `/api/xyai/*` import routes. */
+  openXyosAccessToken?: () => Promise<string | null | undefined> | string | null | undefined;
 };
 
 export class InteropHost implements XyosInteropBridge {
@@ -170,17 +177,19 @@ export class InteropHost implements XyosInteropBridge {
     this.writePackage(asset);
     writeList(this.paths.outbox, upsert(readList(this.paths.outbox), asset));
     this.mirrorToOpenXyosInbox(asset);
-    // Auto-publish agents into 人才市场 + 备选员工 so push is immediately visible.
+    // Agents → 备选员工; knowledge → OpenXYOS 知识库 files/notes.
     if (asset.kind === 'agent') {
       this.lastPublishResult = await this.publishAgentToOpenXyos(asset);
+    } else if (asset.kind === 'knowledge-mount') {
+      this.lastPublishResult = await this.publishKnowledgeToOpenXyos(asset);
     } else {
       void this.notifyOpenXyos(asset).catch(() => {
-        /* optional for non-agent */
+        /* optional for other kinds */
       });
       this.lastPublishResult = {
         ok: true,
         skipped: true,
-        message: '非 agent 资产仅写入互通清单',
+        message: '非 agent/知识库资产仅写入互通清单',
       };
     }
     return asset;
@@ -234,6 +243,8 @@ export class InteropHost implements XyosInteropBridge {
     );
     if (installed.kind === 'agent') {
       this.lastPublishResult = await this.publishAgentToOpenXyos(installed);
+    } else if (installed.kind === 'knowledge-mount') {
+      this.lastPublishResult = await this.publishKnowledgeToOpenXyos(installed);
     } else {
       this.lastPublishResult = {
         ok: true,
@@ -289,6 +300,8 @@ export class InteropHost implements XyosInteropBridge {
     writeList(file, upsert(list, selected));
     if (space === 'biz' && selected.kind === 'agent') {
       this.lastPublishResult = await this.publishAgentToOpenXyos(selected);
+    } else if (space === 'biz' && selected.kind === 'knowledge-mount') {
+      this.lastPublishResult = await this.publishKnowledgeToOpenXyos(selected);
     }
     return selected;
   }
@@ -313,23 +326,61 @@ export class InteropHost implements XyosInteropBridge {
     }
   }
 
-  private interopHeaders(): Record<string, string> {
+  private async interopHeaders(): Promise<Record<string, string>> {
     const secret =
       this.opts.interopSecret?.()?.trim() ||
       process.env.XYAI_INTEROP_SECRET?.trim() ||
       'studio';
-    return {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-XYAI-Interop': secret,
+    };
+    const token = await this.resolveAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return headers;
+  }
+
+  private async resolveAccessToken(): Promise<string | null> {
+    try {
+      const raw = await this.opts.openXyosAccessToken?.();
+      const token = typeof raw === 'string' ? raw.trim() : '';
+      return token || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private parseImportIds(data: {
+    talent_id?: number;
+    employee_id?: number;
+    file_id?: number;
+    note_id?: number;
+    talent?: { id?: number; action?: string };
+    employee?: { id?: number; action?: string };
+  }): {
+    talentId?: number;
+    employeeId?: number;
+    fileId?: number;
+    noteId?: number;
+    talentAction?: string;
+    employeeAction?: string;
+  } {
+    return {
+      talentId: data.talent_id ?? data.talent?.id,
+      employeeId: data.employee_id ?? data.employee?.id,
+      fileId: data.file_id,
+      noteId: data.note_id,
+      talentAction: data.talent?.action,
+      employeeAction: data.employee?.action,
     };
   }
 
   /**
-   * POST agent into OpenXYOS talent_pool + reserve employees (idempotent).
+   * POST agent into OpenXYOS talent_pool (recruited) + reserve employees.
    */
   async publishAgentToOpenXyos(asset: InteropAsset): Promise<OpenXyosPublishResult> {
     if (asset.kind !== 'agent') {
-      return { ok: true, skipped: true, message: '非 agent，跳过人才市场写入' };
+      return { ok: true, skipped: true, message: '非 agent，跳过备选员工写入' };
     }
     const plan = buildAgentPublishPlan(asset);
     const base = this.opts.openXyosBaseUrl?.();
@@ -337,64 +388,136 @@ export class InteropHost implements XyosInteropBridge {
       return {
         ok: false,
         message:
-          'OpenXYOS 未运行：已写入本地互通清单；启动业务空间后请再点「安装/注册」以同步到人才市场',
+          'OpenXYOS 未运行：已写入本地互通清单；启动业务空间后请再点「安装/注册」以同步到备选员工',
+        agentType: plan.agentType,
+      };
+    }
+    const token = await this.resolveAccessToken();
+    if (!token) {
+      return {
+        ok: false,
+        message:
+          'OpenXYOS 未登录：导入需要租户 JWT。请先在业务空间登录（demo 账号即可），再点「安装/注册」',
         agentType: plan.agentType,
       };
     }
     const root = base.replace(/\/+$/, '');
-    const urls = [`${root}/api/xyai/agents/import`, `${root}/api/xyai/inbox`];
-    let lastErr = 'unknown';
-    for (const url of urls) {
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: this.interopHeaders(),
-          body: JSON.stringify({ asset, tenant_id: 1 }),
-        });
-        const body = (await res.json().catch(() => ({}))) as {
-          success?: boolean;
-          error?: string;
-          data?: {
-            skipped?: boolean;
-            message?: string;
-            agent_type?: string;
-            talent?: { id?: number; action?: string };
-            employee?: { id?: number; action?: string };
-          };
+    const url = `${root}/api/xyai/agents/import`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: await this.interopHeaders(),
+        body: JSON.stringify(buildAgentImportBody(asset)),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        data?: {
+          skipped?: boolean;
+          message?: string;
+          agent_type?: string;
+          talent_id?: number;
+          employee_id?: number;
+          talent?: { id?: number; action?: string };
+          employee?: { id?: number; action?: string };
         };
-        if (!res.ok || body.success === false) {
-          lastErr = body.error || `HTTP ${res.status}`;
-          continue;
-        }
-        const data = body.data || {};
-        if (data.skipped) {
-          return {
-            ok: true,
-            skipped: true,
-            message: data.message || '已跳过',
-            agentType: plan.agentType,
-          };
-        }
+      };
+      if (!res.ok || body.success === false) {
+        return {
+          ok: false,
+          message: `OpenXYOS 导入失败：${body.error || `HTTP ${res.status}`}（本地互通清单仍有效）`,
+          agentType: plan.agentType,
+        };
+      }
+      const data = body.data || {};
+      if (data.skipped) {
         return {
           ok: true,
-          message:
-            data.message ||
-            '已同步到人机资源 → 人才市场 / 备选员工',
-          agentType: data.agent_type || plan.agentType,
-          talentId: data.talent?.id,
-          employeeId: data.employee?.id,
-          talentAction: data.talent?.action,
-          employeeAction: data.employee?.action,
+          skipped: true,
+          message: data.message || '已跳过',
+          agentType: plan.agentType,
         };
-      } catch (err) {
-        lastErr = err instanceof Error ? err.message : String(err);
       }
+      const ids = this.parseImportIds(data);
+      return {
+        ok: true,
+        message:
+          data.message ||
+          '已同步到人机资源 → 备选员工（可编辑 / 录用；不会出现在人才市场）',
+        agentType: data.agent_type || plan.agentType,
+        ...ids,
+      };
+    } catch (err) {
+      const lastErr = err instanceof Error ? err.message : String(err);
+      return {
+        ok: false,
+        message: `OpenXYOS 导入失败：${lastErr}（本地互通清单仍有效）`,
+        agentType: plan.agentType,
+      };
     }
-    return {
-      ok: false,
-      message: `OpenXYOS 导入失败：${lastErr}（本地互通清单仍有效）`,
-      agentType: plan.agentType,
-    };
+  }
+
+  /**
+   * POST knowledge-mount into OpenXYOS knowledge_files (folder=/) + knowledge_notes.
+   */
+  async publishKnowledgeToOpenXyos(asset: InteropAsset): Promise<OpenXyosPublishResult> {
+    if (asset.kind !== 'knowledge-mount') {
+      return { ok: true, skipped: true, message: '非知识库，跳过知识库写入' };
+    }
+    const base = this.opts.openXyosBaseUrl?.();
+    if (!base) {
+      return {
+        ok: false,
+        message:
+          'OpenXYOS 未运行：已写入本地互通清单；启动业务空间后请再点「安装/注册」以同步到知识库',
+      };
+    }
+    const token = await this.resolveAccessToken();
+    if (!token) {
+      return {
+        ok: false,
+        message:
+          'OpenXYOS 未登录：知识库导入需要租户 JWT。请先在业务空间登录，再点「安装/注册」',
+      };
+    }
+    const url = `${base.replace(/\/+$/, '')}/api/xyai/knowledge/import`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: await this.interopHeaders(),
+        body: JSON.stringify(buildKnowledgeImportBody(asset)),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        data?: {
+          skipped?: boolean;
+          message?: string;
+          file_id?: number;
+          note_id?: number;
+        };
+      };
+      if (!res.ok || body.success === false) {
+        return {
+          ok: false,
+          message: `OpenXYOS 知识库导入失败：${body.error || `HTTP ${res.status}`}（本地互通清单仍有效）`,
+        };
+      }
+      const data = body.data || {};
+      return {
+        ok: true,
+        skipped: data.skipped,
+        message: data.message || '已写入 OpenXYOS 知识库（文件 + 笔记，刷新知识库页可见）',
+        fileId: data.file_id,
+        noteId: data.note_id,
+      };
+    } catch (err) {
+      const lastErr = err instanceof Error ? err.message : String(err);
+      return {
+        ok: false,
+        message: `OpenXYOS 知识库导入失败：${lastErr}（本地互通清单仍有效）`,
+      };
+    }
   }
 
   private async notifyOpenXyos(asset: InteropAsset): Promise<void> {
@@ -403,11 +526,11 @@ export class InteropHost implements XyosInteropBridge {
     try {
       await fetch(`${base.replace(/\/+$/, '')}/api/xyai/inbox`, {
         method: 'POST',
-        headers: this.interopHeaders(),
+        headers: await this.interopHeaders(),
         body: JSON.stringify({ asset }),
       });
     } catch {
-      /* API may not exist yet — file bridge is enough */
+      /* inbox route is optional — file bridge is enough */
     }
   }
 }
@@ -416,5 +539,10 @@ export function createInteropHost(opts: InteropHostOptions): InteropHost {
   return new InteropHost(opts);
 }
 
-export { deriveAgentTypeFromInteropId, buildAgentPublishPlan };
+export {
+  deriveAgentTypeFromInteropId,
+  buildAgentPublishPlan,
+  buildAgentImportBody,
+  buildKnowledgeImportBody,
+};
 export type { InteropAsset, InteropAssetKind };

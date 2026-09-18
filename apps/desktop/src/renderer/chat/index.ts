@@ -919,10 +919,10 @@ export function mountChat(): ChatMount {
           return;
         }
         rightSidebar.appendTerminal(
-          `已推送 AI智能助手「${agent.name}」到业务空间（待安装为 AI员工候选）`,
+          `已推送 AI智能助手「${agent.name}」到业务空间（备选员工，可编辑 / 录用）`,
         );
         alert(
-          `已推送「${agent.name}」到业务空间\n可在业务空间「资产互通」中安装/选用`,
+          `已推送「${agent.name}」到业务空间\n请在 OpenXYOS 人机资源 → 备选员工 中编辑 / 录用\n（不会出现在人才市场「招募」）`,
         );
       })();
     },

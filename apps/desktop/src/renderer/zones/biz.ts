@@ -318,7 +318,7 @@ export function mountBizZone(root: HTMLElement): { activate: () => void } {
           <h2>资产互通</h2>
           <button type="button" class="capsule-btn" id="interop-close">关闭</button>
         </header>
-        <p class="hint">开发空间推送的 AI智能助手会自动进入 OpenXYOS 人机资源（人才市场 + 备选员工）；此处可再安装/选用。知识库仍为互通清单安装包。</p>
+        <p class="hint">开发空间推送的 AI智能助手会进入 OpenXYOS「备选员工」（可编辑 / 录用，不会出现在人才市场）。知识库安装后写入 OpenXYOS 知识库文件与笔记。</p>
         <section>
           <h3>待安装</h3>
           <div id="interop-pending" class="interop-list"></div>
@@ -379,8 +379,10 @@ export function mountBizZone(root: HTMLElement): { activate: () => void } {
               const tip =
                 (res as { publishMessage?: string }).publishMessage ||
                 (a.kind === 'agent'
-                  ? '已安装。可在 OpenXYOS 人机资源 → 人才市场 / 备选员工 中查看该 AI 智能助手。'
-                  : '已安装到业务空间。');
+                  ? '已安装。可在 OpenXYOS 人机资源 → 备选员工 中编辑 / 录用（不会出现在人才市场）。'
+                  : a.kind === 'knowledge-mount'
+                    ? '已安装。请刷新 OpenXYOS 知识库页，文件（/）与笔记中可见。'
+                    : '已安装到业务空间。');
               alert(tip);
               overlay.remove();
               void openInteropPanel();
@@ -403,8 +405,10 @@ export function mountBizZone(root: HTMLElement): { activate: () => void } {
               const tip =
                 (res as { publishMessage?: string }).publishMessage ||
                 (a.kind === 'agent'
-                  ? '已选用。请在 OpenXYOS 人机资源 → 备选员工 中查看。'
-                  : '已选用。');
+                  ? '已选用。请在 OpenXYOS 人机资源 → 备选员工 中编辑 / 录用。'
+                  : a.kind === 'knowledge-mount'
+                    ? '已选用。请刷新 OpenXYOS 知识库页查看。'
+                    : '已选用。');
               alert(tip);
               overlay.remove();
               void openInteropPanel();

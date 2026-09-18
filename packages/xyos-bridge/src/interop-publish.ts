@@ -1,6 +1,7 @@
 /**
- * Map Studio interop agent assets → OpenXYOS talent_pool / reserve employees shape.
- * Pure helpers (no DB / fetch) for unit tests and shared docs with OpenXYOS route.
+ * Map Studio interop assets → OpenXYOS official import bodies.
+ * Agents: POST /api/xyai/agents/import (talent status=recruited, reserve employees).
+ * Knowledge: POST /api/xyai/knowledge/import (knowledge_files folder=/ + notes).
  */
 
 export type InteropPublishAsset = {
@@ -19,9 +20,9 @@ export type TalentUpsertRow = {
   skills: string;
   category: string;
   description: string;
-  source: 'xyai-studio';
+  source: 'studio';
   rating: number;
-  status: 'available';
+  status: 'recruited';
   agent_type: string;
   capabilities: string;
   provider: string;
@@ -40,6 +41,7 @@ export type ReserveEmployeeUpsertRow = {
   employment_category: 'reserve';
   description: string;
   tenant_id: number;
+  source: string;
 };
 
 export type AgentPublishPlan = {
@@ -48,6 +50,34 @@ export type AgentPublishPlan = {
   talent: TalentUpsertRow;
   employee: ReserveEmployeeUpsertRow;
   capabilitiesObj: Record<string, unknown>;
+};
+
+export type AgentImportBody = {
+  name: string;
+  role: string;
+  title: string;
+  description: string;
+  positioning: string;
+  industry: string;
+  agent_type: string;
+  skills: string[];
+  capabilities: string[];
+  avatar_emoji: string;
+  employee_type: 'ai';
+  external_id: string;
+  source_id: string;
+  studio_id: string;
+  asset: InteropPublishAsset;
+};
+
+export type KnowledgeImportBody = {
+  name: string;
+  description: string;
+  external_id: string;
+  source_id: string;
+  studio_id: string;
+  payload: Record<string, unknown>;
+  asset: InteropPublishAsset;
 };
 
 const DEFAULT_TENANT = 1;
@@ -71,20 +101,33 @@ function asText(value: unknown, fallback = ''): string {
   return out || fallback;
 }
 
+function listFromPayload(
+  payload: Record<string, unknown> | undefined,
+  keys: string[],
+): string[] {
+  if (!payload) return [];
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value
+        .split(/[,，、]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    if (Array.isArray(value)) {
+      return value.map((s) => String(s).trim()).filter(Boolean);
+    }
+  }
+  return [];
+}
+
 function skillsFromPayload(payload: Record<string, unknown> | undefined): string {
-  if (!payload) return '';
-  if (typeof payload.skills === 'string') return payload.skills.trim();
-  if (Array.isArray(payload.skills)) {
-    return payload.skills.map((s) => String(s).trim()).filter(Boolean).join(',');
-  }
-  if (Array.isArray(payload.capabilities)) {
-    return payload.capabilities.map((s) => String(s).trim()).filter(Boolean).join(',');
-  }
-  return '';
+  return listFromPayload(payload, ['skills', 'capabilities']).join(',');
 }
 
 /**
- * Build upsert rows for talent_pool + reserve employees from an interop agent asset.
+ * Build upsert rows matching OpenXYOS official Studio import:
+ * talent_pool source=studio status=recruited; employees reserve source=studio:{id}.
  */
 export function buildAgentPublishPlan(
   asset: InteropPublishAsset,
@@ -107,9 +150,9 @@ export function buildAgentPublishPlan(
   const role = asText(payload.role, category);
 
   const capabilitiesObj: Record<string, unknown> = {
-    schema: 'xyai.interop-agent.v1',
+    schema: 'openxyos.studio-agent.v1',
     interop_id: asset.id,
-    source: 'xyai-studio',
+    source: 'studio',
     agentId: payload.agentId ?? null,
     payload,
   };
@@ -122,13 +165,13 @@ export function buildAgentPublishPlan(
     skills,
     category,
     description,
-    source: 'xyai-studio',
+    source: 'studio',
     rating: 5,
-    status: 'available',
+    status: 'recruited',
     agent_type: agentType,
     capabilities: JSON.stringify(capabilitiesObj),
-    provider: 'XYAI Studio',
-    integration_type: 'xyai-interop-v1',
+    provider: 'studio',
+    integration_type: 'studio-interop',
   };
 
   const employee: ReserveEmployeeUpsertRow = {
@@ -143,34 +186,72 @@ export function buildAgentPublishPlan(
     employment_category: 'reserve',
     description,
     tenant_id: tenantId,
+    source: `studio:${asset.id}`,
   };
 
   return { agentType, interopId: asset.id, talent, employee, capabilitiesObj };
 }
 
+/** Official flattened POST body for `/api/xyai/agents/import`. */
+export function buildAgentImportBody(asset: InteropPublishAsset): AgentImportBody {
+  const plan = buildAgentPublishPlan(asset);
+  const payload = asset.payload && typeof asset.payload === 'object' ? asset.payload : {};
+  const skills = listFromPayload(payload, ['skills', 'capabilities']);
+  const capabilities = listFromPayload(payload, ['capabilities', 'skills']);
+  return {
+    name: plan.talent.name,
+    role: plan.employee.role,
+    title: plan.employee.role,
+    description: plan.talent.description,
+    positioning: asText(payload.positioning, asText(payload.subtitle)),
+    industry: asText(payload.industry, asText(payload.category)),
+    agent_type: plan.agentType,
+    skills: skills.length ? skills : plan.talent.skills.split(',').filter(Boolean),
+    capabilities: capabilities.length ? capabilities : skills,
+    avatar_emoji: plan.talent.avatar_emoji,
+    employee_type: 'ai',
+    external_id: asset.id,
+    source_id: asset.id,
+    studio_id: asset.id,
+    asset,
+  };
+}
+
+/** Official flattened POST body for `/api/xyai/knowledge/import`. */
+export function buildKnowledgeImportBody(asset: InteropPublishAsset): KnowledgeImportBody {
+  const payload = asset.payload && typeof asset.payload === 'object' ? asset.payload : {};
+  return {
+    name: asText(asset.name, '未命名知识库'),
+    description: asText(asset.description, asText(payload.subtitle)),
+    external_id: asset.id,
+    source_id: asset.id,
+    studio_id: asset.id,
+    payload,
+    asset,
+  };
+}
+
 /** SQL shapes used by OpenXYOS upsert (for contract tests). */
 export const TALENT_UPSERT_SQL = {
-  selectByAgentType:
-    "SELECT id, status FROM talent_pool WHERE tenant_id = ? AND agent_type = ?",
-  selectByInteropCap:
-    "SELECT id, status FROM talent_pool WHERE tenant_id = ? AND capabilities LIKE ?",
+  selectByExternalId:
+    "SELECT id, status FROM talent_pool WHERE tenant_id = ? AND source = 'studio' AND external_id = ?",
   update: `UPDATE talent_pool SET talent_type = 'ai', name = ?, avatar_emoji = ?, skills = ?, category = ?,
-    description = ?, source = 'xyai-studio', rating = ?, status = 'available', capabilities = ?,
+    description = ?, source = 'studio', rating = ?, status = 'recruited', capabilities = ?,
     provider = ?, integration_type = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ? AND tenant_id = ?`,
   insert: `INSERT INTO talent_pool
     (tenant_id, talent_type, name, avatar_emoji, skills, category, description, source, rating, status,
-     agent_type, capabilities, provider, integration_type)
-    VALUES (?, 'ai', ?, ?, ?, ?, ?, 'xyai-studio', ?, 'available', ?, ?, ?, ?)`,
+     agent_type, capabilities, provider, integration_type, external_id)
+    VALUES (?, 'ai', ?, ?, ?, ?, ?, 'studio', ?, 'recruited', ?, ?, ?, 'studio-interop', ?)`,
 } as const;
 
 export const RESERVE_EMPLOYEE_UPSERT_SQL = {
-  selectByAgentType:
-    "SELECT id FROM employees WHERE tenant_id = ? AND agent_type = ? AND employment_category = 'reserve'",
+  selectBySource:
+    "SELECT id FROM employees WHERE tenant_id = ? AND source = ?",
   update: `UPDATE employees SET name = ?, role = ?, employee_type = 'ai', skills = ?, avatar_emoji = ?,
     status = 'active', employment_category = 'reserve', description = ?
     WHERE id = ? AND tenant_id = ?`,
   insert: `INSERT INTO employees
-    (company_id, name, role, agent_type, employee_type, skills, avatar_emoji, status, employment_category, description, tenant_id)
-    VALUES (?, ?, ?, ?, 'ai', ?, ?, 'active', 'reserve', ?, ?)`,
+    (company_id, name, role, agent_type, employee_type, skills, avatar_emoji, status, employment_category, description, tenant_id, source)
+    VALUES (?, ?, ?, ?, 'ai', ?, ?, 'active', 'reserve', ?, ?, ?)`,
 } as const;
