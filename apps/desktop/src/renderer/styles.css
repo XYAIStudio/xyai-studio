@@ -1084,6 +1084,9 @@ button {
   gap: 8px;
   flex-wrap: wrap;
 }
+.hw-warn {
+  color: #9a3412;
+}
 .models-tabs {
   display: flex;
   gap: 8px;

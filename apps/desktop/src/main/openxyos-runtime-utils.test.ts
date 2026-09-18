@@ -2,7 +2,7 @@
  * Unit tests for OpenXYOS runtime root detection + server env merge.
  */
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -12,6 +12,8 @@ import {
   looksLikeOpenXyosRuntimeRoot,
   pickOpenXyosRuntimeRoot,
   resolveOpenXyosSpawnCommand,
+  ensureOpenXyosIdentityFile,
+  redactOpenXyosLog,
 } from './openxyos-runtime-utils.js';
 
 describe('openxyos-runtime-utils', () => {
@@ -133,6 +135,31 @@ describe('openxyos-runtime-utils', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it('writes missing openxyos-identity.ts when server.ts imports it', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'oxyos-id-'));
+    try {
+      mkdirSync(path.join(dir, 'backend'), { recursive: true });
+      writeFileSync(
+        path.join(dir, 'backend', 'server.ts'),
+        'import { OPENXYOS_VERSION } from "./openxyos-identity";\n',
+      );
+      writeFileSync(path.join(dir, 'package.json'), '{"version":"0.6.3"}');
+      const first = ensureOpenXyosIdentityFile(dir);
+      expect(first.created).toBe(true);
+      expect(existsSync(first.filePath)).toBe(true);
+      const again = ensureOpenXyosIdentityFile(dir);
+      expect(again.created).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('redacts secrets in child logs', () => {
+    expect(redactOpenXyosLog('JWT_SECRET=supersecret COOKIE_SECRET=abc')).toBe(
+      'JWT_SECRET=[redacted] COOKIE_SECRET=[redacted]',
+    );
   });
 
   it('on Windows without server.ts uses cmd /c npm start (not npm.cmd direct)', () => {

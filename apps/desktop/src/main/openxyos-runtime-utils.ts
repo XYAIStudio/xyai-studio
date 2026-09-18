@@ -4,7 +4,7 @@
  */
 
 import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import {
@@ -159,6 +159,81 @@ export function buildOpenXyosServerEnv(
     env.XYAI_INTEROP_SECRET = 'studio';
   }
   return env;
+}
+
+/** Upstream OpenXYOS `backend/server.ts` imports this; some trees omit the file. */
+export const OPENXYOS_IDENTITY_STUB = `import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const packageJson = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8")
+) as { name: string; version: string };
+
+export const OPENXYOS_PRODUCT = "openXYOS";
+export const OPENXYOS_EDITION = "community";
+export const OPENXYOS_VERSION = packageJson.version;
+`;
+
+export function ensureOpenXyosIdentityFile(root: string): {
+  ok: boolean;
+  created: boolean;
+  filePath: string;
+  message: string;
+} {
+  const filePath = path.join(root, 'backend', 'openxyos-identity.ts');
+  if (existsSync(filePath)) {
+    return { ok: true, created: false, filePath, message: 'identity present' };
+  }
+  const serverTs = path.join(root, 'backend', 'server.ts');
+  if (!existsSync(serverTs)) {
+    return { ok: true, created: false, filePath, message: 'no server.ts' };
+  }
+  let src = '';
+  try {
+    src = readFileSync(serverTs, 'utf8');
+  } catch {
+    src = '';
+  }
+  if (!src.includes('openxyos-identity')) {
+    return {
+      ok: true,
+      created: false,
+      filePath,
+      message: 'server does not import identity',
+    };
+  }
+  try {
+    mkdirSync(path.dirname(filePath), { recursive: true });
+    writeFileSync(filePath, OPENXYOS_IDENTITY_STUB, 'utf8');
+    return {
+      ok: true,
+      created: true,
+      filePath,
+      message: 'wrote missing backend/openxyos-identity.ts',
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      ok: false,
+      created: false,
+      filePath,
+      message: `无法写入 openxyos-identity.ts：${message}`,
+    };
+  }
+}
+
+export function redactOpenXyosLog(text: string): string {
+  return text.replace(
+    /(JWT_SECRET|COOKIE_SECRET|XYAI_INTEROP_SECRET|SEED_DEMO_PASSWORD|SEED_ADMIN_PASSWORD)=([^\s]+)/gi,
+    '$1=[redacted]',
+  );
+}
+
+export function tailText(text: string, max = 1800): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return t.slice(-max);
 }
 
 export type OpenXyosSpawnCommand = {

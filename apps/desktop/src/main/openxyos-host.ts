@@ -13,7 +13,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { app } from 'electron';
@@ -24,13 +24,16 @@ import {
 } from './openxyos-static-server.js';
 import {
   buildOpenXyosServerEnv,
+  ensureOpenXyosIdentityFile,
   hasOpenXyosDist,
   isPackedAsarPath,
   listRuntimeCandidateRoots,
   looksLikeOpenXyosRuntimeRoot,
   pickOpenXyosRuntimeRoot,
   pushUniqueRoot,
+  redactOpenXyosLog,
   resolveOpenXyosSpawnCommand,
+  tailText,
 } from './openxyos-runtime-utils.js';
 import {
   demoLoginCurlExample,
@@ -50,6 +53,54 @@ export type OpenXyosResolveResult = {
 /** npm / backend child (full stack) */
 let serverProc: ChildProcess | null = null;
 let serverPort: number | null = null;
+let serverExit: { code: number | null; signal: NodeJS.Signals | null } | null =
+  null;
+let serverOutput = '';
+let openXyosLogDir: string | null = null;
+
+export function setOpenXyosLogDir(dir: string): void {
+  openXyosLogDir = dir;
+}
+
+function openXyosLogFile(): string {
+  const dir = openXyosLogDir || path.join(process.cwd(), 'tmp');
+  const logs = path.join(dir, 'logs');
+  mkdirSync(logs, { recursive: true });
+  return path.join(logs, 'openxyos-server.log');
+}
+
+function appendChildOutput(chunk: Buffer | string): void {
+  const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+  serverOutput = (serverOutput + text).slice(-8000);
+  try {
+    appendFileSync(openXyosLogFile(), text);
+  } catch {
+    /* ignore log write */
+  }
+}
+
+function attachChildLogs(child: ChildProcess): void {
+  child.stdout?.on('data', appendChildOutput);
+  child.stderr?.on('data', appendChildOutput);
+}
+
+function formatChildFailure(prefix: string, url?: string): string {
+  const exit = serverExit
+    ? `子进程已退出（code=${serverExit.code ?? 'null'} signal=${serverExit.signal ?? 'null'}）。`
+    : '';
+  const log = redactOpenXyosLog(tailText(serverOutput, 1600));
+  const logPath = openXyosLogFile();
+  const urlBit = url ? `${url} ` : '';
+  return [
+    prefix,
+    urlBit ? `${urlBit}未就绪。` : '',
+    exit,
+    log ? `日志摘录：\n${log}` : '（无子进程输出）',
+    `完整日志：${logPath}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
 
 /** In-process static HTTP server for Vite dist */
 let staticHandle: StaticServerHandle | null = null;
@@ -215,10 +266,14 @@ async function waitForHttp(url: string, timeoutMs = 15000): Promise<boolean> {
 }
 
 /** Wait until `/` is up; prefer `/api/health` when available. */
-async function waitUntilServerHealthy(port: number, timeoutMs = 55_000): Promise<boolean> {
+async function waitUntilServerHealthy(
+  port: number,
+  timeoutMs = 55_000,
+): Promise<boolean> {
   const base = `http://127.0.0.1:${port}`;
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
+    if (serverExit) return false;
     try {
       const res = await fetch(`${base}/`, { method: 'GET' });
       if (res.ok || res.status === 404) {
@@ -492,19 +547,24 @@ export async function resolveOpenXyos(): Promise<OpenXyosResolveResult> {
       };
     }
 
+    const env = buildOpenXyosServerEnv(port);
     const child = spawn(
       process.platform === 'win32' ? 'npm.cmd' : 'npm',
       ['start'],
       {
         cwd: root,
-        env: { ...process.env, PORT: String(port) },
-        stdio: 'ignore',
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
       },
     );
     serverProc = child;
     serverPort = port;
-    child.on('exit', () => {
+    serverExit = null;
+    serverOutput = '';
+    attachChildLogs(child);
+    child.on('exit', (code, signal) => {
+      serverExit = { code, signal };
       if (serverProc === child) {
         serverProc = null;
         serverPort = null;
@@ -527,7 +587,10 @@ export async function resolveOpenXyos(): Promise<OpenXyosResolveResult> {
       ok: false,
       root,
       mode: 'error',
-      message: `已尝试启动 OpenXYOS（npm start），但 ${url} 未就绪。可打开目录手动启动。`,
+      message: formatChildFailure(
+        '已尝试启动 OpenXYOS（npm start）。',
+        url,
+      ),
       canOpenFolder: true,
     };
   } catch (err) {
@@ -573,6 +636,17 @@ async function startOpenXyosFullStack(
     };
   }
 
+  const identity = ensureOpenXyosIdentityFile(root);
+  if (!identity.ok) {
+    return {
+      ok: false,
+      root,
+      mode: 'error',
+      message: identity.message,
+      canOpenFolder: true,
+    };
+  }
+
   // Env includes ephemeral JWT/COOKIE secrets when missing — never log env.
   const env = buildOpenXyosServerEnv(port);
   const spawnCmd = resolveOpenXyosSpawnCommand(root, {
@@ -586,14 +660,20 @@ async function startOpenXyosFullStack(
     const child = spawn(spawnCmd.command, spawnCmd.args, {
       cwd: root,
       env,
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
       shell: spawnCmd.shell,
       windowsHide: true,
     });
     serverProc = child;
     serverPort = port;
-    child.on('exit', () => {
+    serverExit = null;
+    serverOutput = identity.created
+      ? `[studio] ${identity.message}\n`
+      : '';
+    attachChildLogs(child);
+    child.on('exit', (code, signal) => {
+      serverExit = { code, signal };
       if (serverProc === child) {
         serverProc = null;
         serverPort = null;
@@ -633,7 +713,10 @@ async function startOpenXyosFullStack(
       root,
       url,
       mode: 'error',
-      message: `已尝试启动 OpenXYOS 前后端，但 ${url} 在约 55s 内未就绪。请确认该目录依赖已安装（npm install）且可手动 npm start。`,
+      message: formatChildFailure(
+        '已尝试启动 OpenXYOS 前后端。',
+        url,
+      ),
       canOpenFolder: true,
     };
   } catch (err) {
@@ -695,6 +778,7 @@ export function stopOpenXyosServer(): void {
   }
   serverProc = null;
   serverPort = null;
+  serverExit = null;
 
   if (staticHandle) {
     const h = staticHandle;

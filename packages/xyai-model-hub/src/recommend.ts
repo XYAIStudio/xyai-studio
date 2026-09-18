@@ -121,12 +121,15 @@ export function recommendModels(
 } {
   const vram = hw.primaryVramMb || 0;
   const ram = hw.ramTotalMb;
+  const pressure = hw.usage?.pressure ?? 'ok';
+  const slack = pressure === 'critical' ? 0.45 : pressure === 'elevated' ? 0.65 : 0.85;
 
   const fit = (d: RecDef): boolean => {
     if (ram < d.minRamMb) return false;
+    if (pressure === 'critical' && d.vramHintMb >= 6000) return false;
     // Allow CPU-offload slack: accept if vram >= 70% of hint OR plenty of system RAM
-    if (vram <= 0) return d.vramHintMb <= 3500;
-    return vram + 1024 >= d.vramHintMb * 0.85;
+    if (vram <= 0) return d.vramHintMb <= (pressure === 'ok' ? 3500 : 1800);
+    return vram + 1024 >= d.vramHintMb * slack;
   };
 
   const toRec = (d: RecDef): ModelRecommendation => {

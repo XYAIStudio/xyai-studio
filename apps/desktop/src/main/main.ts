@@ -21,6 +21,7 @@ import {
   getOpenXyosServerBaseUrl,
   resolveOpenXyos,
   restartOpenXyosServices,
+  setOpenXyosLogDir,
   stopOpenXyosServer,
 } from './openxyos-host.js';
 import { createInteropHost, type InteropHost } from '@xyai/xyos-bridge';
@@ -488,6 +489,10 @@ function registerIpc(): void {
     return getModelHub().snapshot();
   });
 
+  ipcMain.handle('xyai:hardware-usage', async () => {
+    return getModelHub().hardwareUsage();
+  });
+
   ipcMain.handle('xyai:model-install-dep', async () => {
     return getModelHub().installDependency();
   });
@@ -792,6 +797,7 @@ app.whenReady().then(async () => {
   setSettingsUserDataDir(ud);
   setCollabUserDataDir(ud);
   setPersonalizeUserDataDir(ud);
+  setOpenXyosLogDir(ud);
   getKnowledgeHost();
   buildMenu();
   registerIpc();

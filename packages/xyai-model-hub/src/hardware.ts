@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
 import type { HardwareGpu, HardwareProfile } from '@xyai/contracts';
+import { detectHardwareUsage } from './hardware-usage.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -106,13 +107,17 @@ export async function detectHardware(): Promise<HardwareProfile> {
     gpus.map((g) => g.vramTotalMb ?? 0).sort((a, b) => b - a)[0] ??
     0;
 
+  const usage = await detectHardwareUsage(gpus);
   return {
     platform: process.platform,
     cpuName,
     cpuCores,
     ramTotalMb,
+    ramUsedMb: usage.ramUsedMb,
+    ramUsedPct: usage.ramUsedPct,
     gpus,
     primaryVramMb,
+    usage,
     collectedAt: new Date().toISOString(),
   };
 }

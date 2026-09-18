@@ -46,6 +46,83 @@ let lastOllama = {
   running: false,
 };
 
+let hwPollTimer: number | null = null;
+let modelsTabVisible = false;
+
+function stopHwPoll(): void {
+  if (hwPollTimer != null) {
+    window.clearInterval(hwPollTimer);
+    hwPollTimer = null;
+  }
+}
+
+function renderUsageLine(usage: {
+  ramUsedMb: number;
+  ramTotalMb: number;
+  ramUsedPct: number;
+  gpus: {
+    name: string;
+    vramUsedMb: number | null;
+    vramTotalMb: number | null;
+    vramUsedPct: number | null;
+    utilizationPct: number | null;
+  }[];
+  pressure: string;
+  gpuAccelHint?: string;
+}): void {
+  let box = document.getElementById('hw-usage');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'hw-usage';
+    hwPanel.appendChild(box);
+  }
+  const gpuLines = (usage.gpus || [])
+    .map((g) => {
+      const vram =
+        g.vramUsedMb != null && g.vramTotalMb != null
+          ? `显存 ${(g.vramUsedMb / 1024).toFixed(1)}/${(g.vramTotalMb / 1024).toFixed(1)} GB（${g.vramUsedPct ?? 0}%）`
+          : '显存使用率暂不可用';
+      const util =
+        g.utilizationPct != null ? ` · 利用率 ${g.utilizationPct}%` : '';
+      return `<div class="hw-line">GPU ${g.name}：${vram}${util}</div>`;
+    })
+    .join('');
+  const warn =
+    usage.pressure === 'critical'
+      ? '<div class="hw-line hw-warn">显存/内存压力过高，已限制新的大模型拉取。</div>'
+      : usage.pressure === 'elevated'
+        ? '<div class="hw-line hw-warn">资源占用较高，建议优先小模型。</div>'
+        : '';
+  const hint = usage.gpuAccelHint
+    ? `<div class="hw-line meta">${usage.gpuAccelHint}</div>`
+    : '';
+  box.innerHTML = `
+    <div class="hw-line">内存实时：${(usage.ramUsedMb / 1024).toFixed(1)} / ${(usage.ramTotalMb / 1024).toFixed(1)} GB（${usage.ramUsedPct}%）</div>
+    ${gpuLines}
+    ${warn}
+    ${hint}
+  `;
+}
+
+async function tickHardwareUsage(): Promise<void> {
+  if (!modelsTabVisible || !window.xyai.hardwareUsage) return;
+  try {
+    const usage = await window.xyai.hardwareUsage();
+    renderUsageLine(usage);
+  } catch {
+    /* ignore poll errors */
+  }
+}
+
+function startHwPoll(): void {
+  modelsTabVisible = true;
+  void tickHardwareUsage();
+  stopHwPoll();
+  hwPollTimer = window.setInterval(() => {
+    void tickHardwareUsage();
+  }, 1500);
+}
+
 const CLOUD_META: { id: string; label: string }[] = [
   { id: 'openai', label: 'OpenAI' },
   { id: 'deepseek', label: 'DeepSeek' },
@@ -134,6 +211,10 @@ async function refreshModels(): Promise<void> {
       <div class="hw-line">主 GPU 显存：${vramGb} GB</div>
       <div class="hw-line">GPU：${(hw.gpus || []).map((g: any) => g.name).join(' / ')}</div>
     `;
+    if (hw.usage) {
+      renderUsageLine(hw.usage);
+    }
+    startHwPoll();
 
     const dep = snap.ollama;
     lastOllama = {
@@ -348,7 +429,12 @@ function wireChrome(onModelsTab: () => void, onKnowledgeTab: () => void = () => 
       if (kbView) kbView.classList.toggle('active', tab === 'knowledge');
       const pzView = document.getElementById('view-personalize');
       if (pzView) pzView.classList.toggle('active', tab === 'personalize');
-      if (tab === 'models') onModelsTab();
+      if (tab === 'models') {
+        onModelsTab();
+      } else {
+        modelsTabVisible = false;
+        stopHwPoll();
+      }
       if (tab === 'knowledge') onKnowledgeTab();
       if (tab === 'personalize') onPersonalizeTab();
     });

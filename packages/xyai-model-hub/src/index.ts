@@ -5,6 +5,7 @@ import {
   getOllamaDependencyStatus,
   installOllama,
   listOllamaModels,
+  listOllamaModelsFromApi,
   pullOllamaModel,
   streamOllamaChat,
   probeOllamaApi,
@@ -65,6 +66,7 @@ export {
   getOllamaDependencyStatus,
   installOllama,
   listOllamaModels,
+  listOllamaModelsFromApi,
   pullOllamaModel,
   streamOllamaChat,
   probeOllamaApi,
@@ -89,3 +91,8 @@ export {
   mapOllamaNetworkError,
 } from './ollama-errors.js';
 export { startOllamaWithDeps } from './ollama-start.js';
+export {
+  detectHardwareUsage,
+  gpuAccelHintFor,
+  shouldRefuseHeavyLocalJob,
+} from './hardware-usage.js';

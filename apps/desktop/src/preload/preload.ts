@@ -123,6 +123,8 @@ const api = {
 
   modelSnapshot: (): Promise<unknown> => ipcRenderer.invoke('xyai:model-snapshot'),
 
+  hardwareUsage: (): Promise<unknown> => ipcRenderer.invoke('xyai:hardware-usage'),
+
   installModelDep: (): Promise<{ ok: boolean; message: string }> =>
     ipcRenderer.invoke('xyai:model-install-dep'),
 
