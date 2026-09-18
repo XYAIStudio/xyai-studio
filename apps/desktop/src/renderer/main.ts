@@ -592,16 +592,38 @@ async function boot(): Promise<void> {
 
   btnRefresh.addEventListener('click', () => void refreshModels());
   document.getElementById('btn-scan-models')?.addEventListener('click', () => {
-    void refreshModels().then(() => {
-      const n = installedList.querySelectorAll('.list-item').length;
-      alert(
-        formatLocalModelScanResult({
-          count: n,
-          installed: lastOllama.installed,
-          running: lastOllama.running,
-        }),
-      );
-    });
+    void (async () => {
+      const scanBtn = document.getElementById(
+        'btn-scan-models',
+      ) as HTMLButtonElement | null;
+      const prevLabel = scanBtn?.textContent || '全盘搜索已下载模型';
+      if (scanBtn) {
+        scanBtn.disabled = true;
+        scanBtn.textContent = '正在启动 Ollama…';
+      }
+      try {
+        // Do not only refreshModels() — API is down until ollama serve.
+        if (window.xyai.startOllama) {
+          await window.xyai.startOllama();
+        }
+        await refreshModels();
+        const n = installedList.querySelectorAll('.list-item').length;
+        alert(
+          formatLocalModelScanResult({
+            count: n,
+            installed: lastOllama.installed,
+            running: lastOllama.running,
+          }),
+        );
+      } catch (err) {
+        alert(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (scanBtn) {
+          scanBtn.disabled = false;
+          scanBtn.textContent = prevLabel;
+        }
+      }
+    })();
   });
   btnStartOllama?.addEventListener('click', async () => {
     if (!window.xyai.startOllama) {

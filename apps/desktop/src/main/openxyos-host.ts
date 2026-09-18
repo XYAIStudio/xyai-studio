@@ -24,8 +24,9 @@ import {
 } from './openxyos-static-server.js';
 import {
   buildOpenXyosServerEnv,
-  ensureOpenXyosIdentityFile,
+  explainOpenXyosBootFailure,
   hasOpenXyosDist,
+  preflightOpenXyosRuntime,
   isPackedAsarPath,
   listRuntimeCandidateRoots,
   looksLikeOpenXyosRuntimeRoot,
@@ -85,6 +86,7 @@ function attachChildLogs(child: ChildProcess): void {
 }
 
 function formatChildFailure(prefix: string, url?: string): string {
+  const explained = explainOpenXyosBootFailure(serverOutput);
   const exit = serverExit
     ? `子进程已退出（code=${serverExit.code ?? 'null'} signal=${serverExit.signal ?? 'null'}）。`
     : '';
@@ -93,6 +95,7 @@ function formatChildFailure(prefix: string, url?: string): string {
   const urlBit = url ? `${url} ` : '';
   return [
     prefix,
+    explained,
     urlBit ? `${urlBit}未就绪。` : '',
     exit,
     log ? `日志摘录：\n${log}` : '（无子进程输出）',
@@ -249,20 +252,6 @@ function formatRuntimeSearchedPaths(): string {
   const roots = runtimeCandidatesFromEnv();
   if (roots.length === 0) return '(无候选路径)';
   return roots.map((r) => `  · ${r}`).join('\n');
-}
-
-async function waitForHttp(url: string, timeoutMs = 15000): Promise<boolean> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(url, { method: 'GET' });
-      if (res.ok || res.status === 404) return true;
-    } catch {
-      /* retry */
-    }
-    await new Promise((r) => setTimeout(r, 400));
-  }
-  return false;
 }
 
 /** Wait until `/` is up; prefer `/api/health` when available. */
@@ -534,75 +523,21 @@ export async function resolveOpenXyos(): Promise<OpenXyosResolveResult> {
     };
   }
 
-  const port = 3921;
-  try {
-    const pkg = path.join(root, 'package.json');
-    if (!existsSync(pkg)) {
-      return {
-        ok: false,
-        root,
-        mode: 'missing',
-        message: `已定位目录但缺少 package.json 与静态入口（index.html）：${root}\n已搜索路径：\n${formatSearchedPaths()}`,
-        canOpenFolder: true,
-      };
-    }
-
-    const env = buildOpenXyosServerEnv(port);
-    const child = spawn(
-      process.platform === 'win32' ? 'npm.cmd' : 'npm',
-      ['start'],
-      {
-        cwd: root,
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: false,
-      },
-    );
-    serverProc = child;
-    serverPort = port;
-    serverExit = null;
-    serverOutput = '';
-    attachChildLogs(child);
-    child.on('exit', (code, signal) => {
-      serverExit = { code, signal };
-      if (serverProc === child) {
-        serverProc = null;
-        serverPort = null;
-      }
-    });
-
-    const url = `http://127.0.0.1:${port}/`;
-    const up = await waitForHttp(url, 12000);
-    if (up) {
-      return {
-        ok: true,
-        root,
-        url,
-        mode: 'server',
-        message: `已启动 OpenXYOS 服务 ${url}`,
-        canOpenFolder: true,
-      };
-    }
+  const pkg = path.join(root, 'package.json');
+  if (!existsSync(pkg)) {
     return {
       ok: false,
       root,
-      mode: 'error',
-      message: formatChildFailure(
-        '已尝试启动 OpenXYOS（npm start）。',
-        url,
-      ),
-      canOpenFolder: true,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return {
-      ok: false,
-      root,
-      mode: 'error',
-      message: `启动 OpenXYOS 失败：${message}`,
+      mode: 'missing',
+      message: `已定位目录但缺少 package.json 与静态入口（index.html）：${root}\n已搜索路径：\n${formatSearchedPaths()}`,
       canOpenFolder: true,
     };
   }
+
+  // Same env + stderr logging path as 「重启前后端服务」 — never PORT-only.
+  return startOpenXyosFullStack(root, {
+    successMessage: '已启动 OpenXYOS 服务',
+  });
 }
 
 /** Running full-stack base URL when Studio-spawned server is up. */
@@ -636,13 +571,13 @@ async function startOpenXyosFullStack(
     };
   }
 
-  const identity = ensureOpenXyosIdentityFile(root);
-  if (!identity.ok) {
+  const preflight = preflightOpenXyosRuntime(root);
+  if (!preflight.ok) {
     return {
       ok: false,
       root,
       mode: 'error',
-      message: identity.message,
+      message: preflight.message,
       canOpenFolder: true,
     };
   }
@@ -668,10 +603,14 @@ async function startOpenXyosFullStack(
     serverProc = child;
     serverPort = port;
     serverExit = null;
-    serverOutput = identity.created
-      ? `[studio] ${identity.message}\n`
-      : '';
+    serverOutput = preflight.message.startsWith('preflight ok')
+      ? ''
+      : `[studio] ${preflight.message}\n`;
     attachChildLogs(child);
+    child.on('error', (err) => {
+      appendChildOutput(`[spawn error] ${err.message}\n`);
+      serverExit = { code: 1, signal: null };
+    });
     child.on('exit', (code, signal) => {
       serverExit = { code, signal };
       if (serverProc === child) {

@@ -236,6 +236,100 @@ export function tailText(text: string, max = 1800): string {
   return t.slice(-max);
 }
 
+function resolveImportPath(root: string, spec: string): string[] {
+  const base = path.join(root, 'backend', spec);
+  return [base, `${base}.ts`, `${base}.js`, path.join(base, 'index.ts')];
+}
+
+/** Relative `from "./…"` imports in backend/server.ts that are not on disk. */
+export function listMissingServerImports(root: string): string[] {
+  const serverTs = path.join(root, 'backend', 'server.ts');
+  if (!existsSync(serverTs)) return [];
+  let src = '';
+  try {
+    src = readFileSync(serverTs, 'utf8');
+  } catch {
+    return [];
+  }
+  const missing: string[] = [];
+  const re = /from\s+['"](\.[^'"]+)['"]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src))) {
+    const spec = m[1]!;
+    if (!resolveImportPath(root, spec).some((p) => existsSync(p))) {
+      missing.push(spec);
+    }
+  }
+  return [...new Set(missing)];
+}
+
+export function hasTsxLoader(root: string): boolean {
+  return (
+    existsSync(path.join(root, 'node_modules', 'tsx')) ||
+    existsSync(path.join(root, 'node_modules', 'tsx', 'dist'))
+  );
+}
+
+export function explainOpenXyosBootFailure(log: string): string {
+  const text = log || '';
+  if (/CORS_ORIGIN must be explicitly configured/i.test(text)) {
+    return 'OpenXYOS 生产环境要求设置 CORS_ORIGIN。Studio 启动时应已注入；请重试「重启前后端服务」。';
+  }
+  if (/JWT_SECRET must be configured|JWT_SECRET is weak/i.test(text)) {
+    return 'OpenXYOS 要求有效的 JWT_SECRET。Studio 启动时应已注入；请重试「重启前后端服务」。';
+  }
+  if (/COOKIE_SECRET not set|COOKIE_SECRET must be configured/i.test(text)) {
+    return 'OpenXYOS 要求设置 COOKIE_SECRET。Studio 启动时应已注入；请重试「重启前后端服务」。';
+  }
+  const mod =
+    text.match(/Cannot find module ['"]([^'"]+)['"]/i)?.[1] ||
+    text.match(/ERR_MODULE_NOT_FOUND[\s\S]{0,80}['"]([^'"]+)['"]/i)?.[1] ||
+    '';
+  if (/MODULE_NOT_FOUND|ERR_MODULE_NOT_FOUND|Cannot find module/i.test(text)) {
+    if (/openxyos-identity/i.test(text) || /openxyos-identity/i.test(mod)) {
+      return '缺少 backend/openxyos-identity.ts（org-talent 合并后常见）。Studio 会尝试自动补写；若仍失败请同步 OpenXYOS 仓库后再启动。';
+    }
+    if (mod === 'tsx' || /['"]tsx['"]/.test(text)) {
+      return '未找到 tsx 加载器。请在 OpenXYOS 目录执行 npm install 后再点「重启前后端服务」。';
+    }
+    if (mod) {
+      return `OpenXYOS 启动失败：找不到模块 ${mod}。请在该目录执行 npm install（并确认 org-talent 相关依赖已写入 package.json）。`;
+    }
+    return 'OpenXYOS 启动失败：模块未找到（MODULE_NOT_FOUND）。请在 OpenXYOS 目录执行 npm install 后重试。';
+  }
+  return '';
+}
+
+export function preflightOpenXyosRuntime(root: string): {
+  ok: boolean;
+  message: string;
+  missingImports: string[];
+} {
+  const identity = ensureOpenXyosIdentityFile(root);
+  if (!identity.ok) {
+    return { ok: false, message: identity.message, missingImports: [] };
+  }
+  const missingImports = listMissingServerImports(root).filter(
+    (s) => !s.includes('openxyos-identity') || !existsSync(identity.filePath),
+  );
+  if (missingImports.length) {
+    return {
+      ok: false,
+      message: `backend/server.ts 引用了缺失文件：${missingImports.join('、')}。请同步 OpenXYOS（含 org-talent）后再启动。`,
+      missingImports,
+    };
+  }
+  const tsxHint =
+    existsSync(path.join(root, 'backend', 'server.ts')) && !hasTsxLoader(root)
+      ? ' 提示：未找到 node_modules/tsx，若启动失败请在 OpenXYOS 目录执行 npm install。'
+      : '';
+  return {
+    ok: true,
+    message: (identity.created ? identity.message : 'preflight ok') + tsxHint,
+    missingImports: [],
+  };
+}
+
 export type OpenXyosSpawnCommand = {
   command: string;
   args: string[];

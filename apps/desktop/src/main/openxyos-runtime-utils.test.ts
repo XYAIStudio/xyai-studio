@@ -13,6 +13,9 @@ import {
   pickOpenXyosRuntimeRoot,
   resolveOpenXyosSpawnCommand,
   ensureOpenXyosIdentityFile,
+  explainOpenXyosBootFailure,
+  listMissingServerImports,
+  preflightOpenXyosRuntime,
   redactOpenXyosLog,
 } from './openxyos-runtime-utils.js';
 
@@ -82,6 +85,19 @@ describe('openxyos-runtime-utils', () => {
       rmSync(a, { recursive: true, force: true });
       rmSync(b, { recursive: true, force: true });
     }
+  });
+
+  it('injects CORS_ORIGIN and JWT_SECRET when NODE_ENV=production (Windows boot crash)', () => {
+    const env = buildOpenXyosServerEnv(3000, {
+      PATH: '/usr/bin',
+      NODE_ENV: 'production',
+    });
+    expect(env.NODE_ENV).toBe('production');
+    expect(env.PORT).toBe('3000');
+    expect(env.CORS_ORIGIN).toContain('http://127.0.0.1:3000');
+    expect(env.CORS_ORIGIN).toContain('http://localhost:3000');
+    expect(env.JWT_SECRET && env.JWT_SECRET.length >= 32).toBe(true);
+    expect(env.COOKIE_SECRET && env.COOKIE_SECRET.length >= 32).toBe(true);
   });
 
   it('merges server env with registration + secrets (no overwrite of long secrets)', () => {
@@ -160,6 +176,45 @@ describe('openxyos-runtime-utils', () => {
     expect(redactOpenXyosLog('JWT_SECRET=supersecret COOKIE_SECRET=abc')).toBe(
       'JWT_SECRET=[redacted] COOKIE_SECRET=[redacted]',
     );
+  });
+
+  it('explains production CORS/JWT and MODULE_NOT_FOUND', () => {
+    expect(
+      explainOpenXyosBootFailure(
+        'Error: CORS_ORIGIN must be explicitly configured in production',
+      ),
+    ).toMatch(/CORS_ORIGIN/);
+    expect(
+      explainOpenXyosBootFailure(
+        "Error: Cannot find module './openxyos-identity'\ncode: MODULE_NOT_FOUND",
+      ),
+    ).toMatch(/openxyos-identity/);
+    expect(
+      explainOpenXyosBootFailure("Error: Cannot find module 'tsx'"),
+    ).toMatch(/tsx/);
+  });
+
+  it('preflight writes identity then reports other missing server imports', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'oxyos-pre-'));
+    try {
+      mkdirSync(path.join(dir, 'backend'), { recursive: true });
+      writeFileSync(
+        path.join(dir, 'backend', 'server.ts'),
+        'import { OPENXYOS_VERSION } from "./openxyos-identity";\nimport { x } from "./routes/talent";\n',
+      );
+      writeFileSync(path.join(dir, 'package.json'), '{"version":"0.6.3"}');
+      const pf = preflightOpenXyosRuntime(dir);
+      expect(pf.ok).toBe(false);
+      expect(pf.missingImports.some((s) => s.includes('talent'))).toBe(true);
+      expect(existsSync(path.join(dir, 'backend', 'openxyos-identity.ts'))).toBe(
+        true,
+      );
+      expect(listMissingServerImports(dir).some((s) => s.includes('identity'))).toBe(
+        false,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('on Windows without server.ts uses cmd /c npm start (not npm.cmd direct)', () => {

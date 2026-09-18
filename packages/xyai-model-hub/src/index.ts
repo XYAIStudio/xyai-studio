@@ -29,11 +29,9 @@ export async function collectModelHubSnapshot(
   userDataPath: string,
 ): Promise<ModelHubSnapshot> {
   const hardware = await detectHardware();
-  let ollama = await getOllamaDependencyStatus();
-  if (ollama.installed && !ollama.running) {
-    await startOllama({ timeoutMs: 15000 });
-    ollama = await getOllamaDependencyStatus();
-  }
+  // Snapshot + 「全盘搜索」share this path — start Ollama before listing tags.
+  await ensureOllamaRunning({ timeoutMs: 15000 });
+  const ollama = await getOllamaDependencyStatus();
   const discovered =
     ollama.running || ollama.installed
       ? await discoverOllamaModels()
