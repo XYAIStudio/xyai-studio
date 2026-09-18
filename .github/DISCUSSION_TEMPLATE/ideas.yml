@@ -1,0 +1,15 @@
+title: "[Idea] "
+body:
+  - type: textarea
+    id: idea_zh
+    attributes:
+      label: 想法（中文）
+      description: 场景 + 痛点 + 期望
+    validations:
+      required: true
+  - type: textarea
+    id: idea_en
+    attributes:
+      label: Idea (English)
+    validations:
+      required: false

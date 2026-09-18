@@ -1,0 +1,73 @@
+name: Bug / 缺陷
+description: Report a reproducible bug / 报告可复现缺陷
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **中文**：请尽量附上版本、系统与复现步骤。  
+        **English**: Include version, OS, and repro steps.
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / Version
+      description: e.g. 0.5.0 / 0.3.1-20260904-r2
+      placeholder: "0.5.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: 系统 / OS
+      options:
+        - Windows 10/11 x64
+        - macOS (Apple Silicon)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary_zh
+    attributes:
+      label: 问题摘要（中文）
+      description: 一句话说明错误结果
+      placeholder: 安装后无法打开主窗口…
+    validations:
+      required: true
+  - type: textarea
+    id: summary_en
+    attributes:
+      label: Summary (English)
+      description: One-line expected vs actual (optional but helpful)
+      placeholder: App fails to open main window after install…
+    validations:
+      required: false
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 中英均可 / Chinese or English
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果 / Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果 / Actual
+      description: 可粘贴报错原文（请脱敏）/ Paste error text (redact secrets)
+    validations:
+      required: true
+  - type: textarea
+    id: extras
+    attributes:
+      label: 其他 / Extra
+      description: 截图、日志路径、是否卸载过旧版等

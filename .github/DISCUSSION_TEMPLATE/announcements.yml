@@ -1,0 +1,18 @@
+title: "[Announcement] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: "维护者公告模板 / Maintainer announcement template."
+  - type: textarea
+    id: zh
+    attributes:
+      label: 中文正文
+    validations:
+      required: true
+  - type: textarea
+    id: en
+    attributes:
+      label: English subtitle / body
+    validations:
+      required: false

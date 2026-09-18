@@ -74,8 +74,11 @@ Before the first launch, copy `xyos-backend/.env.example` to `.env` and add only
 
 XYAI-owned code is released under the [MIT License](LICENSE). DeepSeek Harness is also MIT licensed. Any redistribution of a combined project must retain the upstream copyright and license notices. See [third-party notices](THIRD_PARTY_NOTICES.md).
 
-## Contributing and security
+## Community and support
 
-- Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or pull request.
-- Follow [SECURITY.md](SECURITY.md) for vulnerability reporting. Never post credentials or private data in a public issue.
-- See [docs/OPEN_SOURCE_SCOPE.md](docs/OPEN_SOURCE_SCOPE.md) for the release boundary and excluded material.
+- **Discussions**: [forum](https://github.com/XYAIStudio/xyai-studio/discussions) (Announcements / Q&A / Ideas / Show and tell)
+- **Wiki**: [Home](https://github.com/XYAIStudio/xyai-studio/wiki)
+- **How to get help**: [SUPPORT.md](SUPPORT.md)
+- Issue templates: Bug / Feature (zh+en fields); see [CONTRIBUTING.md](CONTRIBUTING.md)
+- Security: [SECURITY.md](SECURITY.md) — never post secrets in public issues
+- Scope: [docs/OPEN_SOURCE_SCOPE.md](docs/OPEN_SOURCE_SCOPE.md)

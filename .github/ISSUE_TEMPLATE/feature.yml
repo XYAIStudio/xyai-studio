@@ -1,0 +1,50 @@
+name: Feature / 功能请求
+description: Propose a concrete feature / 提出可验收的功能建议
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **中文**：说清场景、痛点与期望结果。开放闲聊请用 Discussions → Ideas。  
+        **English**: Scenario + pain + desired outcome. Open-ended chat → Discussions Ideas.
+  - type: textarea
+    id: problem_zh
+    attributes:
+      label: 场景与痛点（中文）
+      placeholder: 我在…时遇到…
+    validations:
+      required: true
+  - type: textarea
+    id: problem_en
+    attributes:
+      label: Problem / scenario (English)
+      placeholder: When I… I need…
+    validations:
+      required: false
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望行为 / Proposed behavior
+      description: 可验收的结果描述 / Acceptance-oriented description
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收条件 / Acceptance criteria
+      placeholder: |
+        - [ ] …
+        - [ ] …
+    validations:
+      required: false
+  - type: dropdown
+    id: priority_hint
+    attributes:
+      label: 紧迫度（可选）/ Urgency (optional)
+      options:
+        - Nice to have
+        - Important for my workflow
+        - Blocking adoption
+    validations:
+      required: false

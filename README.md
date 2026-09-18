@@ -105,8 +105,11 @@ pnpm --filter @deepseek-ai/dsh-desktop run dev
 
 XYAI 自有代码以 [MIT](LICENSE) 许可证发布。DeepSeek Harness 上游同样采用 MIT；使用或再发布本仓库中的叠加补丁时，必须保留上游版权与许可声明。详细内容见 [第三方声明](THIRD_PARTY_NOTICES.md)。
 
-## 参与与安全
+## 社区与支持
 
-- 提交规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-- 安全问题请按 [SECURITY.md](SECURITY.md) 处理，不要在公开 Issue 中披露密钥或漏洞细节。
-- 发版范围与不纳入公开仓库的内容见 [docs/OPEN_SOURCE_SCOPE.md](docs/OPEN_SOURCE_SCOPE.md)。
+- **Discussions**：[讨论区](https://github.com/XYAIStudio/xyai-studio/discussions)（公告 / Q&A / Ideas / Show and tell）
+- **Wiki**：[文档首页](https://github.com/XYAIStudio/xyai-studio/wiki)（安装、FAQ、架构、路线图）
+- **如何获得帮助**：[SUPPORT.md](SUPPORT.md)
+- Issue 模板：Bug / Feature（中英字段）；规范见 [CONTRIBUTING.md](CONTRIBUTING.md)
+- 安全问题请按 [SECURITY.md](SECURITY.md) 处理，不要在公开 Issue 中披露密钥或漏洞细节
+- 发版范围见 [docs/OPEN_SOURCE_SCOPE.md](docs/OPEN_SOURCE_SCOPE.md)
