@@ -26,6 +26,21 @@ function labelFor(
   return hit?.label || id || '选择模型';
 }
 
+function localListHas(id: string, local: ModelOption[]): boolean {
+  if (!id.startsWith('ollama:')) return true;
+  const want = id.replace(/^ollama:/i, '').toLowerCase();
+  return local.some((m) => {
+    const n = (m.id.replace(/^ollama:/i, '') || m.label).toLowerCase();
+    return (
+      n === want ||
+      n === `${want}:latest` ||
+      want === `${n}:latest` ||
+      n.startsWith(`${want}:`) ||
+      want.startsWith(`${n}:`)
+    );
+  });
+}
+
 export function createModelPicker(opts: {
   chipBtn: HTMLButtonElement;
   chipLabel: HTMLElement;
@@ -210,8 +225,14 @@ export function createModelPicker(opts: {
     localModels = st.localModels || [];
     codexModels = st.models || [];
     selectedId = st.modelId || selectedId;
-    chipLabel.textContent = labelFor(selectedId, localModels, codexModels);
-    chipBtn.title = selectedId || '';
+    const label = labelFor(selectedId, localModels, codexModels);
+    const stale =
+      selectedId.startsWith('ollama:') &&
+      !localListHas(selectedId, localModels);
+    chipLabel.textContent = stale ? `${label} · 未在本地列表` : label;
+    chipBtn.title = stale
+      ? `${selectedId}（请到「模型」页刷新或启动 Ollama 后再发送）`
+      : selectedId || '';
     if (open) {
       renderPanel(searchInput?.value || '');
       positionPanel();

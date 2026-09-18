@@ -15,8 +15,10 @@ import type { CodexAdapter } from '@xyai/adapter-codex';
 import {
   ensureOllamaRunning,
   listOllamaModelsFromApi,
+  missingOllamaModelMessage,
   OLLAMA_NOT_RUNNING_CODE,
   OLLAMA_NOT_RUNNING_MESSAGE,
+  ollamaTagsIncludeModel,
   streamOllamaChat,
   type OllamaChatMessage,
 } from '@xyai/model-hub';
@@ -123,32 +125,21 @@ export async function* runOllamaTurn(options: {
 
     try {
       const installed = await listOllamaModelsFromApi();
-      const names = installed.map((m) => m.displayName.toLowerCase());
-      const want = model.toLowerCase();
-      const found =
-        names.length === 0 ||
-        names.some(
-          (n) =>
-            n === want ||
-            n === `${want}:latest` ||
-            n.startsWith(`${want}:`) ||
-            want.startsWith(`${n}:`) ||
-            n.replace(/:latest$/, '') === want.replace(/:latest$/, ''),
-        );
-      if (!found) {
+      const names = installed.map((m) => m.displayName);
+      if (!ollamaTagsIncludeModel(names, model)) {
         yield {
           type: 'error',
           timestamp: now(),
           sessionId,
           taskId,
           payload: {
-            message: `本地 Ollama 中没有模型「${model}」。请到「模型」页刷新列表或重新拉取后再发送。`,
+            message: missingOllamaModelMessage(model),
           },
         };
         return;
       }
     } catch {
-      /* listing is advisory; stream may still work */
+      /* listing threw; stream maps fetch failed / HTTP not-found */
     }
 
     for await (const delta of streamOllamaChat({

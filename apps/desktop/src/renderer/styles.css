@@ -2797,6 +2797,16 @@ webview.browser-webview {
   margin: 0 0 10px;
   font-size: 18px;
 }
+.zone-status-card .zone-status-message {
+  margin: 0 0 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.45;
+  max-height: 280px;
+  overflow: auto;
+  font-family: inherit;
+}
 .zone-status-card .meta {
   font-size: 12px;
   color: var(--muted, #64748b);

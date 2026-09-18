@@ -34,3 +34,39 @@ export function isOllamaNotRunningError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   return (err as { code?: string }).code === OLLAMA_NOT_RUNNING_CODE;
 }
+
+export function missingOllamaModelMessage(model: string): string {
+  return `本地 Ollama 中没有模型「${model}」。请到「模型」页刷新列表或重新拉取后再发送。`;
+}
+
+/** Match `ollama list` / `/api/tags` names against a picker/chat ref. */
+export function ollamaTagsIncludeModel(names: string[], want: string): boolean {
+  const w = want.replace(/^ollama:/i, '').toLowerCase();
+  if (!w) return false;
+  return names.some((raw) => {
+    const n = raw.replace(/^ollama:/i, '').toLowerCase();
+    return (
+      n === w ||
+      n === `${w}:latest` ||
+      w === `${n}:latest` ||
+      n.startsWith(`${w}:`) ||
+      w.startsWith(`${n}:`) ||
+      n.replace(/:latest$/, '') === w.replace(/:latest$/, '')
+    );
+  });
+}
+
+export function explainOllamaHttpFailure(
+  status: number,
+  body: string,
+  model: string,
+): string {
+  const text = body || '';
+  if (
+    status === 404 ||
+    /not found|does not exist|unknown model|model .* not found/i.test(text)
+  ) {
+    return missingOllamaModelMessage(model);
+  }
+  return `Ollama HTTP ${status}: ${text.slice(0, 200)}`;
+}

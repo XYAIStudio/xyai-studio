@@ -87,6 +87,9 @@ export {
   OLLAMA_NOT_RUNNING_CODE,
   OLLAMA_NOT_RUNNING_MESSAGE,
   mapOllamaNetworkError,
+  missingOllamaModelMessage,
+  ollamaTagsIncludeModel,
+  explainOllamaHttpFailure,
 } from './ollama-errors.js';
 export { startOllamaWithDeps } from './ollama-start.js';
 export {

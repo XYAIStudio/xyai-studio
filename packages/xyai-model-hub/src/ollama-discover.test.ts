@@ -11,7 +11,12 @@ import {
   pickDiscoverySource,
   toOllamaModelEntry,
 } from './ollama-discover.js';
-import { mapOllamaNetworkError, OLLAMA_NOT_RUNNING_CODE } from './ollama-errors.js';
+import {
+  explainOllamaHttpFailure,
+  mapOllamaNetworkError,
+  ollamaTagsIncludeModel,
+  OLLAMA_NOT_RUNNING_CODE,
+} from './ollama-errors.js';
 import { startOllamaWithDeps } from './ollama-start.js';
 
 describe('parseOllamaListOutput', () => {
@@ -96,6 +101,22 @@ describe('formatLocalModelScanResult', () => {
         running: true,
       }),
     ).toBe('发现 2 个本地模型');
+  });
+});
+
+describe('ollama stale-model helpers', () => {
+  it('treats empty tags as missing (qwen3:8b)', () => {
+    expect(ollamaTagsIncludeModel([], 'qwen3:8b')).toBe(false);
+    expect(ollamaTagsIncludeModel(['qwen3:8b'], 'qwen3:8b')).toBe(true);
+    expect(ollamaTagsIncludeModel(['qwen3:8b'], 'ollama:qwen3:8b')).toBe(true);
+    expect(ollamaTagsIncludeModel(['llama3.2'], 'qwen3:8b')).toBe(false);
+  });
+
+  it('maps HTTP 404 / not found to a refresh/pull message', () => {
+    expect(explainOllamaHttpFailure(404, 'model not found', 'qwen3:8b')).toMatch(
+      /刷新列表/,
+    );
+    expect(explainOllamaHttpFailure(500, 'boom', 'qwen3:8b')).toMatch(/HTTP 500/);
   });
 });
 

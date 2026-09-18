@@ -11,7 +11,7 @@ import {
   toOllamaModelEntry,
   type LocalModelDiscoverySource,
 } from './ollama-discover.js';
-import { mapOllamaNetworkError } from './ollama-errors.js';
+import { explainOllamaHttpFailure, mapOllamaNetworkError } from './ollama-errors.js';
 import { startOllamaWithDeps, type StartOllamaResult } from './ollama-start.js';
 
 const execFileAsync = promisify(execFile);
@@ -315,7 +315,7 @@ export async function* streamOllamaChat(options: {
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Ollama HTTP ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(explainOllamaHttpFailure(res.status, body, model));
   }
   if (!res.body) {
     throw new Error('Ollama response missing body');
