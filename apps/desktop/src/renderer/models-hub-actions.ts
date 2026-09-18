@@ -18,16 +18,19 @@ export type HubModelView = {
   role?: string;
   registered: boolean;
   isDefault: boolean;
+  /** Live `/api/tags` or `ollama list` — not catalog recs or stale manifests. */
+  availableInOllama?: boolean;
 };
 
 export function isProjectorModel(view: {
+  id?: string;
   displayName?: string;
   path?: string;
   role?: string;
   version?: string;
 }): boolean {
-  const blob = `${view.displayName || ''} ${view.path || ''} ${view.version || ''}`;
-  return view.role === 'vision' || /mmproj|mm-proj|projector/i.test(blob);
+  const blob = `${view.id || ''} ${view.displayName || ''} ${view.path || ''} ${view.version || ''}`;
+  return /mmproj|mm-proj|projector/i.test(blob);
 }
 
 export function chatModelRef(view: { id: string; displayName: string }): string {
@@ -40,14 +43,15 @@ export function chatModelRef(view: { id: string; displayName: string }): string 
 
 export function hubActionsFor(view: HubModelView): HubAction[] {
   const projector = isProjectorModel(view);
+  const live = view.availableInOllama === true;
   const actions: HubAction[] = [];
-  if (!projector) {
+  if (!projector && live) {
     actions.push({ id: 'speed', label: '测速' });
   }
   if (!view.registered) {
     actions.push({ id: 'register', label: '注册' });
   }
-  if (!projector) {
+  if (!projector && live) {
     actions.push(
       view.isDefault
         ? { id: 'detach', label: '解挂' }

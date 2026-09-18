@@ -23,8 +23,8 @@ export interface XyaiStatus {
   binaryPath: string | null;
   modelId: string;
   forceMock: boolean;
-  models: { id: string; label: string }[];
-  localModels: { id: string; label: string }[];
+  models: { id: string; label: string; hint?: string }[];
+  localModels: { id: string; label: string; hint?: string }[];
   activeSessionId: string;
   sessions: { id: string; title: string; createdAt: string; updatedAt: string }[];
   isSending: boolean;
@@ -135,7 +135,7 @@ const api = {
     displayName?: string;
     source?: string;
     path?: string;
-  }): Promise<{ ok: boolean; message: string }> =>
+  }): Promise<{ ok: boolean; message: string; status?: XyaiStatus }> =>
     ipcRenderer.invoke('xyai:model-register', input),
 
   speedTestModel: (

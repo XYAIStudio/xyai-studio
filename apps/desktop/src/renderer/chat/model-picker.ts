@@ -26,19 +26,18 @@ function labelFor(
   return hit?.label || id || '选择模型';
 }
 
+function normalizePickerTag(id: string): string {
+  return id.replace(/^ollama:/i, '').replace(/:latest$/i, '').toLowerCase();
+}
+
 function localListHas(id: string, local: ModelOption[]): boolean {
   if (!id.startsWith('ollama:')) return true;
-  const want = id.replace(/^ollama:/i, '').toLowerCase();
-  return local.some((m) => {
-    const n = (m.id.replace(/^ollama:/i, '') || m.label).toLowerCase();
-    return (
-      n === want ||
-      n === `${want}:latest` ||
-      want === `${n}:latest` ||
-      n.startsWith(`${want}:`) ||
-      want.startsWith(`${n}:`)
-    );
-  });
+  const want = normalizePickerTag(id);
+  return local.some((m) => normalizePickerTag(m.id) === want);
+}
+
+export function pickerRowHint(item: ModelOption): string {
+  return item.hint || item.id.replace(/^ollama:/i, '');
 }
 
 export function createModelPicker(opts: {
@@ -141,7 +140,8 @@ export function createModelPicker(opts: {
         ? items.filter(
             (m) =>
               m.label.toLowerCase().includes(q) ||
-              m.id.toLowerCase().includes(q),
+              m.id.toLowerCase().includes(q) ||
+              (m.hint || '').toLowerCase().includes(q),
           )
         : items;
       if (!filtered.length && items.length === 0) return;
@@ -170,7 +170,7 @@ export function createModelPicker(opts: {
         name.textContent = item.label;
         const idHint = document.createElement('span');
         idHint.className = 'model-option-id';
-        idHint.textContent = item.id;
+        idHint.textContent = pickerRowHint(item);
         row.appendChild(name);
         row.appendChild(idHint);
         group.appendChild(row);

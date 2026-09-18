@@ -128,7 +128,7 @@ Renderer 入口只做装配，不再堆业务。
 ## 4. 交互合同（验收用语）
 
 1. 打开「开发空间 → 对话」即可输入；焦点在 Composer；不被顶栏 drag 抢走。
-2. ModelPicker 能列出 **本地已注册（Ollama）** 与 **Codex 引擎模型**；选择后写入当前会话 `modelRef`。
+2. ModelPicker 能列出 **本地已注册（Ollama 现场 tags）** 与 **Codex 引擎模型**；标题用 `ollama show` architecture（如 qwen25vl → Qwen2.5-VL），不用误标的 DeepSeek 别名；同 digest 只保留一个身份，其它 tag 标「别名」。选择后写入当前会话 `modelRef`。模型页 挂接/注册成功后须立刻刷新该列表。
 3. 发送后出现用户气泡；助手气泡流式增长；按钮变为停止；停止后可继续输入。
 4. 新会话 / 切换会话不丢其它会话内容（内存期）；标题可由首条消息生成。
 5. 选本地模型时走 Ollama；选 Codex 模型走 adapter-codex（含 mock 回退仅开发）。

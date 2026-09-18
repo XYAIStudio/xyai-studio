@@ -4,9 +4,13 @@
 
 import type { ModelEntry } from '@xyai/contracts';
 import { isProjectorWeightName, sanitizeOllamaCreateName } from './disk-weights.js';
-import { createOllamaFromFile } from './ollama.js';
+import { createOllamaFromFile, listOllamaModelsFromApi } from './ollama.js';
 import { LocalModelRegistry } from './registry.js';
-import { toOllamaModelEntry } from './ollama-discover.js';
+import { ollamaTagFromEntry, toOllamaModelEntry } from './ollama-discover.js';
+import {
+  missingOllamaModelMessage,
+  ollamaTagsIncludeModel,
+} from './ollama-errors.js';
 
 const OLLAMA_API = process.env.XYAI_OLLAMA_HOST ?? 'http://127.0.0.1:11434';
 
@@ -72,6 +76,7 @@ export async function registerLocalModel(
     const entry = toOllamaModelEntry(name, {
       source: 'ollama',
       path: input.path,
+      installed: true,
     });
     registry.register(entry);
     return { ok: true, message: created.message, entry };
@@ -80,7 +85,11 @@ export async function registerLocalModel(
   const tagName = (input.id || '').startsWith('ollama:')
     ? (input.id || '').slice('ollama:'.length)
     : name;
-  const entry = toOllamaModelEntry(tagName, { source: 'ollama', path: input.path });
+  const entry = toOllamaModelEntry(tagName, {
+    source: 'ollama',
+    path: input.path,
+    installed: false,
+  });
   registry.register(entry);
   return { ok: true, message: `已写入本地注册表：${entry.displayName}`, entry };
 }
@@ -108,12 +117,32 @@ export function formatSpeedTestMessage(r: {
   return `测速完成：${r.tokensPerSec.toFixed(1)} tok/s（${r.evalCount} tokens / ${(r.elapsedMs / 1000).toFixed(2)}s）`;
 }
 
-export async function speedTestOllamaModel(modelRef: string): Promise<SpeedTestResult> {
+/** Refuse generate against projectors or tags Ollama does not currently serve. */
+export function speedTestPreconditions(
+  modelRef: string,
+  liveNames: string[],
+): { ok: true; model: string } | { ok: false; message: string } {
   const model = modelRef.replace(/^ollama:/i, '').trim();
   if (!model) return { ok: false, message: '缺少模型名' };
   if (isProjectorWeightName(model)) {
     return { ok: false, message: 'mmproj 投影器无法测速（不是对话模型）' };
   }
+  if (!ollamaTagsIncludeModel(liveNames, model)) {
+    return { ok: false, message: missingOllamaModelMessage(model) };
+  }
+  return { ok: true, model };
+}
+
+export async function speedTestOllamaModel(modelRef: string): Promise<SpeedTestResult> {
+  let liveNames: string[] = [];
+  try {
+    liveNames = (await listOllamaModelsFromApi()).map((m) => ollamaTagFromEntry(m));
+  } catch {
+    liveNames = [];
+  }
+  const gate = speedTestPreconditions(modelRef, liveNames);
+  if (!gate.ok) return { ok: false, message: gate.message };
+  const model = gate.model;
   const started = Date.now();
   try {
     const ctrl = new AbortController();

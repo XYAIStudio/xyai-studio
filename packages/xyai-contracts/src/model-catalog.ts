@@ -21,7 +21,17 @@ export interface ModelEntry {
   source?: 'ollama' | 'lmstudio' | 'manual' | 'catalog' | 'gguf' | 'huggingface';
   /** Absolute weight path when discovered on disk (GGUF / HF dir). */
   path?: string;
+  /**
+   * True only when the tag is present in a live Ollama `/api/tags` or `ollama list`.
+   * Disk manifests, GGUF hits, and registry rows stay false until verified.
+   */
   installed?: boolean;
+  /** Ollama blob digest (`sha256:…` or the short `ollama list` ID). */
+  digest?: string;
+  /** GGUF/Ollama family from `/api/tags` details — not a marketing name. */
+  family?: string;
+  /** GGUF architecture from `ollama show` / `model_info['general.architecture']`. */
+  architecture?: string;
 }
 
 export interface ModelCatalog {

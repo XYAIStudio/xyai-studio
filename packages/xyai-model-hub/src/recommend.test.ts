@@ -19,6 +19,23 @@ describe('recommendModels', () => {
     expect(rec.embedding.some((r) => r.ollamaName.includes('embed') || r.role === 'embedding')).toBe(true);
   });
 
+  it('does not mark qwen3:8b installed just because qwen3:1.7b is live', () => {
+    const hw: HardwareProfile = {
+      platform: 'win32',
+      cpuName: 'Test CPU',
+      cpuCores: 8,
+      ramTotalMb: 16000,
+      gpus: [{ name: 'iGPU', vramTotalMb: 0, vendor: 'intel' }],
+      primaryVramMb: 0,
+      collectedAt: new Date().toISOString(),
+    };
+    const rec = recommendModels(hw, new Set(['qwen3:1.7b', 'qwen3']));
+    const qwen = rec.chat.find((r) => r.ollamaName.startsWith('qwen3'));
+    expect(qwen?.ollamaName).toBe('qwen3:1.7b');
+    expect(qwen?.displayName).toMatch(/已安装/);
+    expect(rec.chat.every((r) => r.ollamaName !== 'qwen3:8b')).toBe(true);
+  });
+
   it('drops 14B-class chat recs when GPU pressure is elevated', () => {
     const usage = {
       ramTotalMb: 32000,

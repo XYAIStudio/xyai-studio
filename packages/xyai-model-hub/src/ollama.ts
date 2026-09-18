@@ -4,12 +4,18 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import type { DependencyStatus, ModelEntry } from '@xyai/contracts';
 import {
+  enrichEntriesWithShow,
   listOllamaNamesFromDiskRoot,
+  ollamaApiModelToEntry,
   ollamaModelsRoots,
-  parseOllamaListOutput,
+  parseOllamaListRows,
+  parseOllamaShowJson,
+  parseOllamaShowText,
   pickDiscoverySource,
   toOllamaModelEntry,
   type LocalModelDiscoverySource,
+  type OllamaApiTagModel,
+  type OllamaShowDetails,
 } from './ollama-discover.js';
 import { explainOllamaHttpFailure, mapOllamaNetworkError } from './ollama-errors.js';
 import { startOllamaWithDeps, type StartOllamaResult } from './ollama-start.js';
@@ -113,13 +119,6 @@ export async function getOllamaDependencyStatus(): Promise<DependencyStatus> {
   };
 }
 
-interface OllamaTagModel {
-  name: string;
-  size?: number;
-  modified_at?: string;
-  details?: { family?: string; parameter_size?: string };
-}
-
 export async function listOllamaModelsFromApi(): Promise<ModelEntry[]> {
   try {
     const ctrl = new AbortController();
@@ -127,13 +126,8 @@ export async function listOllamaModelsFromApi(): Promise<ModelEntry[]> {
     const res = await fetch(`${OLLAMA_API}/api/tags`, { signal: ctrl.signal });
     clearTimeout(t);
     if (!res.ok) return [];
-    const data = (await res.json()) as { models?: OllamaTagModel[] };
-    return (data.models ?? []).map((m) =>
-      toOllamaModelEntry(m.name, {
-        version: m.details?.parameter_size ?? 'local',
-        sizeBytes: m.size,
-      }),
-    );
+    const data = (await res.json()) as { models?: OllamaApiTagModel[] };
+    return (data.models ?? []).map((m) => ollamaApiModelToEntry(m));
   } catch {
     return [];
   }
@@ -142,8 +136,12 @@ export async function listOllamaModelsFromApi(): Promise<ModelEntry[]> {
 export async function listOllamaModelsFromCli(): Promise<ModelEntry[]> {
   const listed = await runOllama(['list']);
   if (!listed.ok) return [];
-  return parseOllamaListOutput(listed.stdout).map((name) =>
-    toOllamaModelEntry(name),
+  return parseOllamaListRows(listed.stdout).map((row) =>
+    toOllamaModelEntry(row.name, {
+      digest: row.digest,
+      installed: true,
+      source: 'ollama',
+    }),
   );
 }
 
@@ -152,7 +150,9 @@ export async function listOllamaModelsFromDisk(): Promise<ModelEntry[]> {
   for (const root of ollamaModelsRoots()) {
     names.push(...listOllamaNamesFromDiskRoot(root));
   }
-  return [...new Set(names)].map((name) => toOllamaModelEntry(name));
+  return [...new Set(names)].map((name) =>
+    toOllamaModelEntry(name, { installed: false, source: 'ollama' }),
+  );
 }
 
 export async function discoverOllamaModels(): Promise<{
@@ -165,7 +165,52 @@ export async function discoverOllamaModels(): Promise<{
     listOllamaModelsFromCli(),
     listOllamaModelsFromDisk(),
   ]);
-  return pickDiscoverySource(api, cli, disk);
+  const picked = pickDiscoverySource(api, cli, disk);
+  const models = await enrichEntriesWithShow(
+    picked.models,
+    fetchOllamaShowDetails,
+  );
+  return { models, source: picked.source };
+}
+
+/** Prefer `/api/show` architecture; fall back to `ollama show` text. */
+export async function fetchOllamaShowDetails(
+  name: string,
+): Promise<OllamaShowDetails | null> {
+  const tag = name.replace(/^ollama:/i, '').trim();
+  if (!tag) return null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 2500);
+    const res = await fetch(`${OLLAMA_API}/api/show`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: tag }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (res.ok) {
+      const body = (await res.json()) as {
+        details?: {
+          family?: string;
+          families?: string[];
+          parameter_size?: string;
+        };
+        model_info?: Record<string, unknown>;
+      };
+      const parsed = parseOllamaShowJson(body);
+      if (parsed.architecture || parsed.family || parsed.parameterSize) {
+        return parsed;
+      }
+    }
+  } catch {
+    /* API down — try CLI */
+  }
+  const listed = await runOllama(['show', tag], 4000);
+  if (!listed.ok) return null;
+  const parsed = parseOllamaShowText(listed.stdout || listed.stderr);
+  if (parsed.architecture || parsed.parameterSize) return parsed;
+  return null;
 }
 
 /** API first, then `ollama list`, then ~/.ollama/models manifests. */

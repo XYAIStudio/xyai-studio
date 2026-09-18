@@ -70,6 +70,58 @@ describe('Phase A model-catalog-facade', () => {
     expect(local).toHaveLength(1);
     expect(local[0]!.id).toBe('ollama:qwen2.5:7b');
     expect(local[0]!.group).toBe('local');
+    expect(local[0]!.label).not.toMatch(/^本地 ·/);
+    expect(local[0]!.label).toBe('Qwen2.5 7B');
+    expect(local[0]!.hint).toBe('qwen2.5:7b');
+  });
+
+  it('drops recommended tags that are not live and notes shared digests', () => {
+    const local = localModelsFromEntries([
+      {
+        id: 'ollama:qwen3:8b',
+        displayName: 'qwen3:8b',
+        provider: 'local',
+        version: 'local',
+        harnessIds: ['ollama'],
+        role: 'chat',
+        source: 'ollama',
+        installed: false,
+      },
+      {
+        id: 'ollama:deepseek-v4-flash:latest',
+        displayName: 'deepseek-v4-flash:latest',
+        provider: 'local',
+        version: '3.8B',
+        harnessIds: ['ollama'],
+        role: 'chat',
+        source: 'ollama',
+        installed: true,
+        digest: 'fb90415cde1e',
+        family: 'qwen2',
+        architecture: 'qwen25vl',
+      },
+      {
+        id: 'ollama:qwen2.5vl:3b',
+        displayName: 'qwen2.5vl:3b',
+        provider: 'local',
+        version: '3.8B',
+        harnessIds: ['ollama'],
+        role: 'vision',
+        source: 'ollama',
+        installed: true,
+        digest: 'sha256:fb90415cde1eabcd',
+        family: 'qwen2',
+        architecture: 'qwen25vl',
+      },
+    ]);
+    expect(local.map((m) => m.id)).toEqual([
+      'ollama:deepseek-v4-flash:latest',
+      'ollama:qwen2.5vl:3b',
+    ]);
+    expect(local[0]!.label).toBe('Qwen2.5-VL 3.8B');
+    expect(local[0]!.label).not.toMatch(/deepseek/i);
+    expect(local[0]!.hint).toMatch(/别名 deepseek-v4-flash/);
+    expect(local[1]!.label).toBe('Qwen2.5-VL 3.8B');
   });
 
   it('loadUnifiedModelCatalog merges without Electron', async () => {

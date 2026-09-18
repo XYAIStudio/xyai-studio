@@ -4,6 +4,7 @@ import type { ModelEntry, ModelRole } from '@xyai/contracts';
 import {
   OLLAMA_NOT_INSTALLED_MESSAGE,
   OLLAMA_NOT_RUNNING_MESSAGE,
+  ollamaTagsIncludeModel,
 } from './ollama-errors.js';
 
 export type LocalModelDiscoverySource =
@@ -41,7 +42,7 @@ export function toOllamaModelEntry(
     ? extra.capabilities.filter((c): c is string => Boolean(c))
     : [role];
   return {
-    id: `ollama:${name}`,
+    id: extra.id ?? `ollama:${name}`,
     displayName: name,
     provider: 'local',
     version: extra.version ?? 'local',
@@ -49,25 +50,62 @@ export function toOllamaModelEntry(
     role,
     sizeBytes: extra.sizeBytes,
     source: extra.source ?? 'ollama',
-    installed: extra.installed ?? true,
+    installed: extra.installed === true,
+    digest: extra.digest,
+    family: extra.family,
+    architecture: extra.architecture,
     capabilities,
+    path: extra.path,
   };
 }
 
-/** Parse `ollama list` text table. First column is NAME. */
-export function parseOllamaListOutput(stdout: string): string[] {
-  const names: string[] = [];
+export type OllamaApiTagModel = {
+  name: string;
+  size?: number;
+  digest?: string;
+  details?: { family?: string; families?: string[]; parameter_size?: string };
+};
+
+/** Map one `/api/tags` row. `installed` is true — the daemon served this tag. */
+export function ollamaApiModelToEntry(m: OllamaApiTagModel): ModelEntry {
+  const family = m.details?.family || m.details?.families?.[0];
+  return toOllamaModelEntry(m.name, {
+    version: m.details?.parameter_size ?? 'local',
+    sizeBytes: m.size,
+    digest: m.digest,
+    family,
+    installed: true,
+    source: 'ollama',
+  });
+}
+
+export type OllamaListRow = { name: string; digest?: string };
+
+/** Parse `ollama list` text table: NAME + optional ID (digest prefix). */
+export function parseOllamaListRows(stdout: string): OllamaListRow[] {
+  const rows: OllamaListRow[] = [];
+  const seen = new Set<string>();
   for (const line of stdout.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     if (/^name\b/i.test(trimmed)) continue;
     if (/^failed/i.test(trimmed)) continue;
-    const first = trimmed.split(/\s+/)[0];
-    if (!first || first === 'NAME') continue;
-    if (!/^[A-Za-z0-9._:-]+$/.test(first)) continue;
-    names.push(first);
+    const parts = trimmed.split(/\s+/);
+    const name = parts[0];
+    if (!name || name === 'NAME') continue;
+    if (!/^[A-Za-z0-9._:-]+$/.test(name)) continue;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const id = parts[1];
+    const digest = id && /^[a-f0-9]{8,}$/i.test(id) ? id.toLowerCase() : undefined;
+    rows.push({ name, digest });
   }
-  return [...new Set(names)];
+  return rows;
+}
+
+/** Parse `ollama list` text table. First column is NAME. */
+export function parseOllamaListOutput(stdout: string): string[] {
+  return parseOllamaListRows(stdout).map((r) => r.name);
 }
 
 /**
@@ -162,6 +200,16 @@ export function mergeModelEntries(groups: ModelEntry[][]): ModelEntry[] {
         sizeBytes: m.sizeBytes ?? prev.sizeBytes,
         path: m.path ?? prev.path,
         capabilities: m.capabilities?.length ? m.capabilities : prev.capabilities,
+        digest: m.digest || prev.digest,
+        family: m.family || prev.family,
+        architecture: m.architecture || prev.architecture,
+        installed: Boolean(prev.installed || m.installed),
+        version:
+          m.version && m.version !== 'local'
+            ? m.version
+            : prev.version && prev.version !== 'local'
+              ? prev.version
+              : (m.version ?? prev.version),
       });
     }
   }
@@ -204,4 +252,182 @@ export function formatLocalModelScanResult(input: {
     return OLLAMA_NOT_RUNNING_MESSAGE;
   }
   return 'Ollama 已运行，但未发现已下载的本地模型。可点「搜索本机模型」扫描磁盘 GGUF。';
+}
+
+export function normalizeModelDigest(raw: string | undefined): string {
+  if (!raw) return '';
+  return raw.replace(/^sha256:/i, '').toLowerCase();
+}
+
+export function digestsMatch(a?: string, b?: string): boolean {
+  const x = normalizeModelDigest(a);
+  const y = normalizeModelDigest(b);
+  if (!x || !y) return false;
+  const n = Math.min(x.length, y.length);
+  if (n < 8) return x === y;
+  return x.slice(0, n) === y.slice(0, n);
+}
+
+export function shortDigest(raw?: string): string {
+  return normalizeModelDigest(raw).slice(0, 12);
+}
+
+export function ollamaTagFromEntry(entry: {
+  id: string;
+  displayName?: string;
+}): string {
+  const fromId = entry.id.replace(/^(ollama|gguf|ggml|huggingface):/i, '');
+  return (entry.displayName || fromId).replace(/\.(gguf|ggml)$/i, '');
+}
+
+/**
+ * After merging API/CLI/disk/registry, `installed` is true only when a live
+ * Ollama tag list contains the name. Disk GGUF/HF rows stay unverified.
+ */
+export function applyLiveOllamaPresence(
+  entries: ModelEntry[],
+  liveNames: string[],
+  liveMeta: Array<{
+    name: string;
+    digest?: string;
+    family?: string;
+    architecture?: string;
+    version?: string;
+  }> = [],
+): ModelEntry[] {
+  return entries.map((m) => {
+    const isDiskWeight = m.source === 'gguf' || m.source === 'huggingface';
+    const tag = ollamaTagFromEntry(m);
+    const live =
+      !isDiskWeight &&
+      (ollamaTagsIncludeModel(liveNames, tag) ||
+        ollamaTagsIncludeModel(liveNames, m.id));
+    const meta = liveMeta.find(
+      (x) =>
+        ollamaTagsIncludeModel([x.name], tag) ||
+        ollamaTagsIncludeModel([x.name], m.id),
+    );
+    return {
+      ...m,
+      installed: live,
+      digest: m.digest || meta?.digest,
+      family: m.family || meta?.family,
+      architecture: m.architecture || meta?.architecture,
+      version:
+        m.version && m.version !== 'local'
+          ? m.version
+          : (meta?.version ?? m.version),
+    };
+  });
+}
+
+export type OllamaShowDetails = {
+  architecture?: string;
+  family?: string;
+  parameterSize?: string;
+};
+
+/** Parse `ollama show` text (`architecture qwen25vl` / `parameters 3.8B`). */
+export function parseOllamaShowText(stdout: string): OllamaShowDetails {
+  const architecture = stdout.match(/architecture\s+([A-Za-z0-9._-]+)/i)?.[1];
+  const parameterSize = stdout.match(/parameters?\s+(\d+(?:\.\d+)?[BbMm])/i)?.[1];
+  return {
+    architecture,
+    parameterSize: parameterSize ? parameterSize.toUpperCase() : undefined,
+  };
+}
+
+/** Parse `/api/show` JSON, preferring `general.architecture` over details.family. */
+export function parseOllamaShowJson(body: {
+  details?: { family?: string; families?: string[]; parameter_size?: string };
+  model_info?: Record<string, unknown>;
+}): OllamaShowDetails {
+  const info = body.model_info ?? {};
+  const archRaw = info['general.architecture'];
+  const architecture = typeof archRaw === 'string' ? archRaw : undefined;
+  return {
+    architecture,
+    family: body.details?.family || body.details?.families?.[0],
+    parameterSize: body.details?.parameter_size,
+  };
+}
+
+export function applyShowDetails(
+  entry: ModelEntry,
+  details: OllamaShowDetails,
+): ModelEntry {
+  return {
+    ...entry,
+    architecture: details.architecture || entry.architecture,
+    family: details.family || entry.family,
+    version:
+      details.parameterSize && details.parameterSize !== 'local'
+        ? details.parameterSize
+        : entry.version,
+  };
+}
+
+/** Copy architecture/family/size onto other tags that share the same digest. */
+export function propagateArchitectureAcrossAliases(
+  entries: ModelEntry[],
+): ModelEntry[] {
+  return entries.map((e) => {
+    if (!e.digest || (e.architecture && e.family && e.version !== 'local')) {
+      return e;
+    }
+    const donor = entries.find(
+      (o) =>
+        o.id !== e.id &&
+        digestsMatch(e.digest, o.digest) &&
+        (o.architecture || o.family),
+    );
+    if (!donor) return e;
+    return {
+      ...e,
+      architecture: e.architecture || donor.architecture,
+      family: e.family || donor.family,
+      version:
+        e.version && e.version !== 'local' ? e.version : donor.version,
+    };
+  });
+}
+
+export async function enrichEntriesWithShow(
+  entries: ModelEntry[],
+  show: (name: string) => Promise<OllamaShowDetails | null>,
+): Promise<ModelEntry[]> {
+  const out = entries.slice();
+  const liveIdx = out
+    .map((e, i) => ({ e, i }))
+    .filter(
+      ({ e }) =>
+        e.installed === true &&
+        (e.source === 'ollama' || e.id.startsWith('ollama:')),
+    );
+  const concurrency = 4;
+  let cursor = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, liveIdx.length) },
+    async () => {
+      while (cursor < liveIdx.length) {
+        const job = liveIdx[cursor]!;
+        cursor += 1;
+        let details: OllamaShowDetails | null = null;
+        try {
+          details = await show(ollamaTagFromEntry(job.e));
+        } catch {
+          details = null;
+        }
+        if (details) out[job.i] = applyShowDetails(job.e, details);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return propagateArchitectureAcrossAliases(out);
+}
+
+export function liveOllamaNames(entries: ModelEntry[]): string[] {
+  return entries
+    .filter((m) => m.installed === true)
+    .map((m) => ollamaTagFromEntry(m));
 }

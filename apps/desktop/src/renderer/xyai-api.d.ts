@@ -18,8 +18,8 @@ export interface XyaiStatus {
   /** Current modelRef (e.g. codex:gpt-5 / ollama:qwen2.5). */
   modelId?: string;
   forceMock?: boolean;
-  models?: { id: string; label: string }[];
-  localModels?: { id: string; label: string }[];
+  models?: { id: string; label: string; hint?: string }[];
+  localModels?: { id: string; label: string; hint?: string }[];
   activeSessionId?: string;
   sessions?: {
     id: string;
@@ -211,7 +211,7 @@ export interface XyaiApi {
     displayName?: string;
     source?: string;
     path?: string;
-  }) => Promise<{ ok: boolean; message: string }>;
+  }) => Promise<{ ok: boolean; message: string; status?: XyaiStatus }>;
   speedTestModel?: (modelRef: string) => Promise<{
     ok: boolean;
     message: string;

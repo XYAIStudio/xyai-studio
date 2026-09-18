@@ -16,6 +16,7 @@ import {
 import { recommendModels } from './recommend.js';
 import { LocalModelRegistry } from './registry.js';
 import {
+  applyLiveOllamaPresence,
   mergeModelEntries,
   type LocalModelDiscoverySource,
 } from './ollama-discover.js';
@@ -59,20 +60,25 @@ export async function collectModelHubSnapshot(
   });
   const registry = new LocalModelRegistry(userDataPath);
   const registered = registry.load();
-  const installed = mergeModelEntries([
-    discovered.models,
-    diskWeights,
-    registered,
-  ]);
-  const names = new Set<string>();
-  for (const m of installed) {
-    names.add(m.displayName.replace(/:latest$/, ''));
-    names.add(m.displayName);
-    if (m.displayName.includes(':')) {
-      names.add(m.displayName.split(':')[0]!);
-    }
+  const live = discovered.models.filter((m) => m.installed === true);
+  const liveNames = live.map((m) => m.displayName);
+  const installed = applyLiveOllamaPresence(
+    mergeModelEntries([discovered.models, diskWeights, registered]),
+    liveNames,
+    live.map((m) => ({
+      name: m.displayName,
+      digest: m.digest,
+      family: m.family,
+      architecture: m.architecture,
+      version: m.version,
+    })),
+  );
+  const recNames = new Set<string>();
+  for (const m of live) {
+    recNames.add(m.displayName.replace(/:latest$/i, ''));
+    recNames.add(m.displayName);
   }
-  const recommendations = recommendModels(hardware, names);
+  const recommendations = recommendModels(hardware, recNames);
   const source: LocalModelDiscoverySource =
     discovered.models.length && diskWeights.length
       ? 'mixed'
@@ -116,11 +122,31 @@ export type { DiskScanMode } from './disk-weights.js';
 export {
   formatLocalModelScanResult,
   parseOllamaListOutput,
+  parseOllamaListRows,
   modelNameFromManifestPath,
   pickDiscoverySource,
   mergeModelEntries,
   normalizeOllamaInventoryKey,
+  ollamaApiModelToEntry,
+  applyLiveOllamaPresence,
+  liveOllamaNames,
+  ollamaTagFromEntry,
+  digestsMatch,
+  shortDigest,
+  parseOllamaShowText,
+  parseOllamaShowJson,
+  enrichEntriesWithShow,
+  propagateArchitectureAcrossAliases,
 } from './ollama-discover.js';
+export {
+  presentLocalPickerItems,
+  presentLocalPickerItem,
+  formatOllamaTagLabel,
+  formatFamilyLabel,
+  formatArchToken,
+  aliasTagsFor,
+} from './local-model-label.js';
+export { speedTestPreconditions } from './model-ops.js';
 export {
   DISK_WEIGHT_CAP,
   commonModelRoots,

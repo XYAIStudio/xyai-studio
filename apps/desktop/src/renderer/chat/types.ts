@@ -7,7 +7,7 @@ export type SessionSummary = {
   updatedAt: string;
 };
 
-export type ModelOption = { id: string; label: string };
+export type ModelOption = { id: string; label: string; hint?: string };
 
 export type XyaiStatus = {
   isMock: boolean;

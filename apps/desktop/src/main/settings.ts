@@ -20,6 +20,7 @@ import {
 export interface ModelOption {
   id: string;
   label: string;
+  hint?: string;
 }
 
 /** Codex engine models; ids are canonical modelRefs (codex:…). */

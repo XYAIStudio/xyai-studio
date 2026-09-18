@@ -56,8 +56,8 @@ export interface CodexHostStatus {
   modelId: string;
   forceMock: boolean;
   codexBin: string;
-  models: { id: string; label: string }[];
-  localModels: { id: string; label: string }[];
+  models: { id: string; label: string; hint?: string }[];
+  localModels: { id: string; label: string; hint?: string }[];
   cloudProviders: XyaiSettings['cloudProviders'];
   customProviders: CustomProvider[];
   accessMode: XyaiSettings['accessMode'];
@@ -72,10 +72,12 @@ export class CodexHost {
   /** Per-session Ollama multi-turn history (user/assistant only). */
   private readonly histories = new Map<string, OllamaChatMessage[]>();
   private static readonly HISTORY_CAP = 40;
-  private localModels: { id: string; label: string }[] = [];
-  private catalogModels: { id: string; label: string }[] = DEFAULT_MODELS.map(
-    (m) => ({ id: normalizeModelRef(m.id), label: m.label }),
-  );
+  private localModels: { id: string; label: string; hint?: string }[] = [];
+  private catalogModels: { id: string; label: string; hint?: string }[] =
+    DEFAULT_MODELS.map((m) => ({
+      id: normalizeModelRef(m.id),
+      label: m.label,
+    }));
   private settings: XyaiSettings;
 
   constructor() {
@@ -108,7 +110,7 @@ export class CodexHost {
   }
 
   /** Rebuild adapter when forceMock / codexBin change. */
-  applySettings(partial: Partial<XyaiSettings>): XyaiSettings {
+  async applySettings(partial: Partial<XyaiSettings>): Promise<XyaiSettings> {
     const prevBin = this.settings.codexBin;
     const prevMock = this.settings.forceMock;
     const patched =
@@ -116,7 +118,9 @@ export class CodexHost {
         ? { ...partial, modelId: normalizeModelRef(partial.modelId) }
         : partial;
     this.settings = saveSettings(patched);
-    void this.refreshLocalModels();
+    if (partial.modelId !== undefined || partial.customProviders !== undefined) {
+      await this.refreshLocalModels();
+    }
     this.settings = {
       ...this.settings,
       modelId: normalizeModelRef(this.settings.modelId),

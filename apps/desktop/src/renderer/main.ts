@@ -2,7 +2,12 @@
  * Renderer assembler — 0.3 chrome + models hub; chat lives under ./chat/.
  */
 
-import { fillModelSelect, mountChat, type XyaiStatus } from './chat/index.js';
+import {
+  fillModelSelect,
+  mountChat,
+  type ChatMount,
+  type XyaiStatus,
+} from './chat/index.js';
 import { openCustomProviderModal } from './chat/custom-provider-modal.js';
 import type { CustomProvider } from './types-custom-provider.js';
 import { mountKnowledgePanel } from './knowledge/panel.js';
@@ -53,6 +58,16 @@ let lastOllama = {
 };
 
 let lastDiscoveryCounts = { ollama: 0, disk: 0 };
+
+let chatApi: ChatMount | null = null;
+
+async function syncChatCatalog(status?: XyaiStatus): Promise<void> {
+  if (!chatApi || !window.xyai) return;
+  const st = status || (await window.xyai.getStatus());
+  await chatApi.refreshFromStatus(st);
+  chatApi.fillModelSelect(settingsModel, st);
+  renderStatusChip(st);
+}
 
 let hwPollTimer: number | null = null;
 let modelsTabVisible = false;
@@ -218,18 +233,20 @@ async function currentDefaultModelId(): Promise<string> {
 }
 
 async function setDefaultModel(modelRef: string, quiet = false): Promise<void> {
-  await window.xyai.setSettings?.({ modelId: modelRef });
+  const saved = await window.xyai.setSettings?.({ modelId: modelRef });
   settingsModel.value = modelRef;
   if (!quiet) alert(`已挂接为默认对话模型：${modelRef}`);
   await refreshModels();
+  await syncChatCatalog(saved?.status);
 }
 
 async function clearDefaultModel(currentRef: string): Promise<void> {
   const fallback = 'codex:gpt-5';
-  await window.xyai.setSettings?.({ modelId: fallback });
+  const saved = await window.xyai.setSettings?.({ modelId: fallback });
   settingsModel.value = fallback;
   alert(`已解挂 ${currentRef}，默认改回 ${fallback}`);
   await refreshModels();
+  await syncChatCatalog(saved?.status);
 }
 
 async function registerHubModel(m: {
@@ -249,7 +266,10 @@ async function registerHubModel(m: {
     path: m.path,
   });
   alert(res.message);
-  if (res.ok) await refreshModels();
+  if (res.ok) {
+    await refreshModels();
+    await syncChatCatalog(res.status);
+  }
 }
 
 async function speedTestHubModel(modelRef: string): Promise<void> {
@@ -365,18 +385,47 @@ async function refreshModels(scan?: {
           id: String(m.id || ''),
           displayName: String(display),
         });
-        const registered = Boolean(
-          m.registered || registryIds.has(m.id) || registryIds.has(modelRef),
-        );
-        const projector = isProjectorModel(m);
+        const registered =
+          registryIds.has(String(m.id || '')) || registryIds.has(modelRef);
+        const live = m.installed === true;
+        const projector = isProjectorModel({
+          id: String(m.id || ''),
+          displayName: String(display),
+          path: m.path,
+          version: m.version,
+        });
         const isDefault =
           defaultId === modelRef ||
           defaultId === m.id ||
           defaultId === `ollama:${display}`;
+        const digestKey = String(m.digest || '')
+          .replace(/^sha256:/i, '')
+          .toLowerCase()
+          .slice(0, 12);
+        const aliases =
+          digestKey.length >= 8
+            ? (installed as { digest?: string; displayName?: string; id?: string }[])
+                .filter((o) => {
+                  const other = String(o.digest || '')
+                    .replace(/^sha256:/i, '')
+                    .toLowerCase()
+                    .slice(0, 12);
+                  return (
+                    other === digestKey &&
+                    String(o.id || '') !== String(m.id || '')
+                  );
+                })
+                .map((o) => String(o.displayName || o.id || ''))
+            : [];
         const metaBits = [
           sourceLabel(m.source),
           projector ? '投影器 · 非对话' : m.role || 'model',
           registered ? '已注册' : '未注册',
+          live ? '' : '未安装',
+          m.family && String(m.family) !== String(display).split(':')[0]
+            ? `家族 ${m.family}`
+            : '',
+          aliases.length ? `同权重 ${aliases.join('、')}` : '',
           isDefault ? '当前默认' : '',
           size,
         ].filter(Boolean);
@@ -388,6 +437,7 @@ async function refreshModels(scan?: {
           role: m.role,
           registered,
           isDefault,
+          availableInOllama: live,
         }).map((action) => ({
           label: action.label,
           onClick: () => {
@@ -437,6 +487,7 @@ async function refreshModels(scan?: {
         ),
       );
     }
+    await syncChatCatalog();
   } catch (err) {
     hwPanel.textContent = err instanceof Error ? err.message : String(err);
   }
@@ -541,7 +592,12 @@ function hideInactiveZoneWebviews(): void {
   });
 }
 
-function wireChrome(onModelsTab: () => void, onKnowledgeTab: () => void = () => {}, onPersonalizeTab: () => void = () => {}): void {
+function wireChrome(
+  onModelsTab: () => void,
+  onKnowledgeTab: () => void = () => {},
+  onPersonalizeTab: () => void = () => {},
+  onChatTab: () => void = () => {},
+): void {
   const biz = mountBizZone(document.getElementById('zone-biz')!);
   const eco = mountEcoZone(document.getElementById('zone-eco')!);
   const browser = mountBrowserZone(document.getElementById('zone-browser')!);
@@ -595,6 +651,7 @@ function wireChrome(onModelsTab: () => void, onKnowledgeTab: () => void = () => 
         modelsTabVisible = false;
         stopHwPoll();
       }
+      if (tab === 'chat') onChatTab();
       if (tab === 'knowledge') onKnowledgeTab();
       if (tab === 'personalize') onPersonalizeTab();
     });
@@ -723,6 +780,7 @@ async function deleteCustomProvider(id: string): Promise<void> {
 
 async function boot(): Promise<void> {
   const chat = mountChat();
+  chatApi = chat;
   const kbRoot = document.getElementById('knowledge-root');
   const kbPanel = kbRoot ? mountKnowledgePanel(kbRoot) : null;
   const pzRoot = document.getElementById('personalize-root');
@@ -738,6 +796,9 @@ async function boot(): Promise<void> {
     },
     () => {
       void pzPanel?.refresh();
+    },
+    () => {
+      void syncChatCatalog();
     },
   );
 

@@ -3,11 +3,17 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  applyLiveOllamaPresence,
+  enrichEntriesWithShow,
   formatLocalModelScanResult,
   inferOllamaRole,
   listOllamaNamesFromDiskRoot,
   modelNameFromManifestPath,
+  ollamaApiModelToEntry,
   parseOllamaListOutput,
+  parseOllamaListRows,
+  parseOllamaShowJson,
+  parseOllamaShowText,
   pickDiscoverySource,
   toOllamaModelEntry,
 } from './ollama-discover.js';
@@ -30,6 +36,20 @@ describe('parseOllamaListOutput', () => {
     expect(parseOllamaListOutput(stdout)).toEqual([
       'qwen3:8b',
       'nomic-embed-text',
+    ]);
+  });
+});
+
+describe('parseOllamaListRows', () => {
+  it('keeps short digest IDs from the ID column', () => {
+    const stdout = [
+      'NAME                         ID              SIZE      MODIFIED',
+      'deepseek-v4-flash:latest     fb90415cde1e    2.3 GB    2 days ago',
+      'qwen2.5vl:3b                 fb90415cde1e    2.3 GB    2 days ago',
+    ].join('\n');
+    expect(parseOllamaListRows(stdout)).toEqual([
+      { name: 'deepseek-v4-flash:latest', digest: 'fb90415cde1e' },
+      { name: 'qwen2.5vl:3b', digest: 'fb90415cde1e' },
     ]);
   });
 });
@@ -87,6 +107,89 @@ describe('pickDiscoverySource', () => {
   });
 });
 
+describe('ollamaApiModelToEntry', () => {
+  it('copies digest and family from /api/tags and marks installed', () => {
+    const entry = ollamaApiModelToEntry({
+      name: 'deepseek-v4-flash:latest',
+      digest: 'sha256:fb90415cde1eabcd',
+      size: 2300,
+      details: { family: 'qwen2', parameter_size: '3.2B' },
+    });
+    expect(entry.installed).toBe(true);
+    expect(entry.family).toBe('qwen2');
+    expect(entry.digest).toBe('sha256:fb90415cde1eabcd');
+    expect(entry.version).toBe('3.2B');
+  });
+});
+
+describe('applyLiveOllamaPresence', () => {
+  it('does not treat catalog/registry/disk-only names as installed', () => {
+    const live = [toOllamaModelEntry('qwen3:1.7b', { installed: true })];
+    const stale = toOllamaModelEntry('qwen3:8b', { installed: false });
+    const recLike = toOllamaModelEntry('gemma3:4b', {
+      source: 'catalog',
+      installed: true,
+    });
+    const out = applyLiveOllamaPresence(
+      [...live, stale, recLike],
+      ['qwen3:1.7b'],
+    );
+    expect(out.find((m) => m.displayName === 'qwen3:1.7b')?.installed).toBe(
+      true,
+    );
+    expect(out.find((m) => m.displayName === 'qwen3:8b')?.installed).toBe(
+      false,
+    );
+    expect(out.find((m) => m.displayName === 'gemma3:4b')?.installed).toBe(
+      false,
+    );
+  });
+});
+
+describe('ollama show parsers', () => {
+  it('reads architecture and parameters from CLI text', () => {
+    const text = [
+      '  Model',
+      '    architecture        qwen25vl',
+      '    parameters          3.8B',
+      '    quantization        Q4_K_M',
+    ].join('\n');
+    expect(parseOllamaShowText(text)).toEqual({
+      architecture: 'qwen25vl',
+      parameterSize: '3.8B',
+    });
+  });
+
+  it('prefers general.architecture from /api/show JSON', () => {
+    expect(
+      parseOllamaShowJson({
+        details: { family: 'qwen2', parameter_size: '3.8B' },
+        model_info: { 'general.architecture': 'qwen25vl' },
+      }),
+    ).toEqual({
+      architecture: 'qwen25vl',
+      family: 'qwen2',
+      parameterSize: '3.8B',
+    });
+  });
+});
+
+describe('enrichEntriesWithShow', () => {
+  it('writes architecture from show onto the live tag', async () => {
+    const entry = toOllamaModelEntry('deepseek-v4-flash:latest', {
+      installed: true,
+      digest: 'fb90415cde1e',
+    });
+    const [out] = await enrichEntriesWithShow([entry], async () => ({
+      architecture: 'qwen25vl',
+      family: 'qwen2',
+      parameterSize: '3.8B',
+    }));
+    expect(out!.architecture).toBe('qwen25vl');
+    expect(out!.version).toBe('3.8B');
+  });
+});
+
 describe('inferOllamaRole', () => {
   it('classifies embedding vs chat', () => {
     expect(inferOllamaRole('nomic-embed-text')).toBe('embedding');
@@ -126,6 +229,9 @@ describe('ollama stale-model helpers', () => {
     expect(ollamaTagsIncludeModel(['qwen3:8b'], 'qwen3:8b')).toBe(true);
     expect(ollamaTagsIncludeModel(['qwen3:8b'], 'ollama:qwen3:8b')).toBe(true);
     expect(ollamaTagsIncludeModel(['llama3.2'], 'qwen3:8b')).toBe(false);
+    expect(ollamaTagsIncludeModel(['qwen3:1.7b'], 'qwen3:8b')).toBe(false);
+    expect(ollamaTagsIncludeModel(['qwen3'], 'qwen3:8b')).toBe(false);
+    expect(ollamaTagsIncludeModel(['qwen3:8b'], 'qwen3:8b:latest')).toBe(true);
   });
 
   it('maps HTTP 404 / not found to a refresh/pull message', () => {
