@@ -39,6 +39,7 @@ export function localModelsFromEntries(
 ): CatalogPickerItem[] {
   return entries
     .filter((m) => m.role !== 'embedding' && !/mmproj/i.test(m.displayName))
+    .filter((m) => m.id.startsWith('ollama:') || m.source === 'ollama')
     .map((m) => {
       const id =
         m.id.startsWith('ollama:')

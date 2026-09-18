@@ -121,7 +121,31 @@ const api = {
   ): Promise<{ ok: boolean; status: XyaiStatus }> =>
     ipcRenderer.invoke('xyai:session-delete', { id }),
 
-  modelSnapshot: (): Promise<unknown> => ipcRenderer.invoke('xyai:model-snapshot'),
+  modelSnapshot: (input?: {
+    extraRoots?: string[];
+    mode?: 'common' | 'manual' | 'full';
+    fullDisk?: boolean;
+  }): Promise<unknown> => ipcRenderer.invoke('xyai:model-snapshot', input),
+
+  pickModelScanDir: (): Promise<{ ok: boolean; path: string }> =>
+    ipcRenderer.invoke('xyai:model-pick-scan-dir'),
+
+  registerModel: (input: {
+    id?: string;
+    displayName?: string;
+    source?: string;
+    path?: string;
+  }): Promise<{ ok: boolean; message: string }> =>
+    ipcRenderer.invoke('xyai:model-register', input),
+
+  speedTestModel: (
+    modelRef: string,
+  ): Promise<{
+    ok: boolean;
+    message: string;
+    tokensPerSec?: number;
+    elapsedMs?: number;
+  }> => ipcRenderer.invoke('xyai:model-speed-test', { modelRef }),
 
   hardwareUsage: (): Promise<unknown> => ipcRenderer.invoke('xyai:hardware-usage'),
 

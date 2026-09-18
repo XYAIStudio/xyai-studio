@@ -18,7 +18,9 @@ export interface ModelEntry {
   /** Disk size hint in bytes */
   sizeBytes?: number;
   /** Where it was discovered */
-  source?: 'ollama' | 'lmstudio' | 'manual' | 'catalog';
+  source?: 'ollama' | 'lmstudio' | 'manual' | 'catalog' | 'gguf' | 'huggingface';
+  /** Absolute weight path when discovered on disk (GGUF / HF dir). */
+  path?: string;
   installed?: boolean;
 }
 

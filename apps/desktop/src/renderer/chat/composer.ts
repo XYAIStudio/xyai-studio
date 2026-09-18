@@ -94,6 +94,14 @@ export function createComposer(opts: {
       void handlers.onSend(text);
     });
 
+    root.addEventListener('pointerdown', () => {
+      unlockInput();
+    });
+    input.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      unlockInput();
+      input.focus();
+    });
     input.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       // IME: composition in progress or keyCode 229

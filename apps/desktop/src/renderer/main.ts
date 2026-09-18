@@ -11,6 +11,12 @@ import { LOGO_SRC } from './chat/mascot.js';
 import { showAboutDialog } from './about.js';
 import { mountBizZone, mountEcoZone, mountBrowserZone } from './zones/index.js';
 import { formatLocalModelScanResult } from './models-scan-copy.js';
+import {
+  chatModelRef,
+  hubActionsFor,
+  isProjectorModel,
+  sourceLabel,
+} from './models-hub-actions.js';
 
 let pulling = false;
 
@@ -45,6 +51,8 @@ let lastOllama = {
   installed: false,
   running: false,
 };
+
+let lastDiscoveryCounts = { ollama: 0, disk: 0 };
 
 let hwPollTimer: number | null = null;
 let modelsTabVisible = false;
@@ -200,13 +208,80 @@ function renderListItem(
   return row;
 }
 
-async function setDefaultModel(modelRef: string): Promise<void> {
-  await window.xyai.setSettings?.({ modelId: modelRef });
-  settingsModel.value = modelRef;
-  alert(`已设为默认：${modelRef}`);
+async function currentDefaultModelId(): Promise<string> {
+  try {
+    const cur = await window.xyai.getSettings?.();
+    return cur?.settings?.modelId || settingsModel.value || '';
+  } catch {
+    return settingsModel.value || '';
+  }
 }
 
-async function refreshModels(): Promise<void> {
+async function setDefaultModel(modelRef: string, quiet = false): Promise<void> {
+  await window.xyai.setSettings?.({ modelId: modelRef });
+  settingsModel.value = modelRef;
+  if (!quiet) alert(`已挂接为默认对话模型：${modelRef}`);
+  await refreshModels();
+}
+
+async function clearDefaultModel(currentRef: string): Promise<void> {
+  const fallback = 'codex:gpt-5';
+  await window.xyai.setSettings?.({ modelId: fallback });
+  settingsModel.value = fallback;
+  alert(`已解挂 ${currentRef}，默认改回 ${fallback}`);
+  await refreshModels();
+}
+
+async function registerHubModel(m: {
+  id?: string;
+  displayName?: string;
+  source?: string;
+  path?: string;
+}): Promise<void> {
+  if (!window.xyai.registerModel) {
+    alert('注册接口不可用，请重装最新安装包');
+    return;
+  }
+  const res = await window.xyai.registerModel({
+    id: m.id,
+    displayName: m.displayName,
+    source: m.source,
+    path: m.path,
+  });
+  alert(res.message);
+  if (res.ok) await refreshModels();
+}
+
+async function speedTestHubModel(modelRef: string): Promise<void> {
+  if (!window.xyai.speedTestModel) {
+    alert('测速接口不可用，请重装最新安装包');
+    return;
+  }
+  const res = await window.xyai.speedTestModel(modelRef);
+  alert(res.message);
+}
+
+function readScanOptions(): {
+  extraRoots: string[];
+  fullDisk: boolean;
+  mode: 'common' | 'manual' | 'full';
+} {
+  const dirInput = document.getElementById('models-scan-dir') as HTMLInputElement | null;
+  const fullBox = document.getElementById('models-scan-full') as HTMLInputElement | null;
+  const extra = (dirInput?.value || '').trim();
+  const fullDisk = Boolean(fullBox?.checked);
+  return {
+    extraRoots: extra ? [extra] : [],
+    fullDisk,
+    mode: fullDisk ? 'full' : extra ? 'manual' : 'common',
+  };
+}
+
+async function refreshModels(scan?: {
+  extraRoots?: string[];
+  fullDisk?: boolean;
+  mode?: 'common' | 'manual' | 'full';
+}): Promise<void> {
   if (!window.xyai?.modelSnapshot) {
     hwPanel.textContent = '模型 API 不可用，请重装最新安装包。';
     return;
@@ -217,7 +292,8 @@ async function refreshModels(): Promise<void> {
   recList.innerHTML = '';
   embedList.innerHTML = '';
   try {
-    const snap = (await window.xyai.modelSnapshot()) as any;
+    const opts = scan || readScanOptions();
+    const snap = (await window.xyai.modelSnapshot(opts)) as any;
     const hw = snap.hardware;
     const vramGb = (hw.primaryVramMb / 1024).toFixed(1);
     const ramGb = (hw.ramTotalMb / 1024).toFixed(1);
@@ -260,48 +336,85 @@ async function refreshModels(): Promise<void> {
       btnStartOllama.textContent = '启动 Ollama';
     }
 
+    lastDiscoveryCounts = {
+      ollama: Number(snap.discoveryCounts?.ollama ?? 0),
+      disk: Number(snap.discoveryCounts?.disk ?? 0),
+    };
     const installed = snap.installed || [];
     const registryIds = new Set(
       ((snap.registry || []) as { id?: string }[]).map((r) => r.id || ''),
     );
+    const defaultId = snap.defaultModelId || (await currentDefaultModelId());
     if (!installed.length) {
       const emptyHint = canStart
-        ? 'Ollama 已安装但未运行。请点「启动 Ollama」，启动后再刷新；不必只依赖全盘搜索。'
+        ? 'Ollama 已安装但未运行。请点「启动 Ollama」，启动后再刷新；也可用「搜索本机模型」扫磁盘 GGUF。'
         : dep.installed
-          ? '未检测到本地模型。可点「全盘搜索已下载模型」或从右侧推荐一键下载。'
-          : '未检测到 Ollama。请先安装 Ollama，或点「全盘搜索已下载模型」作为兜底。';
+          ? '未检测到本地模型。可点「搜索本机模型」或从右侧推荐一键下载。'
+          : '未检测到 Ollama。请先安装 Ollama，或点「搜索本机模型」扫描磁盘 GGUF。';
       installedList.appendChild(el(`<div class="meta">${emptyHint}</div>`));
     } else {
       for (const m of installed) {
         const size =
           m.sizeBytes != null
-            ? `${(m.sizeBytes / 1024 / 1024 / 1024).toFixed(2)} GB`
+            ? m.sizeBytes >= 1024 * 1024 * 1024
+              ? `${(m.sizeBytes / 1024 / 1024 / 1024).toFixed(2)} GB`
+              : `${Math.round(m.sizeBytes / 1024 / 1024)} MB`
             : '';
-        const modelRef =
-          typeof m.id === 'string' && m.id.includes(':')
-            ? m.id
-            : `ollama:${m.displayName || m.name || m.id}`;
-        const registered = registryIds.has(m.id) || registryIds.has(modelRef);
+        const display = m.displayName || m.name || m.id;
+        const modelRef = chatModelRef({
+          id: String(m.id || ''),
+          displayName: String(display),
+        });
+        const registered = Boolean(
+          m.registered || registryIds.has(m.id) || registryIds.has(modelRef),
+        );
+        const projector = isProjectorModel(m);
+        const isDefault =
+          defaultId === modelRef ||
+          defaultId === m.id ||
+          defaultId === `ollama:${display}`;
+        const metaBits = [
+          sourceLabel(m.source),
+          projector ? '投影器 · 非对话' : m.role || 'model',
+          registered ? '已注册' : '未注册',
+          isDefault ? '当前默认' : '',
+          size,
+        ].filter(Boolean);
+        const extras = hubActionsFor({
+          id: String(m.id || modelRef),
+          displayName: String(display),
+          source: m.source,
+          path: m.path,
+          role: m.role,
+          registered,
+          isDefault,
+        }).map((action) => ({
+          label: action.label,
+          onClick: () => {
+            if (action.id === 'speed') {
+              void speedTestHubModel(modelRef);
+              return;
+            }
+            if (action.id === 'register') {
+              void registerHubModel({
+                id: m.id,
+                displayName: display,
+                source: m.source,
+                path: m.path,
+              });
+              return;
+            }
+            if (action.id === 'attach') {
+              void setDefaultModel(modelRef);
+              return;
+            }
+            if (action.id === 'detach') {
+              void clearDefaultModel(modelRef);
+            }
+          },
+        }));
         installedList.appendChild(
-          renderListItem(
-            m.displayName || m.name || modelRef,
-            `${m.role || 'model'} · ${registered ? '已注册' : '未注册'}${size ? ` · ${size}` : ''}`,
-            '设为默认',
-            () => void setDefaultModel(modelRef),
-            registered
-              ? undefined
-              : [
-                  {
-                    label: '一键注册',
-                    onClick: () => {
-                      // Snapshot upsert already merges installed → registry; re-run refresh.
-                      void refreshModels().then(() =>
-                        alert(`已尝试注册：${m.displayName || modelRef}`),
-                      );
-                    },
-                  },
-                ],
-          ),
+          renderListItem(String(display), metaBits.join(' · '), undefined, undefined, extras),
         );
       }
     }
@@ -413,10 +526,26 @@ async function loadSettingsForms(chatFill?: typeof fillModelSelect): Promise<voi
   renderCustomProviders(settings.customProviders || []);
 }
 
+function hideInactiveZoneWebviews(): void {
+  document.querySelectorAll('.zone-body').forEach((body) => {
+    const active = body.classList.contains('active');
+    body.querySelectorAll('webview').forEach((node) => {
+      const wv = node as HTMLElement;
+      wv.style.pointerEvents = active ? 'auto' : 'none';
+      if (!active) {
+        wv.setAttribute('aria-hidden', 'true');
+      } else {
+        wv.removeAttribute('aria-hidden');
+      }
+    });
+  });
+}
+
 function wireChrome(onModelsTab: () => void, onKnowledgeTab: () => void = () => {}, onPersonalizeTab: () => void = () => {}): void {
   const biz = mountBizZone(document.getElementById('zone-biz')!);
   const eco = mountEcoZone(document.getElementById('zone-eco')!);
   const browser = mountBrowserZone(document.getElementById('zone-browser')!);
+  hideInactiveZoneWebviews();
 
   document.querySelectorAll('.zone').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -430,6 +559,7 @@ function wireChrome(onModelsTab: () => void, onKnowledgeTab: () => void = () => 
           (body as HTMLElement).id === `zone-${zone}`,
         );
       });
+      hideInactiveZoneWebviews();
       if (zone !== 'dev') {
         modelsTabVisible = false;
         stopHwPoll();
@@ -621,28 +751,40 @@ async function boot(): Promise<void> {
   window.xyai.onEvent(chat.handleEvent);
 
   btnRefresh.addEventListener('click', () => void refreshModels());
+  document.getElementById('btn-pick-scan-dir')?.addEventListener('click', () => {
+    void (async () => {
+      const pick = await window.xyai.pickModelScanDir?.();
+      if (!pick?.ok || !pick.path) return;
+      const dirInput = document.getElementById(
+        'models-scan-dir',
+      ) as HTMLInputElement | null;
+      if (dirInput) dirInput.value = pick.path;
+    })();
+  });
   document.getElementById('btn-scan-models')?.addEventListener('click', () => {
     void (async () => {
       const scanBtn = document.getElementById(
         'btn-scan-models',
       ) as HTMLButtonElement | null;
-      const prevLabel = scanBtn?.textContent || '全盘搜索已下载模型';
+      const prevLabel = scanBtn?.textContent || '搜索本机模型';
+      const opts = readScanOptions();
       if (scanBtn) {
         scanBtn.disabled = true;
-        scanBtn.textContent = '正在启动 Ollama…';
+        scanBtn.textContent = opts.fullDisk ? '正在全盘扫描…' : '正在搜索本机模型…';
       }
       try {
-        // Do not only refreshModels() — API is down until ollama serve.
         if (window.xyai.startOllama) {
           await window.xyai.startOllama();
         }
-        await refreshModels();
+        await refreshModels(opts);
         const n = installedList.querySelectorAll('.list-item').length;
         alert(
           formatLocalModelScanResult({
             count: n,
             installed: lastOllama.installed,
             running: lastOllama.running,
+            ollamaCount: lastDiscoveryCounts.ollama,
+            diskCount: lastDiscoveryCounts.disk,
           }),
         );
       } catch (err) {

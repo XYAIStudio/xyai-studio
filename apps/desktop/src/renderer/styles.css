@@ -852,6 +852,8 @@ button {
 
 #input,
 .composer-input {
+  position: relative;
+  z-index: 2;
   width: 100%;
   resize: none;
   border: none;
@@ -864,9 +866,10 @@ button {
   line-height: 1.55;
   min-height: 52px;
   max-height: 180px;
-  pointer-events: auto;
+  pointer-events: auto !important;
   user-select: text;
   -webkit-user-select: text;
+  -webkit-app-region: no-drag;
   box-shadow: none;
   outline: none;
 }
@@ -1047,8 +1050,32 @@ button {
   align-items: stretch;
   justify-content: flex-start;
 }
+#view-models:not(.active),
+#view-knowledge:not(.active),
+#view-personalize:not(.active) {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
 #view-models.active {
   display: flex;
+}
+
+#model-panel[hidden],
+.model-panel[hidden],
+.kb-at-menu[hidden],
+.access-menu[hidden] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.zone-body:not(.active) webview,
+.zone-embed-host:not(.active) webview {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 .models-scroll {
   flex: 1;
@@ -1184,7 +1211,44 @@ button {
   font-size: 12px;
   margin-top: 4px;
 }
-.list-actions { flex-shrink: 0; }
+.list-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  max-width: 52%;
+}
+
+.models-scan-bar {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+.models-scan-hint {
+  font-size: 12px;
+  color: var(--muted);
+  flex: 1 1 100%;
+}
+.models-scan-dir {
+  min-width: 180px;
+  flex: 1 1 220px;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.models-scan-full {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
 
 .pull-log {
   background: rgba(15, 23, 42, 0.88);

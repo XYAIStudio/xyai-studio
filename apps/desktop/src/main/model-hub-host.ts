@@ -1,11 +1,21 @@
 import type { HardwareGpu, HardwareUsage } from '@xyai/contracts';
-import type { ModelHubSnapshot, StartOllamaResult } from '@xyai/model-hub';
+import type {
+  CollectSnapshotOptions,
+  DiskScanMode,
+  ModelHubSnapshot,
+  RegisterModelInput,
+  RegisterModelResult,
+  SpeedTestResult,
+  StartOllamaResult,
+} from '@xyai/model-hub';
 import {
   collectModelHubSnapshot,
   detectHardwareUsage,
   installOllama,
   pullOllamaModel,
+  registerLocalModel,
   shouldRefuseHeavyLocalJob,
+  speedTestOllamaModel,
   startOllama,
 } from '@xyai/model-hub';
 
@@ -15,8 +25,8 @@ export class ModelHubHost {
 
   constructor(private readonly userDataPath: string) {}
 
-  async snapshot(): Promise<ModelHubSnapshot> {
-    const snap = await collectModelHubSnapshot(this.userDataPath);
+  async snapshot(options: CollectSnapshotOptions = {}): Promise<ModelHubSnapshot> {
+    const snap = await collectModelHubSnapshot(this.userDataPath, options);
     this.lastGpus = snap.hardware.gpus || [];
     return snap;
   }
@@ -31,6 +41,14 @@ export class ModelHubHost {
 
   startOllama(): Promise<StartOllamaResult> {
     return startOllama({ timeoutMs: 20000 });
+  }
+
+  registerModel(input: RegisterModelInput): Promise<RegisterModelResult> {
+    return registerLocalModel(this.userDataPath, input);
+  }
+
+  speedTest(modelRef: string): Promise<SpeedTestResult> {
+    return speedTestOllamaModel(modelRef);
   }
 
   async pullModel(
@@ -53,3 +71,5 @@ export class ModelHubHost {
     }
   }
 }
+
+export type { DiskScanMode };
