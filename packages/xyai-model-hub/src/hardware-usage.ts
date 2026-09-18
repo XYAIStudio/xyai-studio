@@ -7,6 +7,17 @@ import type {
   HardwarePressure,
   HardwareUsage,
 } from '@xyai/contracts';
+import { gpuAccelHintFor } from './gpu-capability.js';
+
+export {
+  classifyGpuCapability,
+  formatGpuUsageLine,
+  gpuAccelHintFor,
+  HARDWARE_ADAPT_NOTE,
+  hasUsefulDiscreteGpu,
+  recommendTier,
+  usefulVramMb,
+} from './gpu-capability.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -70,22 +81,6 @@ export function assessHardwarePressure(input: {
   return 'ok';
 }
 
-export function gpuAccelHintFor(gpus: HardwareGpu[]): string | undefined {
-  const nvidia = gpus.filter((g) => g.vendor === 'nvidia');
-  const amd = gpus.filter((g) => g.vendor === 'amd');
-  const intel = gpus.filter((g) => g.vendor === 'intel');
-  if (nvidia.length) {
-    return '已检测到 NVIDIA GPU。Ollama 会尽量使用 GPU；若推理很慢，请安装/更新 NVIDIA 驱动（含 nvidia-smi）。CUDA/cuBLAS 说明见 NVIDIA 官网，Studio 不会代为下载安装包。';
-  }
-  if (amd.length) {
-    return '已检测到 AMD GPU。请安装/更新 AMD Adrenalin 驱动。Linux 上 Ollama 可走 ROCm（见 ollama.com）；Studio 不会代为下载安装包。';
-  }
-  if (intel.length) {
-    return '已检测到 Intel GPU。请安装/更新 Intel 显卡驱动；本地加速取决于 Ollama 对该设备的支持。Studio 不会代为下载安装包。';
-  }
-  return undefined;
-}
-
 /** 14B+ class names are treated as heavy pulls under elevated GPU/RAM pressure. */
 export function isHeavyLocalModelName(name: string): boolean {
   const n = name.toLowerCase();
@@ -145,6 +140,18 @@ export async function detectHardwareUsage(
       vramUsedPct: null,
       utilizationPct: null,
     }));
+  }
+  if (gpus.length === 0) {
+    gpus = [
+      {
+        name: '未检测到独立 GPU',
+        vendor: 'other',
+        vramTotalMb: null,
+        vramUsedMb: null,
+        vramUsedPct: null,
+        utilizationPct: null,
+      },
+    ];
   }
 
   return {

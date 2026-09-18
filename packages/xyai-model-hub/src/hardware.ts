@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import os from 'node:os';
 import type { HardwareGpu, HardwareProfile } from '@xyai/contracts';
 import { detectHardwareUsage } from './hardware-usage.js';
+import { usefulVramMb } from './gpu-capability.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -63,6 +64,7 @@ Get-CimInstance Win32_VideoController | ForEach-Object {
       vendor = 'nvidia';
     else if (lower.includes('amd') || lower.includes('radeon')) vendor = 'amd';
     else if (lower.includes('intel')) vendor = 'intel';
+    else if (lower.includes('apple')) vendor = 'apple';
     const mb = Number.parseInt(mbStr ?? '0', 10);
     gpus.push({
       name,
@@ -90,22 +92,20 @@ export async function detectHardware(): Promise<HardwareProfile> {
   if (gpus.length === 0 && process.platform === 'win32') {
     gpus = await windowsGpusFallback();
   }
+  if (gpus.length === 0 && process.platform === 'darwin') {
+    gpus = [{ name: 'Apple GPU', vramTotalMb: null, vendor: 'apple' }];
+  }
   if (gpus.length === 0) {
     gpus = [
       {
-        name: 'Integrated / Unknown',
+        name: '未检测到独立 GPU',
         vramTotalMb: null,
         vendor: 'other',
       },
     ];
   }
 
-  const nvidia = gpus.filter((g) => g.vendor === 'nvidia' && g.vramTotalMb);
-  const primaryVramMb =
-    nvidia.sort((a, b) => (b.vramTotalMb ?? 0) - (a.vramTotalMb ?? 0))[0]
-      ?.vramTotalMb ??
-    gpus.map((g) => g.vramTotalMb ?? 0).sort((a, b) => b - a)[0] ??
-    0;
+  const primaryVramMb = usefulVramMb(gpus);
 
   const usage = await detectHardwareUsage(gpus);
   return {

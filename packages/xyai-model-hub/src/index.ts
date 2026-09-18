@@ -98,3 +98,11 @@ export {
   isHeavyLocalModelName,
   shouldRefuseHeavyLocalJob,
 } from './hardware-usage.js';
+export {
+  classifyGpuCapability,
+  formatGpuUsageLine,
+  HARDWARE_ADAPT_NOTE,
+  hasUsefulDiscreteGpu,
+  recommendTier,
+  usefulVramMb,
+} from './gpu-capability.js';

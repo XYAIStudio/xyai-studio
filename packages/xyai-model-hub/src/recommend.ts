@@ -3,6 +3,7 @@ import type {
   ModelRecommendation,
   ModelRole,
 } from '@xyai/contracts';
+import { hasUsefulDiscreteGpu, recommendTier } from './gpu-capability.js';
 
 interface RecDef {
   id: string;
@@ -15,7 +16,7 @@ interface RecDef {
   reasonWhenFit: string;
 }
 
-/** Curated catalog — sized for consumer NVIDIA laptops / desktops */
+/** Curated catalog — sized by RAM / useful VRAM tier (any vendor, CPU fallback). */
 const CATALOG: RecDef[] = [
   // embeddings first-class
   {
@@ -105,9 +106,9 @@ const CATALOG: RecDef[] = [
     role: 'chat',
     ollamaName: 'qwen3:1.7b',
     vramHintMb: 2000,
-    minRamMb: 8192,
+    minRamMb: 6144,
     priority: 80,
-    reasonWhenFit: '超轻量，核显/低显存也能跑',
+    reasonWhenFit: '超轻量，核显/低显存/无独显也能走 CPU+Ollama',
   },
 ];
 
@@ -119,18 +120,21 @@ export function recommendModels(
   embedding: ModelRecommendation[];
   code: ModelRecommendation[];
 } {
-  const vram = hw.primaryVramMb || 0;
   const ram = hw.ramTotalMb;
   const pressure = hw.usage?.pressure ?? 'ok';
-  const slack = pressure === 'critical' ? 0.45 : pressure === 'elevated' ? 0.65 : 0.85;
+  const tier = recommendTier(hw);
+  const cpuPath = !hasUsefulDiscreteGpu(hw.gpus);
+  const vramCap =
+    tier === 'small' ? 2200 : tier === 'mid' ? 7000 : 16000;
 
   const fit = (d: RecDef): boolean => {
     if (ram < d.minRamMb) return false;
+    if (d.vramHintMb > vramCap) return false;
     if (pressure === 'critical' && d.vramHintMb >= 4000) return false;
     if (pressure === 'elevated' && d.vramHintMb >= 8000) return false;
-    // Allow CPU-offload slack: accept if vram >= 70% of hint OR plenty of system RAM
-    if (vram <= 0) return d.vramHintMb <= (pressure === 'ok' ? 3500 : 1800);
-    return vram + 1024 >= d.vramHintMb * slack;
+    if (tier !== 'high' && d.vramHintMb >= 10000) return false;
+    if (cpuPath && d.vramHintMb > vramCap) return false;
+    return true;
   };
 
   const toRec = (d: RecDef): ModelRecommendation => {
@@ -143,7 +147,10 @@ export function recommendModels(
       role: d.role,
       reason: installed
         ? `已在本机 Ollama 中检测到；${d.reasonWhenFit}`
-        : d.reasonWhenFit + `（估算显存 ~${Math.round(d.vramHintMb / 1024)}GB）`,
+        : d.reasonWhenFit +
+          (cpuPath
+            ? '（当前无可用独显，将走 CPU/Ollama）'
+            : `（估算显存 ~${Math.round(d.vramHintMb / 1024)}GB）`),
       ollamaName: d.ollamaName,
       vramHintMb: d.vramHintMb,
       priority:
