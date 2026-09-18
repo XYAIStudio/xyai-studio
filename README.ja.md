@@ -4,6 +4,16 @@
 
 > 専門的な経験を、生産力へ。
 
+**最新デスクトップ Beta：`v0.5.0`** · ソースブランチ [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
+
+| 目的 | プラットフォーム | リンク |
+| --- | --- | --- |
+| **0.5 デスクトップインストーラー（試用推奨）** | Windows x64 | [XYAI-Studio-0.5.0-Setup-x64.exe](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
+
+> 0.5：ローカル優先の Electron + Codex チャット経路 + OpenXYOS ビジネス空間。インストール前に旧版をアンインストールしてください。
+
+---
+
 XYAI Studio は、ローカルファーストのデスクトップ AI ワークスペースです。本リポジトリでは、v0.3 の XYAI オープンソース層を公開します。Electron デスクトップシェル、ローカル XYOS サービス、業界エージェントモジュール、および [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 向け統合パッチが含まれます。
 
 ## v0.3 の主な機能
