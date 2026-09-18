@@ -76,14 +76,30 @@ function renderUsageLine(usage: {
     box.id = 'hw-usage';
     hwPanel.appendChild(box);
   }
-  const gpuLines = (usage.gpus || [])
+  const gpuRows =
+    usage.gpus && usage.gpus.length
+      ? usage.gpus
+      : [
+          {
+            name: '未检测到独立 GPU',
+            vramUsedMb: null,
+            vramTotalMb: null,
+            vramUsedPct: null,
+            utilizationPct: null,
+          },
+        ];
+  const gpuLines = gpuRows
     .map((g) => {
-      const vram =
-        g.vramUsedMb != null && g.vramTotalMb != null
-          ? `显存 ${(g.vramUsedMb / 1024).toFixed(1)}/${(g.vramTotalMb / 1024).toFixed(1)} GB（${g.vramUsedPct ?? 0}%）`
-          : '显存使用率暂不可用';
+      const hasLive = g.vramUsedMb != null && g.vramTotalMb != null;
+      const vram = hasLive
+        ? `显存 ${(g.vramUsedMb! / 1024).toFixed(1)}/${(g.vramTotalMb! / 1024).toFixed(1)} GB（${g.vramUsedPct ?? 0}%）`
+        : g.vramTotalMb != null
+          ? `显存约 ${(g.vramTotalMb / 1024).toFixed(1)} GB · 暂无利用率数据`
+          : '暂无利用率数据';
       const util =
-        g.utilizationPct != null ? ` · 利用率 ${g.utilizationPct}%` : '';
+        g.utilizationPct != null && hasLive
+          ? ` · 利用率 ${g.utilizationPct}%`
+          : '';
       return `<div class="hw-line">GPU ${g.name}：${vram}${util}</div>`;
     })
     .join('');
