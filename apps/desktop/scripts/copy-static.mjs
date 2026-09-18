@@ -8,6 +8,7 @@ import {
   mkdirSync,
   renameSync,
   unlinkSync,
+  cpSync,
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,12 +16,19 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rendererDest = path.join(root, 'dist/renderer');
 mkdirSync(rendererDest, { recursive: true });
+mkdirSync(path.join(rendererDest, 'assets'), { recursive: true });
 
 for (const name of ['index.html', 'styles.css']) {
   copyFileSync(
     path.join(root, 'src/renderer', name),
     path.join(rendererDest, name),
   );
+}
+
+// Recursive: logo, mascot/ poses, and any future static brand assets.
+const assetsSrc = path.join(root, 'src/renderer/assets');
+if (existsSync(assetsSrc)) {
+  cpSync(assetsSrc, path.join(rendererDest, 'assets'), { recursive: true });
 }
 
 const preloadJs = path.join(root, 'dist/preload/preload.js');

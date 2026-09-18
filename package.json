@@ -2,7 +2,7 @@
   "name": "xyai-studio-0.5",
   "version": "0.5.0-dev",
   "private": true,
-  "description": "XYAI Studio 0.5 monorepo \u2014 Cindy-isomorphic Core + harness adapters + OpenXYOS",
+  "description": "XYAI Studio 0.5 monorepo — Cindy-isomorphic Core + harness adapters + OpenXYOS",
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": "^22.0.0",
@@ -12,7 +12,9 @@
     "build": "pnpm -r run build",
     "typecheck": "pnpm run build && pnpm -r run typecheck",
     "test": "pnpm run build && pnpm -r run test",
-    "smoke": "pnpm run build && pnpm --filter desktop smoke"
+    "smoke": "pnpm run build && pnpm --filter desktop smoke",
+    "pack:win": "pnpm --filter desktop pack:win",
+    "pack:dir": "pnpm --filter desktop pack:dir"
   },
   "devDependencies": {
     "typescript": "^5.7.3",

@@ -10,10 +10,12 @@ XYAI Studio 要成为 **自有 AI 桌面基座**：
 
 ## 0.5 首个内测边界
 
-| 包含（M1） | 可不含 |
+| 包含（0.5 beta） | 可不含 / 延后 |
 |---|---|
-| 薄壳 + 契约 + Core 装配校验 | 完整 Electron UI |
-| **Codex 对话路径**（现阶段 MOCK 事件流） | **AI 员工（M4 延后）** |
-| OpenXYOS 桥接探针（未安装 → `not-installed`） | 真实 OpenXYOS 业务全量 |
+| 薄壳 + 契约 + Core 装配校验 | **AI 员工（M4 延后）** |
+| **Electron 薄宿主聊天 UI**（单 chrome） | Claude / DSH Adapter（M5） |
+| **Codex 对话路径**（真实二进制或 MOCK） | 多 Harness 切换 UI |
+| OpenXYOS 桥接探针（`not-installed` / `submodule-present`） | 真实 OpenXYOS 业务全量 / 登录 / 资产桥 |
+| Windows NSIS 安装包配置（`pack:win`） | macOS/Linux 正式分发 |
 
 差异化不靠「换皮上游」，而靠 **连接层产品化** + **OpenXYOS 企业业务层**。

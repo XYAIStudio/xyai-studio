@@ -2,7 +2,9 @@
  * Resolve a pinned Codex native binary.
  * Mirrors @openai/codex@0.151.0 bin/codex.js findCodexExecutable vendor layout.
  *
- * Safe under esbuild CJS pack (import.meta.url may be empty) — never throws.
+ * Note: optional platform packages are npm-aliased
+ * (`@openai/codex-linux-x64` → `npm:@openai/codex@0.151.0-linux-x64`) and usually
+ * nest under `@openai/codex/node_modules`, so we resolve the meta package first.
  */
 
 import { createRequire } from 'node:module';
@@ -78,11 +80,15 @@ function existingVendor(
   return existsSync(candidate) ? candidate : null;
 }
 
+/**
+ * Given a require anchored near @openai/codex, find the native vendor binary.
+ */
 function findVendorFromRequire(
   requireFn: NodeJS.Require,
   platformPackage: string,
   targetTriple: string,
 ): string | null {
+  // Prefer platform optional package (official findCodexExecutable path)
   const platformPkgJson = tryResolve(
     requireFn,
     `${platformPackage}/package.json`,
@@ -92,12 +98,14 @@ function findVendorFromRequire(
     if (hit) return hit;
   }
 
+  // Meta package may itself be a platform build with vendor/
   const metaPkgJson = tryResolve(requireFn, '@openai/codex/package.json');
   if (metaPkgJson) {
     const metaRoot = path.dirname(metaPkgJson);
     const hit = existingVendor(metaRoot, targetTriple);
     if (hit) return hit;
 
+    // Nested optional dep (pnpm / npm): @openai/codex/node_modules/@openai/codex-linux-x64
     const nested = path.join(
       metaRoot,
       'node_modules',
@@ -106,6 +114,7 @@ function findVendorFromRequire(
     const nestedHit = existingVendor(nested, targetTriple);
     if (nestedHit) return nestedHit;
 
+    // Also try require from meta package root (sees its optionalDependencies)
     try {
       const fromMeta = createRequire(metaPkgJson);
       const nestedPkg = tryResolve(fromMeta, `${platformPackage}/package.json`);
@@ -133,31 +142,35 @@ function walkUp(startDir: string): string[] {
   return out;
 }
 
-/** import.meta.url may be empty after esbuild CJS bundle — never throw. */
+
+
+/** Packaged Electron CJS bundle empties import.meta.url — never throw. */
 function safeImportMetaUrl(): string | null {
   try {
     const u = import.meta.url;
-    if (typeof u === 'string' && u.length > 0 && u !== 'undefined') {
-      if (u.startsWith('file:') || u.startsWith('data:')) return u;
-    }
+    if (typeof u === 'string' && u.length > 0 && u !== 'undefined') return u;
   } catch {
     /* ignore */
   }
   return null;
 }
 
-function monorepoRootsFromHere(): string[] {
-  const roots: string[] = [process.cwd()];
-  const meta = safeImportMetaUrl();
-  if (meta) {
-    try {
-      const here = path.dirname(fileURLToPath(meta));
-      roots.unshift(path.resolve(here, '..'), path.resolve(here, '../..'));
-    } catch {
-      /* ignore */
-    }
+function safeDirnameFromMeta(): string | null {
+  const u = safeImportMetaUrl();
+  if (!u) return null;
+  try {
+    return path.dirname(fileURLToPath(u));
+  } catch {
+    return null;
   }
-  return roots;
+}
+
+function monorepoRootsFromHere(): string[] {
+  const here = safeDirnameFromMeta();
+  if (!here) return [process.cwd()];
+  const packageRoot = path.resolve(here, '..');
+  const monorepoRoot = path.resolve(packageRoot, '../..');
+  return [packageRoot, monorepoRoot, process.cwd()];
 }
 
 function requireFromRoot(root: string): NodeJS.Require | null {
@@ -183,84 +196,79 @@ function findOnPath(): string | null {
 /**
  * Resolve Codex native binary.
  * Order: override → XYAI_CODEX_BIN → platform/@openai/codex packages → PATH.
- * Never throws (packaged Electron must boot even when binary is absent).
  */
 export function resolveCodexBinary(
   options: ResolveCodexBinaryOptions = {},
 ): ResolveCodexBinaryResult {
+  if (options.binaryPath) {
+    if (existsSync(options.binaryPath)) {
+      return { path: options.binaryPath, source: 'override' };
+    }
+    return { path: null, source: null };
+  }
+
+  const envBin = process.env.XYAI_CODEX_BIN;
+  if (envBin) {
+    if (existsSync(envBin)) {
+      return { path: envBin, source: 'env' };
+    }
+    return { path: null, source: null };
+  }
+
+  const targetTriple = currentTargetTriple();
+  if (!targetTriple) {
+    const onPath = findOnPath();
+    return onPath
+      ? { path: onPath, source: 'path' }
+      : { path: null, source: null };
+  }
+
+  const platformPackage = PLATFORM_PACKAGE_BY_TARGET[targetTriple];
+  if (!platformPackage) {
+    return { path: null, source: null };
+  }
+
+  const roots = [
+    ...(options.searchRoots ?? []),
+    ...monorepoRootsFromHere(),
+  ];
+  const expanded = new Set<string>();
+  for (const r of roots) {
+    for (const ancestor of walkUp(r)) {
+      expanded.add(ancestor);
+    }
+  }
+
+  for (const root of expanded) {
+    const req = requireFromRoot(root);
+    if (!req) continue;
+    const hit = findVendorFromRequire(req, platformPackage, targetTriple);
+    if (hit) {
+      return { path: hit, source: 'package' };
+    }
+  }
+
   try {
-    if (options.binaryPath) {
-      if (existsSync(options.binaryPath)) {
-        return { path: options.binaryPath, source: 'override' };
-      }
-      return { path: null, source: null };
-    }
-
-    const envBin = process.env.XYAI_CODEX_BIN;
-    if (envBin) {
-      if (existsSync(envBin)) {
-        return { path: envBin, source: 'env' };
-      }
-      return { path: null, source: null };
-    }
-
-    const targetTriple = currentTargetTriple();
-    if (!targetTriple) {
-      const onPath = findOnPath();
-      return onPath
-        ? { path: onPath, source: 'path' }
-        : { path: null, source: null };
-    }
-
-    const platformPackage = PLATFORM_PACKAGE_BY_TARGET[targetTriple];
-    if (!platformPackage) {
-      return { path: null, source: null };
-    }
-
-    const roots = [
-      ...(options.searchRoots ?? []),
-      ...monorepoRootsFromHere(),
-    ];
-    const expanded = new Set<string>();
-    for (const r of roots) {
-      for (const ancestor of walkUp(r)) {
-        expanded.add(ancestor);
-      }
-    }
-
-    for (const root of expanded) {
-      const req = requireFromRoot(root);
-      if (!req) continue;
-      const hit = findVendorFromRequire(req, platformPackage, targetTriple);
+    const metaUrl = safeImportMetaUrl();
+    if (metaUrl) {
+      const localRequire = createRequire(metaUrl);
+      const hit = findVendorFromRequire(
+        localRequire,
+        platformPackage,
+        targetTriple,
+      );
       if (hit) {
         return { path: hit, source: 'package' };
       }
     }
-
-    const meta = safeImportMetaUrl();
-    if (meta) {
-      try {
-        const localRequire = createRequire(meta);
-        const hit = findVendorFromRequire(
-          localRequire,
-          platformPackage,
-          targetTriple,
-        );
-        if (hit) {
-          return { path: hit, source: 'package' };
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-
-    const onPath = findOnPath();
-    if (onPath) {
-      return { path: onPath, source: 'path' };
-    }
-
-    return { path: null, source: null };
   } catch {
-    return { path: null, source: null };
+    /* ignore */
   }
+
+  const onPath = findOnPath();
+  if (onPath) {
+    return { path: onPath, source: 'path' };
+  }
+
+  return { path: null, source: null };
 }

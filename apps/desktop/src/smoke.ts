@@ -101,7 +101,6 @@ async function main(): Promise<void> {
   const allowedReasons = new Set([
     'not-installed',
     'submodule-present',
-    'stub-detected-install-markers',
   ]);
   if (!allowedReasons.has(String(health.reason))) {
     console.error('[smoke] unexpected xyos health.reason:', health.reason);

@@ -1,25 +1,51 @@
+# XYAI Studio 0.5 — Windows NSIS installer
 appId: studio.xyai.desktop
 productName: XYAI Studio
-copyright: Copyright XYAI Studio
+copyright: Copyright © XYAI
+
+icon: build/icon.ico
+
+# bundle-for-pack.mjs writes pack-out/
 directories:
-  output: release
   app: pack-out
+  output: release
+  buildResources: build
+
 files:
-  - "**/*"
+  - '**/*'
+
 asar: true
-asarUnpack:
-  - "**/preload.cjs"
+
+# OpenXYOS ships outside asar so 业务空间 can load it
+extraResources:
+  - from: ../../components/openxyos-pack
+    to: openxyos
+    filter:
+      - '**/*'
+
+
 win:
+  icon: build/icon.ico
+  # false avoids winCodeSign symlink privilege errors; pack scripts rcedit --set-icon after --dir
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch:
         - x64
-  signAndEditExecutable: false
-forceCodeSigning: false
+  artifactName: '${productName}-${version}-Setup-${arch}.${ext}'
+
 nsis:
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: XYAI Studio
-artifactName: XYAI-Studio-${version}-Setup-${arch}.${ext}
+  uninstallDisplayName: XYAI Studio
+
+linux:
+  target:
+    - dir
+  category: Development

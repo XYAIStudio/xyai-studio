@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; frame-src 'self' https: http://127.0.0.1:* http://localhost:* file:; child-src 'self' https: http://127.0.0.1:* http://localhost:* file:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XYAI Studio</title>
@@ -12,22 +12,231 @@
   </head>
   <body>
     <div id="app">
-      <header class="topbar">
-        <h1 class="title">XYAI Studio</h1>
-        <div id="status" class="status" title="">连接中…</div>
+      <header class="chrome">
+        <div class="chrome-left">
+          <div class="logo-wrap" title="XYAI Studio">
+            <img class="logo" src="./assets/logo.png" alt="XYAI" />
+            <span class="wordmark">XYAI Studio</span>
+          </div>
+          <nav class="zones" role="navigation" aria-label="主导航">
+            <button type="button" class="zone active" data-zone="dev">开发空间</button>
+            <button type="button" class="zone" data-zone="biz">业务空间</button>
+            <button type="button" class="zone" data-zone="eco">生态空间</button>
+            <button type="button" class="zone" data-zone="browser">浏览器</button>
+          </nav>
+        </div>
+        <div class="chrome-right">
+          <button type="button" class="ghost" id="btn-about">关于我们</button>
+        </div>
       </header>
 
-      <main id="transcript" class="transcript" aria-live="polite"></main>
+      <div id="zone-dev" class="zone-body active">
+        <nav class="subtabs" role="tablist">
+          <button type="button" class="subtab active" data-tab="chat">对话</button>
+          <button type="button" class="subtab" data-tab="models">模型</button>
+          <button type="button" class="subtab" data-tab="knowledge">知识库</button>
+          <button type="button" class="subtab" data-tab="personalize">个性化</button>
+        </nav>
 
-      <footer class="composer">
-        <textarea
-          id="input"
-          rows="2"
-          placeholder="输入消息…"
-          autocomplete="off"
-        ></textarea>
-        <button id="send" type="button">发送</button>
-      </footer>
+        <section id="view-chat" class="view active">
+          <aside class="session-rail" aria-label="对话协作">
+            <div class="rail-header">
+              <h2 class="rail-title">对话</h2>
+              <div class="rail-tabs" role="tablist" aria-label="侧栏切换">
+                <button type="button" class="rail-tab active" id="rail-tab-agents" role="tab" aria-selected="true" aria-controls="agent-list" data-rail-tab="agents">智能体列表</button>
+                <button type="button" class="rail-tab" id="rail-tab-sessions" role="tab" aria-selected="false" aria-controls="session-list" data-rail-tab="sessions">会话列表</button>
+              </div>
+            </div>
+            <div class="rail-panes">
+              <div id="agent-list" class="agent-list rail-pane" role="list" aria-labelledby="rail-tab-agents"></div>
+              <div id="session-list" class="session-list rail-pane" role="list" aria-labelledby="rail-tab-sessions" hidden></div>
+            </div>
+            <div class="rail-footer">
+              <button type="button" id="btn-new-session" class="primary block">新对话</button>
+              <button type="button" id="btn-new-project" class="ghost-btn block">新建项目</button>
+            </div>
+          </aside>
+          <div id="collab-modal-root" hidden></div>
+          <div class="chat-main" id="chat-main">
+            <div class="chat-center">
+              <div class="transcript-wrap" id="transcript-wrap">
+                <main id="transcript" class="transcript" aria-live="polite"></main>
+              </div>
+              <footer class="composer" id="composer">
+                <div class="composer-card">
+                  <div id="attach-chips" class="attach-chips" hidden></div>
+                  <textarea
+                    id="input"
+                    rows="3"
+                    placeholder="继续聊一聊…"
+                    autocomplete="off"
+                    spellcheck="true"
+                    tabindex="0"
+                  ></textarea>
+                  <div class="composer-toolbar">
+                    <div class="composer-toolbar-left">
+                      <button
+                        type="button"
+                        id="btn-attach"
+                        class="composer-add"
+                        title="添加文件"
+                        aria-label="添加文件"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        id="access-chip"
+                        class="access-chip"
+                        title="使用权限"
+                        aria-label="使用权限"
+                      >默认权限</button>
+                      <button
+                        type="button"
+                        id="btn-kb-mention"
+                        class="access-chip"
+                        title="引用知识库 @"
+                        aria-label="引用知识库"
+                      >@ 知识库</button>
+                      <div id="kb-mention-chips" class="kb-mention-chips" hidden></div>
+                      <div id="kb-at-menu" class="kb-at-menu" hidden role="listbox" aria-label="知识库"></div>
+                    </div>
+                  <div class="composer-toolbar-right">
+                    <div class="model-picker" id="model-picker">
+                      <button
+                        type="button"
+                        id="model-chip"
+                        class="model-chip"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                        aria-controls="model-panel"
+                      >
+                        <span id="model-chip-label">选择模型</span>
+                        <span class="chev" aria-hidden="true">▾</span>
+                      </button>
+                      <div
+                        id="model-panel"
+                        class="model-panel"
+                        hidden
+                        role="listbox"
+                        aria-label="模型列表"
+                      >
+                        <input
+                          type="search"
+                          id="model-search"
+                          class="model-search"
+                          placeholder="搜索模型…"
+                          autocomplete="off"
+                        />
+                        <div id="model-panel-body" class="model-panel-body"></div>
+                      </div>
+                    </div>
+                    <button
+                      id="primary-action"
+                      type="button"
+                      class="primary-action is-send"
+                      title="发送"
+                      aria-label="发送"
+                    >
+                      发送
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </footer>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-models" class="view">
+          <div class="models-scroll">
+            <div class="card models-section" id="hw-section">
+              <div class="models-section-head">
+                <h2>本机硬件检测区</h2>
+                <button id="btn-refresh-models" type="button" class="capsule-btn">再次检测</button>
+              </div>
+              <div id="hw-panel"></div>
+            </div>
+
+            <div class="card models-section" id="dep-section">
+              <div class="models-section-head">
+                <h2>模型调用依赖区</h2>
+                <button id="btn-install-ollama" type="button" class="primary capsule-btn">一键安装 Ollama</button>
+              </div>
+              <div id="dep-panel"></div>
+            </div>
+
+            <div class="models-tabs" role="tablist" aria-label="模型来源">
+              <button type="button" class="models-tab active" data-models-tab="local" role="tab" aria-selected="true">本地</button>
+              <button type="button" class="models-tab" data-models-tab="cloud" role="tab" aria-selected="false">云端</button>
+            </div>
+
+            <div id="models-pane-local" class="models-pane active" role="tabpanel">
+              <div class="models-toolbar">
+                <button id="btn-scan-models" type="button" class="capsule-btn">全盘搜索已下载模型</button>
+              </div>
+              <div class="grid-2">
+                <div class="card">
+                  <h2>已下载 / 已注册</h2>
+                  <div id="installed-list" class="list"></div>
+                </div>
+                <div class="card">
+                  <h2>硬件推荐 + 一键下载</h2>
+                  <div id="rec-list" class="list"></div>
+                </div>
+              </div>
+              <div class="card">
+                <h2>嵌入模型推荐</h2>
+                <div id="embed-list" class="list"></div>
+              </div>
+              <pre id="pull-log" class="pull-log" hidden></pre>
+
+              <div class="card" id="codex-card">
+                <h2>Codex 对话引擎</h2>
+                <div class="form-grid">
+                  <label>默认模型
+                    <select id="settings-model"></select>
+                  </label>
+                  <label class="check">
+                    <input type="checkbox" id="settings-force-mock" />
+                    强制 Mock（调试）
+                  </label>
+                  <label>Codex 路径（可空，自动探测）
+                    <input type="text" id="settings-codex-bin" placeholder="例如 C:\…\codex.exe" />
+                  </label>
+                </div>
+                <button type="button" id="btn-save-codex" class="primary capsule-btn">保存 Codex 设置</button>
+              </div>
+            </div>
+
+            <div id="models-pane-cloud" class="models-pane" role="tabpanel" hidden>
+              <div class="card" id="cloud-card">
+                <h2>云端模型 Provider</h2>
+                <p class="hint">密钥只存在本机 userData，不会写入仓库。可配置内置云厂商，或添加自定义供应商（OpenAI 兼容端点，如 DeepSeek）。</p>
+                <div id="cloud-providers" class="cloud-providers"></div>
+                <div class="cloud-actions">
+                  <button type="button" id="btn-add-custom-provider" class="capsule-btn">+ 添加自定义供应商</button>
+                  <button type="button" id="btn-save-cloud" class="primary capsule-btn">保存云端设置</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        
+
+        <section id="view-knowledge" class="view">
+          <div id="knowledge-root" class="knowledge-root"></div>
+        </section>
+
+        <section id="view-personalize" class="view">
+          <div id="personalize-root" class="personalize-root"></div>
+        </section>
+      </div>
+
+      <div id="zone-biz" class="zone-body zone-embed-host"></div>
+      <div id="zone-eco" class="zone-body zone-embed-host"></div>
+      <div id="zone-browser" class="zone-body zone-embed-host"></div>
     </div>
     <script type="module" src="./main.js"></script>
   </body>

@@ -17,6 +17,8 @@ export interface Session {
   createdAt: string;
   updatedAt: string;
   harnessId: string;
+  /** Unified model ref (codex:… / ollama:…). Optional in 0.5 Phase A. */
+  modelRef?: string;
   metadata?: Record<string, unknown>;
 }
 

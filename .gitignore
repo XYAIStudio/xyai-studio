@@ -17,3 +17,13 @@ tmp/
 apps/desktop/pack-out/
 apps/desktop/release/
 *.exe
+pack/
+release/
+apps/desktop/pack/
+apps/desktop/release/
+*.exe
+*.blockmap
+
+components/openxyos-pack/
+apps/desktop/dist/
+

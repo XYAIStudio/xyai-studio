@@ -1,6 +1,7 @@
 export * from './session.js';
 export * from './agent-runtime.js';
 export * from './model-catalog.js';
+export * from './model-ref.js';
 export * from './tool-mcp.js';
 export * from './approval.js';
 export * from './skill.js';

@@ -31,6 +31,8 @@ export interface SendMessageOptions {
   sessionId: SessionId;
   taskId: TaskId;
   content: string;
+  /** Optional model override for this turn (Codex -m / local id). */
+  modelId?: string;
 }
 
 /**

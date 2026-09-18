@@ -45,7 +45,7 @@ describe('desktop smoke path', () => {
     }).healthCheck();
 
     const submodulePresent = await pathExists(path.join(xyosRoot, 'package.json'));
-    expect(['not-installed', 'submodule-present', 'stub-detected-install-markers']).toContain(
+    expect(['not-installed', 'submodule-present']).toContain(
       health.reason,
     );
     if (submodulePresent) {

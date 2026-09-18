@@ -1,6 +1,7 @@
 /**
  * Bundle Electron main/preload/renderer into pack-out/ for electron-builder.
  */
+import { spawnSync } from 'node:child_process';
 import * as esbuild from 'esbuild';
 import { cpSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -21,13 +22,13 @@ const shared = {
   external: ['electron'],
   sourcemap: false,
   logLevel: 'info',
-  };
+  banner: { js: 'var __xyai_module_dir = __dirname;' },
+};
 
 await esbuild.build({
   ...shared,
   entryPoints: [path.join(appRoot, 'src/main/main.ts')],
   outfile: path.join(outDir, 'main.cjs'),
-  banner: { js: 'var __xyai_module_dir = __dirname;' },
 });
 
 await esbuild.build({
@@ -48,6 +49,11 @@ await esbuild.build({
 
 cpSync(path.join(appRoot, 'src/renderer/index.html'), path.join(outDir, 'renderer/index.html'));
 cpSync(path.join(appRoot, 'src/renderer/styles.css'), path.join(outDir, 'renderer/styles.css'));
+const assetsSrc = path.join(appRoot, 'src/renderer/assets');
+if (existsSync(assetsSrc)) {
+  cpSync(assetsSrc, path.join(outDir, 'renderer/assets'), { recursive: true });
+}
+
 
 // Fix main paths: preload and renderer relative to pack-out
 // main.ts uses ../preload and ../renderer from dist/main — bundled main.cjs lives in pack-out root.
@@ -77,3 +83,9 @@ writeFileSync(
 );
 
 console.log('[bundle-for-pack] wrote', outDir);
+
+// Stage OpenXYOS into components/openxyos-pack for extraResources
+{
+  const r = spawnSync(process.execPath, [path.join(here, 'stage-openxyos.mjs')], { stdio: 'inherit' });
+  if (r.status) process.exit(r.status ?? 1);
+}

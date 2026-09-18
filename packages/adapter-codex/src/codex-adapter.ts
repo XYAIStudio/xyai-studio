@@ -2,9 +2,12 @@
  * Codex Adapter — real `codex exec --json` when a native binary is available,
  * otherwise MOCK (or when XYAI_CODEX_MOCK=1 / forceMock).
  * DO NOT download or ship Codex binaries from this package; depend on @openai/codex.
+ *
+ * Abort: track ChildProcess per sessionId; public abort() / stop() kill active turns
+ * and yield error { message: 'cancelled', code: 'ABORTED' } (contracts have no task.cancelled).
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type {
   AgentEvent,
@@ -37,6 +40,7 @@ export interface CodexAdapterOptions {
 
 interface SessionState {
   cwd?: string;
+  modelId?: string;
 }
 
 function envWantsMock(): boolean {
@@ -51,6 +55,10 @@ function timeoutMs(): number {
   return Number.isFinite(n) && n > 0 ? n : 180_000;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class CodexAdapter implements AgentRuntime {
   readonly harnessId = 'codex';
   readonly isMock: boolean;
@@ -60,6 +68,10 @@ export class CodexAdapter implements AgentRuntime {
 
   private readonly options: CodexAdapterOptions;
   private readonly active = new Map<SessionId, SessionState>();
+  /** Live child processes keyed by sessionId */
+  private readonly children = new Map<SessionId, ChildProcess>();
+  /** Sessions whose turn was aborted (mock + real) */
+  private readonly abortFlags = new Map<SessionId, boolean>();
 
   constructor(options: CodexAdapterOptions = {}) {
     this.options = options;
@@ -79,19 +91,87 @@ export class CodexAdapter implements AgentRuntime {
   async start(options: StartSessionOptions): Promise<void> {
     this.active.set(options.sessionId, {
       cwd: options.cwd,
+      modelId: options.modelId,
     });
   }
 
+  /**
+   * Kill the active child for one session (or all). Safe if nothing is running.
+   */
+  abort(sessionId?: SessionId): void {
+    const ids = sessionId
+      ? [sessionId]
+      : [
+          ...new Set([
+            ...this.children.keys(),
+            ...this.abortFlags.keys(),
+            ...this.active.keys(),
+          ]),
+        ];
+    for (const id of ids) {
+      this.abortFlags.set(id, true);
+      const child = this.children.get(id);
+      if (child && !child.killed) {
+        try {
+          child.kill('SIGTERM');
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+
   async stop(sessionId: SessionId): Promise<void> {
+    this.abort(sessionId);
     this.active.delete(sessionId);
+    this.children.delete(sessionId);
+    this.abortFlags.delete(sessionId);
   }
 
   async *send(options: SendMessageOptions): AsyncIterable<AgentEvent> {
+    this.abortFlags.delete(options.sessionId);
     if (this.isMock) {
-      yield* mockCodexSend(options, new Set(this.active.keys()));
+      yield* this.sendMock(options);
       return;
     }
     yield* this.sendReal(options);
+  }
+
+  private abortedEvent(
+    sessionId: SessionId,
+    taskId: string,
+  ): AgentEvent {
+    return {
+      type: 'error',
+      timestamp: new Date().toISOString(),
+      sessionId,
+      taskId,
+      payload: { message: 'cancelled', code: 'ABORTED' },
+    };
+  }
+
+  private async *sendMock(
+    options: SendMessageOptions,
+  ): AsyncIterable<AgentEvent> {
+    const { sessionId, taskId } = options;
+    for await (const ev of mockCodexSend(
+      options,
+      new Set(this.active.keys()),
+    )) {
+      if (this.abortFlags.get(sessionId)) {
+        this.abortFlags.delete(sessionId);
+        yield this.abortedEvent(sessionId, taskId);
+        return;
+      }
+      yield ev;
+      // Allow abort() between fast mock yields
+      await sleep(8);
+      if (this.abortFlags.get(sessionId)) {
+        this.abortFlags.delete(sessionId);
+        yield this.abortedEvent(sessionId, taskId);
+        return;
+      }
+    }
   }
 
   private async *sendReal(
@@ -124,9 +204,9 @@ export class CodexAdapter implements AgentRuntime {
     }
 
     const session = this.active.get(sessionId);
-    const cwd =
-      session?.cwd || this.options.cwd || process.cwd();
+    const cwd = session?.cwd || this.options.cwd || process.cwd();
     const sandbox = this.options.sandbox ?? 'read-only';
+    const modelId = session?.modelId;
 
     // IMPORTANT: prompt is ONE argv token; do not join args into a single string.
     const args = [
@@ -138,8 +218,11 @@ export class CodexAdapter implements AgentRuntime {
       sandbox,
       '-C',
       cwd,
-      content,
     ];
+    if (modelId) {
+      args.push('-m', modelId);
+    }
+    args.push(content);
 
     const ctx: ParseCodexJsonlContext = {
       sessionId,
@@ -155,6 +238,7 @@ export class CodexAdapter implements AgentRuntime {
       env: { ...process.env },
       windowsHide: true,
     });
+    this.children.set(sessionId, child);
 
     // Codex may print "Reading additional input from stdin..." on stderr — ignore.
     child.stderr?.on('data', () => {
@@ -182,6 +266,9 @@ export class CodexAdapter implements AgentRuntime {
 
     try {
       for await (const rawLine of rl) {
+        if (this.abortFlags.get(sessionId)) {
+          break;
+        }
         const events = parseCodexJsonlRawLine(rawLine, ctx);
         if (!events) continue;
         for (const ev of events) {
@@ -196,9 +283,16 @@ export class CodexAdapter implements AgentRuntime {
       }
     } finally {
       clearTimeout(killer);
+      this.children.delete(sessionId);
     }
 
     const exitCode = await exitPromise;
+
+    if (this.abortFlags.get(sessionId)) {
+      this.abortFlags.delete(sessionId);
+      yield this.abortedEvent(sessionId, taskId);
+      return;
+    }
 
     if (spawnState.error) {
       yield {

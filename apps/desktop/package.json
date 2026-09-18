@@ -11,20 +11,26 @@
     "smoke": "tsx src/smoke.ts",
     "dev": "pnpm run build && electron .",
     "bundle:pack": "node ./scripts/bundle-for-pack.mjs",
-    "pack:win": "pnpm run bundle:pack && electron-builder --win nsis --config electron-builder.yml"
+    "pack:win": "pnpm run bundle && electron-builder --win nsis",
+    "bundle": "pnpm run build && node ./scripts/bundle-desktop.mjs",
+    "pack:dir": "pnpm run bundle && electron-builder --dir"
   },
   "dependencies": {
-    "@xyai/core": "workspace:*",
     "@xyai/adapter-codex": "workspace:*",
-    "@xyai/xyos-bridge": "workspace:*",
     "@xyai/contracts": "workspace:*",
-    "electron": "34.5.8"
+    "@xyai/core": "workspace:*",
+    "@xyai/knowledge": "workspace:*",
+    "@xyai/model-hub": "workspace:*",
+    "@xyai/xyos-bridge": "workspace:*",
+    "electron": "34.5.8",
+    "mammoth": "^1.12.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "typescript": "^5.7.3",
-    "tsx": "^4.19.2",
     "@types/node": "^22.13.4",
+    "electron-builder": "^25.1.8",
     "esbuild": "^0.25.0",
-    "electron-builder": "^25.1.8"
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   }
 }
