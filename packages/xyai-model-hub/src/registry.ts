@@ -39,4 +39,13 @@ export class LocalModelRegistry {
     this.save(all);
     return all;
   }
+
+  /** Explicit 注册 of one entry (does not replace the full inventory). */
+  register(entry: ModelEntry): ModelEntry[] {
+    return this.upsertMany([entry]);
+  }
+
+  has(id: string): boolean {
+    return this.load().some((m) => m.id === id);
+  }
 }

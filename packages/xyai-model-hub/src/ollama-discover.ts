@@ -6,7 +6,12 @@ import {
   OLLAMA_NOT_RUNNING_MESSAGE,
 } from './ollama-errors.js';
 
-export type LocalModelDiscoverySource = 'api' | 'cli' | 'disk' | 'none';
+export type LocalModelDiscoverySource =
+  | 'api'
+  | 'cli'
+  | 'disk'
+  | 'mixed'
+  | 'none';
 
 export function inferOllamaRole(name: string): ModelRole {
   const lower = name.toLowerCase();
@@ -119,7 +124,48 @@ export function ollamaModelsRoots(env: NodeJS.ProcessEnv = process.env): string[
   if (env.OLLAMA_MODELS) roots.push(env.OLLAMA_MODELS);
   const home = env.USERPROFILE || env.HOME || '';
   if (home) roots.push(path.join(home, '.ollama', 'models'));
-  return roots;
+  const local =
+    env.LOCALAPPDATA ||
+    (home ? path.join(home, 'AppData', 'Local') : '');
+  if (local) {
+    roots.push(path.join(local, 'Ollama', 'models'));
+    roots.push(path.join(local, 'Programs', 'Ollama', 'models'));
+  }
+  return [...new Set(roots.map((r) => path.resolve(r)))];
+}
+
+export function normalizeOllamaInventoryKey(entry: ModelEntry): string {
+  if (entry.source === 'ollama' || entry.id.startsWith('ollama:')) {
+    const name = (entry.displayName || entry.id.replace(/^ollama:/i, ''))
+      .replace(/:latest$/, '')
+      .toLowerCase();
+    return `ollama:${name}`;
+  }
+  if (entry.path) return `path:${path.resolve(entry.path).toLowerCase()}`;
+  return entry.id.toLowerCase();
+}
+
+/** Prefer the row that already has size / richer metadata. */
+export function mergeModelEntries(groups: ModelEntry[][]): ModelEntry[] {
+  const map = new Map<string, ModelEntry>();
+  for (const group of groups) {
+    for (const m of group) {
+      const key = normalizeOllamaInventoryKey(m);
+      const prev = map.get(key);
+      if (!prev) {
+        map.set(key, m);
+        continue;
+      }
+      map.set(key, {
+        ...prev,
+        ...m,
+        sizeBytes: m.sizeBytes ?? prev.sizeBytes,
+        path: m.path ?? prev.path,
+        capabilities: m.capabilities?.length ? m.capabilities : prev.capabilities,
+      });
+    }
+  }
+  return [...map.values()];
 }
 
 export function pickDiscoverySource(
@@ -127,18 +173,28 @@ export function pickDiscoverySource(
   cli: ModelEntry[],
   disk: ModelEntry[],
 ): { models: ModelEntry[]; source: LocalModelDiscoverySource } {
-  if (api.length) return { models: api, source: 'api' };
-  if (cli.length) return { models: cli, source: 'cli' };
-  if (disk.length) return { models: disk, source: 'disk' };
-  return { models: [], source: 'none' };
+  const filled = [api, cli, disk].filter((g) => g.length);
+  if (!filled.length) return { models: [], source: 'none' };
+  const models = mergeModelEntries([api, cli, disk]);
+  if (filled.length > 1) return { models, source: 'mixed' };
+  if (api.length) return { models, source: 'api' };
+  if (cli.length) return { models, source: 'cli' };
+  return { models, source: 'disk' };
 }
 
 export function formatLocalModelScanResult(input: {
   count: number;
   installed: boolean;
   running: boolean;
+  ollamaCount?: number;
+  diskCount?: number;
 }): string {
   if (input.count > 0) {
+    const ollama = input.ollamaCount;
+    const disk = input.diskCount;
+    if (ollama != null || disk != null) {
+      return `发现 ${input.count} 个本地模型（Ollama ${ollama ?? 0} · 磁盘权重 ${disk ?? 0}）`;
+    }
     return `发现 ${input.count} 个本地模型`;
   }
   if (!input.installed) {
@@ -147,5 +203,5 @@ export function formatLocalModelScanResult(input: {
   if (!input.running) {
     return OLLAMA_NOT_RUNNING_MESSAGE;
   }
-  return 'Ollama 已运行，但未发现已下载的本地模型。';
+  return 'Ollama 已运行，但未发现已下载的本地模型。可点「搜索本机模型」扫描磁盘 GGUF。';
 }

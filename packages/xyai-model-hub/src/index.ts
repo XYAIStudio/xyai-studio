@@ -11,10 +11,18 @@ import {
   probeOllamaApi,
   startOllama,
   ensureOllamaRunning,
+  createOllamaFromFile,
 } from './ollama.js';
 import { recommendModels } from './recommend.js';
 import { LocalModelRegistry } from './registry.js';
-import type { LocalModelDiscoverySource } from './ollama-discover.js';
+import {
+  mergeModelEntries,
+  type LocalModelDiscoverySource,
+} from './ollama-discover.js';
+import {
+  scanDiskWeightModels,
+  type DiskScanMode,
+} from './disk-weights.js';
 
 export interface ModelHubSnapshot {
   hardware: HardwareProfile;
@@ -23,39 +31,65 @@ export interface ModelHubSnapshot {
   registry: ModelEntry[];
   recommendations: ReturnType<typeof recommendModels>;
   discoverySource: LocalModelDiscoverySource;
+  discoveryCounts: {
+    ollama: number;
+    disk: number;
+    registry: number;
+  };
+  defaultModelId?: string;
 }
+
+export type CollectSnapshotOptions = {
+  extraRoots?: string[];
+  mode?: DiskScanMode;
+  defaultModelId?: string;
+};
 
 export async function collectModelHubSnapshot(
   userDataPath: string,
+  options: CollectSnapshotOptions = {},
 ): Promise<ModelHubSnapshot> {
   const hardware = await detectHardware();
-  // Snapshot + 「全盘搜索」share this path — start Ollama before listing tags.
   await ensureOllamaRunning({ timeoutMs: 15000 });
   const ollama = await getOllamaDependencyStatus();
-  const discovered =
-    ollama.running || ollama.installed
-      ? await discoverOllamaModels()
-      : { models: [] as ModelEntry[], source: 'none' as const };
-  const installed = discovered.models;
+  const discovered = await discoverOllamaModels();
+  const diskWeights = scanDiskWeightModels({
+    extraRoots: options.extraRoots,
+    mode: options.mode ?? 'common',
+  });
   const registry = new LocalModelRegistry(userDataPath);
-  const merged = registry.upsertMany(installed);
-  const names = new Set(
-    installed.map((m) => m.displayName.replace(/:latest$/, '')),
-  );
+  const registered = registry.load();
+  const installed = mergeModelEntries([
+    discovered.models,
+    diskWeights,
+    registered,
+  ]);
+  const names = new Set<string>();
   for (const m of installed) {
+    names.add(m.displayName.replace(/:latest$/, ''));
     names.add(m.displayName);
     if (m.displayName.includes(':')) {
       names.add(m.displayName.split(':')[0]!);
     }
   }
   const recommendations = recommendModels(hardware, names);
+  const source: LocalModelDiscoverySource =
+    discovered.models.length && diskWeights.length
+      ? 'mixed'
+      : discovered.source;
   return {
     hardware,
     ollama,
     installed,
-    registry: merged,
+    registry: registered,
     recommendations,
-    discoverySource: discovered.source,
+    discoverySource: source,
+    discoveryCounts: {
+      ollama: discovered.models.length,
+      disk: diskWeights.length,
+      registry: registered.length,
+    },
+    defaultModelId: options.defaultModelId,
   };
 }
 
@@ -71,18 +105,41 @@ export {
   startOllama,
   ensureOllamaRunning,
   discoverOllamaModels,
+  createOllamaFromFile,
   recommendModels,
   LocalModelRegistry,
 };
 export type { OllamaChatMessage } from './ollama.js';
 export type { StartOllamaResult } from './ollama-start.js';
 export type { LocalModelDiscoverySource } from './ollama-discover.js';
+export type { DiskScanMode } from './disk-weights.js';
 export {
   formatLocalModelScanResult,
   parseOllamaListOutput,
   modelNameFromManifestPath,
   pickDiscoverySource,
+  mergeModelEntries,
+  normalizeOllamaInventoryKey,
 } from './ollama-discover.js';
+export {
+  DISK_WEIGHT_CAP,
+  commonModelRoots,
+  extraManualScanRoots,
+  fullDiskScanRoots,
+  scanDiskWeightModels,
+  walkWeightHits,
+  weightFileToEntry,
+  isProjectorWeightName,
+  sanitizeOllamaCreateName,
+} from './disk-weights.js';
+export {
+  registerLocalModel,
+  speedTestOllamaModel,
+  tokensPerSecFromOllamaGenerate,
+  formatSpeedTestMessage,
+  ollamaNameForRegister,
+} from './model-ops.js';
+export type { RegisterModelInput, RegisterModelResult, SpeedTestResult } from './model-ops.js';
 export {
   OLLAMA_NOT_RUNNING_CODE,
   OLLAMA_NOT_RUNNING_MESSAGE,

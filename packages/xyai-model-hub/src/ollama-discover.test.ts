@@ -60,14 +60,30 @@ describe('listOllamaNamesFromDiskRoot', () => {
 });
 
 describe('pickDiscoverySource', () => {
-  it('prefers api then cli then disk', () => {
+  it('unions api + cli + disk instead of stopping at a short tags list', () => {
     const api = [toOllamaModelEntry('from-api')];
     const cli = [toOllamaModelEntry('from-cli')];
     const disk = [toOllamaModelEntry('from-disk')];
-    expect(pickDiscoverySource(api, cli, disk).source).toBe('api');
-    expect(pickDiscoverySource([], cli, disk).source).toBe('cli');
+    const mixed = pickDiscoverySource(api, cli, disk);
+    expect(mixed.source).toBe('mixed');
+    expect(mixed.models.map((m) => m.displayName).sort()).toEqual([
+      'from-api',
+      'from-cli',
+      'from-disk',
+    ]);
+    expect(pickDiscoverySource([], cli, disk).source).toBe('mixed');
     expect(pickDiscoverySource([], [], disk).source).toBe('disk');
     expect(pickDiscoverySource([], [], []).source).toBe('none');
+  });
+
+  it('keeps a 3-tag API list and still merges extra CLI/disk names', () => {
+    const api = ['qwen3:1.7b', 'deepseek-v4-flash', 'qwen2.5vl:3b'].map((n) =>
+      toOllamaModelEntry(n),
+    );
+    const disk = [toOllamaModelEntry('qwen2.5:14b'), toOllamaModelEntry('qwen3:1.7b')];
+    const out = pickDiscoverySource(api, [], disk);
+    expect(out.models).toHaveLength(4);
+    expect(out.models.some((m) => m.displayName === 'qwen2.5:14b')).toBe(true);
   });
 });
 

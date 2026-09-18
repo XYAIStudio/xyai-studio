@@ -1,5 +1,5 @@
 import { execFile, spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { DependencyStatus, ModelEntry } from '@xyai/contracts';
@@ -159,11 +159,12 @@ export async function discoverOllamaModels(): Promise<{
   models: ModelEntry[];
   source: LocalModelDiscoverySource;
 }> {
-  const api = await listOllamaModelsFromApi();
-  if (api.length) return { models: api, source: 'api' };
-  const cli = await listOllamaModelsFromCli();
-  if (cli.length) return { models: cli, source: 'cli' };
-  const disk = await listOllamaModelsFromDisk();
+  // Union API + CLI + manifests. Never stop at a short /api/tags list.
+  const [api, cli, disk] = await Promise.all([
+    listOllamaModelsFromApi(),
+    listOllamaModelsFromCli(),
+    listOllamaModelsFromDisk(),
+  ]);
   return pickDiscoverySource(api, cli, disk);
 }
 
@@ -244,6 +245,36 @@ export function pullOllamaModel(
       });
     });
   });
+}
+
+/** `ollama create <name> -f Modelfile` from a local GGUF/GGML path. */
+export async function createOllamaFromFile(
+  name: string,
+  filePath: string,
+): Promise<{ ok: boolean; message: string }> {
+  if (!filePath || !existsSync(filePath)) {
+    return { ok: false, message: '权重文件不存在' };
+  }
+  const tmpDir = path.join(
+    process.env.TEMP || process.env.TMPDIR || '/tmp',
+    'xyai-ollama-create',
+  );
+  mkdirSync(tmpDir, { recursive: true });
+  const mf = path.join(tmpDir, `Modelfile-${name.replace(/[^A-Za-z0-9._-]+/g, '_')}`);
+  writeFileSync(mf, `FROM ${filePath}\n`, 'utf8');
+  const created = await runOllama(['create', name, '-f', mf], 600_000);
+  try {
+    rmSync(mf, { force: true });
+  } catch {
+    /* temp cleanup */
+  }
+  if (!created.ok) {
+    return {
+      ok: false,
+      message: created.stderr || created.stdout || 'ollama create 失败',
+    };
+  }
+  return { ok: true, message: `已注册到 Ollama：${name}` };
 }
 
 export interface OllamaChatDelta {

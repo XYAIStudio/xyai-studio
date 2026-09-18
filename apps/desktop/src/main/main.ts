@@ -485,9 +485,77 @@ function registerIpc(): void {
     },
   );
 
-  ipcMain.handle('xyai:model-snapshot', async () => {
-    return getModelHub().snapshot();
+  ipcMain.handle(
+    'xyai:model-snapshot',
+    async (
+      _event,
+      payload?: { extraRoots?: unknown; mode?: unknown; fullDisk?: unknown },
+    ) => {
+      const extraRoots = Array.isArray(payload?.extraRoots)
+        ? payload.extraRoots.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+        : [];
+      const fullDisk = payload?.fullDisk === true || payload?.mode === 'full';
+      const mode =
+        payload?.mode === 'manual' || payload?.mode === 'full' || payload?.mode === 'common'
+          ? payload.mode
+          : fullDisk
+            ? 'full'
+            : extraRoots.length
+              ? 'manual'
+              : 'common';
+      let defaultModelId: string | undefined;
+      try {
+        defaultModelId = getHost().getSettings().modelId;
+      } catch {
+        defaultModelId = undefined;
+      }
+      return getModelHub().snapshot({ extraRoots, mode, defaultModelId });
+    },
+  );
+
+  ipcMain.handle('xyai:model-pick-scan-dir', async () => {
+    const win = BrowserWindow.getFocusedWindow() || mainWindow;
+    const opts = {
+      properties: ['openDirectory' as const],
+      title: '选择要扫描的模型目录',
+    };
+    const res = win
+      ? await dialog.showOpenDialog(win, opts)
+      : await dialog.showOpenDialog(opts);
+    if (res.canceled || !res.filePaths[0]) {
+      return { ok: false as const, path: '' };
+    }
+    return { ok: true as const, path: res.filePaths[0] };
   });
+
+  ipcMain.handle(
+    'xyai:model-register',
+    async (
+      _event,
+      payload: {
+        id?: unknown;
+        displayName?: unknown;
+        source?: unknown;
+        path?: unknown;
+      },
+    ) => {
+      return getModelHub().registerModel({
+        id: typeof payload?.id === 'string' ? payload.id : undefined,
+        displayName:
+          typeof payload?.displayName === 'string' ? payload.displayName : undefined,
+        source: typeof payload?.source === 'string' ? payload.source : undefined,
+        path: typeof payload?.path === 'string' ? payload.path : undefined,
+      });
+    },
+  );
+
+  ipcMain.handle(
+    'xyai:model-speed-test',
+    async (_event, payload: { modelRef?: unknown }) => {
+      const modelRef = typeof payload?.modelRef === 'string' ? payload.modelRef : '';
+      return getModelHub().speedTest(modelRef);
+    },
+  );
 
   ipcMain.handle('xyai:hardware-usage', async () => {
     return getModelHub().hardwareUsage();

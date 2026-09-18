@@ -200,7 +200,24 @@ export interface XyaiApi {
   sendMessage(content: string): Promise<{ ok: true }>;
   stopTurn?: () => Promise<{ ok: boolean }>;
   onEvent(callback: (event: XyaiAgentEvent) => void): () => void;
-  modelSnapshot(): Promise<any>;
+  modelSnapshot(input?: {
+    extraRoots?: string[];
+    mode?: 'common' | 'manual' | 'full';
+    fullDisk?: boolean;
+  }): Promise<any>;
+  pickModelScanDir?: () => Promise<{ ok: boolean; path: string }>;
+  registerModel?: (input: {
+    id?: string;
+    displayName?: string;
+    source?: string;
+    path?: string;
+  }) => Promise<{ ok: boolean; message: string }>;
+  speedTestModel?: (modelRef: string) => Promise<{
+    ok: boolean;
+    message: string;
+    tokensPerSec?: number;
+    elapsedMs?: number;
+  }>;
   hardwareUsage?(): Promise<{
     ramTotalMb: number;
     ramUsedMb: number;

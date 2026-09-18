@@ -19,15 +19,19 @@ Branch: `release/0.5`. This is a living audit of P0/P1 items found while fixing 
 | S10 | P2 | Windows icon cache may keep atom after reinstall | **Open** — user must delete old shortcut / `ie4uinit.exe -show` (documented in BRAND.md) |
 | S11 | P2 | OpenXYOS submodule is still a placeholder in this repo; live boot depends on a real checkout (`XYAI_OPENXYOS_ROOT`) | **Open** — do not invent a remote; follow `components/README.md` |
 | S12 | P2 | Cross-pack `rcedit` on Linux may be missing | **Open** — `afterPack` warns; run NSIS pack on Windows for shortcut proof |
+| S16 | P0 | Chat composer stopped accepting text (Windows). Hidden Electron `<webview>`s in 业务/浏览器 zones plus portaled model panel/`#view-models` could sit above `#input` | **Fixed** — inactive views/webviews `display:none` + `pointer-events:none`; `#input` isolated `no-drag`; pointerdown re-unlocks |
+| S17 | P0 | Local inventory used only Ollama `/api/tags` (3 tags) and first-wins discovery; FreeOS probe lists disk GGUF under common roots + user dirs (`E:\models`, `%USERPROFILE%\.dsh\xyai\models`, `360Downloads\Freework Models`) | **Fixed** — union API+CLI+manifests + capped disk weight scan (GGUF/GGML/HF, cap 40); scan bar 搜索本机模型 / 选择文件夹 / 全盘 |
+| S18 | P0 | Hub cards dropped 测速 / 注册 / 挂接 / 解挂 | **Fixed** — 注册 = GGUF `ollama create` or tag→registry; 测速 = `/api/generate`; 挂接/解挂 = set/clear default chat model |
 
 ## Verify (Windows, after reinstall)
 
 1. New NSIS Setup → desktop / taskbar / installer use the XYAI pinwheel (not atom).
-2. Stop Ollama → 模型 page shows 「启动 Ollama」; after start, tags list refreshes. 「全盘搜索」starts Ollama first.
+2. Stop Ollama → 模型 page shows 「启动 Ollama」; after start, tags list refreshes. 「搜索本机模型」starts Ollama and unions tags + disk GGUF (not only 3 `/api/tags`).
 3. Chat `ollama:qwen3:8b` with API down → start action, not `fetch failed`. Missing tag → refresh/pull, chip「未在本地列表」.
 4. 业务空间 timeout → error card includes child log / identity / CORS hint (multi-line), not only “55s 未就绪”.
 5. 模型 hardware：任意机器都有 RAM%；无独显/AMD 显示「暂无利用率数据」，不出现「请安装 CUDA」作为唯一路径。推荐随配置缩放。
 6. Pack gate (`apps/desktop/PACK-GATE.md`): no bare `createRequire(import.meta)` / `fileURLToPath(import.meta)` in main/preload/adapter-codex; `bundle-for-pack` → `pack-out/main.cjs`; `pnpm --filter desktop smoke`; win-unpacked stays up ≥5s before NSIS.
+7. 本机已有模型 shows disk GGUF (mmproj marked 非对话) plus Ollama tags; each row has 测速 / 注册 / 挂接 or 解挂. Composer on 对话 tab accepts typing after visiting 业务空间.
 
 ## Evidence
 

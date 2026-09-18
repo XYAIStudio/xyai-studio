@@ -178,16 +178,24 @@
             </div>
 
             <div id="models-pane-local" class="models-pane active" role="tabpanel">
-              <div class="models-toolbar">
-                <button id="btn-scan-models" type="button" class="capsule-btn">全盘搜索已下载模型</button>
+              <div class="models-toolbar models-scan-bar">
+                <span class="models-scan-hint" id="models-scan-hint">默认识别用户目录与常见模型根（含 DSH / XYAI / models）；可选目录或全盘</span>
+                <input type="text" id="models-scan-dir" class="models-scan-dir" placeholder="可选扫描目录" autocomplete="off" />
+                <button id="btn-pick-scan-dir" type="button" class="capsule-btn">选择文件夹</button>
+                <label class="models-scan-full check">
+                  <input type="checkbox" id="models-scan-full" />
+                  全盘
+                </label>
+                <button id="btn-scan-models" type="button" class="primary capsule-btn">搜索本机模型</button>
               </div>
               <div class="grid-2">
                 <div class="card">
-                  <h2>已下载 / 已注册</h2>
+                  <h2>本机已有模型</h2>
+                  <p class="hint">Ollama 标签 + 磁盘 GGUF/权重（不仅是 /api/tags）。mmproj 为投影器，不能当对话模型测速。</p>
                   <div id="installed-list" class="list"></div>
                 </div>
                 <div class="card">
-                  <h2>硬件推荐 + 一键下载</h2>
+                  <h2>适合这台电脑的推荐</h2>
                   <div id="rec-list" class="list"></div>
                 </div>
               </div>
