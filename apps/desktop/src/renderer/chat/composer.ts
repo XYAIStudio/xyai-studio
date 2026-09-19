@@ -23,6 +23,8 @@ export type ComposerApi = ComposerBusyApi & {
   focus: () => void;
   clear: () => void;
   getValue: () => string;
+  /** Insert text at the caret (or append) and focus. */
+  insertDraft: (text: string) => void;
 };
 
 const ICON_SEND =
@@ -132,5 +134,17 @@ export function createComposer(opts: {
       input.value = '';
     },
     getValue: () => input.value,
+    insertDraft: (text: string) => {
+      if (!text) return;
+      unlockInput();
+      const cur = input.value;
+      const start = input.selectionStart ?? cur.length;
+      const end = input.selectionEnd ?? cur.length;
+      input.value = cur.slice(0, start) + text + cur.slice(end);
+      const caret = start + text.length;
+      input.selectionStart = caret;
+      input.selectionEnd = caret;
+      input.focus();
+    },
   };
 }

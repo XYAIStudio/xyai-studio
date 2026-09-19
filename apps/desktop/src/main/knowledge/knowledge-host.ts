@@ -1,6 +1,7 @@
 /**
  * KnowledgeHost — mounts, parse queue, search, cloud list; persists to userData.
- * Source files are never written; index only under user-chosen indexRoot.
+ * Indexer writes only under the user-chosen indexRoot. Chat「保存至知识库」
+ * may add a markdown note under a local mount source (user-initiated ingest).
  */
 
 import path from 'node:path';
@@ -58,6 +59,7 @@ import {
   type KbPreviewResult,
 } from './kb-preview.js';
 import { registerKbPreviewSourceRoot } from './kb-preview-protocol.js';
+import { CHAT_NOTE_SUBDIR, writeChatNote } from './kb-save-note.js';
 
 export type KnowledgeHostEvents = {
   onParseProgress?: (job: ParseJobState) => void;
@@ -718,5 +720,38 @@ export class KnowledgeHost {
     limit?: number;
   }): Promise<{ citations: Citation[] }> {
     return this.search(input).then((r) => ({ citations: r.citations }));
+  }
+
+  /**
+   * Save a chat excerpt as markdown under a local KB source or a picked folder.
+   *
+   * @param input.kbId - Local mount id (writes `{sourceRoot}/对话摘录/`)
+   * @param input.destDir - Explicit folder (must sit inside the mount when kbId is set)
+   * @param input.filename - Basename ending in `.md`
+   * @param input.markdown - Note body
+   * @returns Absolute path on success
+   */
+  saveChatNote(input: {
+    kbId?: string;
+    destDir?: string;
+    filename: string;
+    markdown: string;
+  }): { ok: boolean; path?: string; message?: string } {
+    let destDir = (input.destDir || '').trim();
+    let allowedRoot: string | undefined;
+    if (input.kbId) {
+      const m = this.getMount(input.kbId);
+      if (!m || m.kind !== 'local' || !m.sourceRoot) {
+        return { ok: false, message: '请选择本机知识库后再保存' };
+      }
+      allowedRoot = m.sourceRoot;
+      if (!destDir) destDir = path.join(m.sourceRoot, CHAT_NOTE_SUBDIR);
+    }
+    return writeChatNote({
+      destDir,
+      filename: input.filename,
+      markdown: input.markdown,
+      allowedRoot,
+    });
   }
 }

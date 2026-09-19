@@ -10,7 +10,7 @@
 | **开发空间** | **AI智能助手**（agents） | 扁平列表，无组织/部门树；无岗位/角色 HR |
 | **业务空间 / openXYOS** | **AI员工 / 同事** | 仅推送到业务空间并完成组织分配后成为 AI 员工 |
 
-本阶段 **不做** 完整 AI 员工 HR / 多智能体编排运行时；创建会话 + 元数据绑定即可。
+本阶段 **不做** 完整 AI 员工 HR / 多智能体编排运行时；创建会话 + 元数据绑定即可。对话「发给智能体…」只打开目标智能体会话并写入派活草稿，不会在后台调度其它智能体。
 
 ## 侧栏 IA
 
@@ -51,7 +51,7 @@
 | `src/renderer/chat/agents.ts` | 默认智能体 |
 | `src/renderer/chat/agent-rail.ts` | 智能体列表 UI |
 | `src/renderer/chat/session-rail.ts` | Project→Task→Session 树 |
-| `src/renderer/chat/collab-modals.ts` | 项目/任务/安排工作弹窗 |
+| `src/renderer/chat/collab-modals.ts` | 项目/任务/安排工作弹窗、转发/保存/派活选择列表 |
 | `src/renderer/chat/collab-types.ts` | 渲染侧类型 |
 | `src/renderer/chat/index.ts` | 装配与绑定逻辑 |
 

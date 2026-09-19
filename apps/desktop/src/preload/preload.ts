@@ -379,6 +379,27 @@ const api = {
     model?: string | null;
   }> => ipcRenderer.invoke('xyai:kb-save-distill', { kbId, outDir }),
 
+  kbSaveNote: (input: {
+    kbId?: string;
+    destDir?: string;
+    filename: string;
+    markdown: string;
+  }): Promise<{ ok: boolean; path?: string; message?: string }> =>
+    ipcRenderer.invoke('xyai:kb-save-note', input),
+
+  clipboardWrite: (input: {
+    text: string;
+    html?: string;
+  }): Promise<{ ok: boolean; message?: string }> =>
+    ipcRenderer.invoke('xyai:clipboard-write', input),
+
+  chatListTargets: (): Promise<{
+    ok: boolean;
+    sessions: XyaiStatus['sessions'];
+    personalizeAgents: { id: string; name: string; hint?: string }[];
+    multiWindow: boolean;
+  }> => ipcRenderer.invoke('xyai:chat-list-targets'),
+
 
   kbPreviewFile: (input: {
     kbId: string;

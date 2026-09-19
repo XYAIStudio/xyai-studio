@@ -297,3 +297,142 @@ export function promptAssignWork(opts: {
     });
   });
 }
+
+export type ChoiceItem = { id: string; label: string; hint?: string };
+
+export type RadioOption = { value: string; label: string; checked?: boolean };
+
+/**
+ * Single-select list with optional radio group (forward scope, etc.).
+ *
+ * @param opts.title - Dialog title
+ * @param opts.items - Rows; empty list still shows hint + cancel
+ * @returns Selected id and radio value, or null if cancelled
+ */
+export function promptChoice(opts: {
+  title: string;
+  hint?: string;
+  items: ChoiceItem[];
+  confirmLabel?: string;
+  emptyText?: string;
+  radios?: { legend: string; options: RadioOption[] };
+}): Promise<{ id: string; radio?: string } | null> {
+  return new Promise((resolve) => {
+    const { body, footer, close } = openShell(opts.title);
+
+    if (opts.hint) {
+      const hint = document.createElement('p');
+      hint.className = 'collab-choice-hint';
+      hint.textContent = opts.hint;
+      body.appendChild(hint);
+    }
+
+    let radioName = '';
+    if (opts.radios && opts.radios.options.length) {
+      radioName = 'choice-radio-' + Math.random().toString(36).slice(2, 8);
+      const field = document.createElement('div');
+      field.className = 'collab-field';
+      const legend = document.createElement('span');
+      legend.textContent = opts.radios.legend;
+      field.appendChild(legend);
+      const row = document.createElement('div');
+      row.className = 'collab-kind-row';
+      for (const opt of opts.radios.options) {
+        const lab = document.createElement('label');
+        lab.className = 'collab-check';
+        const r = document.createElement('input');
+        r.type = 'radio';
+        r.name = radioName;
+        r.value = opt.value;
+        r.checked = Boolean(opt.checked);
+        lab.appendChild(r);
+        lab.appendChild(document.createTextNode(' ' + opt.label));
+        row.appendChild(lab);
+      }
+      field.appendChild(row);
+      body.appendChild(field);
+    }
+
+    const list = document.createElement('div');
+    list.className = 'collab-choice-list';
+    list.setAttribute('role', 'listbox');
+    if (!opts.items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'meta';
+      empty.textContent = opts.emptyText || '暂无选项';
+      list.appendChild(empty);
+    }
+    let selectedId = opts.items[0]?.id || '';
+    for (const item of opts.items) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className =
+        'collab-choice-item' + (item.id === selectedId ? ' selected' : '');
+      btn.dataset.id = item.id;
+      btn.setAttribute('role', 'option');
+      btn.setAttribute('aria-selected', item.id === selectedId ? 'true' : 'false');
+      const name = document.createElement('span');
+      name.className = 'collab-choice-label';
+      name.textContent = item.label;
+      btn.appendChild(name);
+      if (item.hint) {
+        const hint = document.createElement('span');
+        hint.className = 'collab-choice-item-hint';
+        hint.textContent = item.hint;
+        btn.appendChild(hint);
+      }
+      btn.addEventListener('click', () => {
+        selectedId = item.id;
+        list.querySelectorAll('.collab-choice-item').forEach((el) => {
+          const on = (el as HTMLElement).dataset.id === selectedId;
+          el.classList.toggle('selected', on);
+          el.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+      });
+      btn.addEventListener('dblclick', () => {
+        if (!selectedId) return;
+        const radio = radioName
+          ? (
+              body.querySelector(
+                `input[name="${radioName}"]:checked`,
+              ) as HTMLInputElement | null
+            )?.value
+          : undefined;
+        close();
+        resolve({ id: selectedId, radio });
+      });
+      list.appendChild(btn);
+    }
+    body.appendChild(list);
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'ghost-btn';
+    cancel.textContent = '取消';
+    const ok = document.createElement('button');
+    ok.type = 'button';
+    ok.className = 'primary';
+    ok.textContent = opts.confirmLabel || '确定';
+    footer.appendChild(cancel);
+    footer.appendChild(ok);
+
+    cancel.addEventListener('click', () => {
+      close();
+      resolve(null);
+    });
+    ok.addEventListener('click', () => {
+      if (!selectedId) {
+        return;
+      }
+      const radio = radioName
+        ? (
+            body.querySelector(
+              `input[name="${radioName}"]:checked`,
+            ) as HTMLInputElement | null
+          )?.value
+        : undefined;
+      close();
+      resolve({ id: selectedId, radio });
+    });
+  });
+}
