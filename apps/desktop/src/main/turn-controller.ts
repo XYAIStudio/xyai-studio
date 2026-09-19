@@ -129,11 +129,12 @@ export function resolveTurnRoute(
 }
 
 /**
- * Single send-time plan: intent + route + writable sandbox.
+ * Single send-time plan: text-only intent + route + accessMode sandbox.
+ * accessMode never changes capabilityNeed.
  */
 export function planTurn(input: PlanTurnInput): TurnPlan {
   const accessMode = input.accessMode ?? 'default';
-  const capabilityNeed = inferCapabilityNeed(input.userText, accessMode);
+  const capabilityNeed = inferCapabilityNeed(input.userText);
   const route = resolveTurnRoute(input.modelRef, {
     engineMode: input.engineMode,
     localModelViaHarness: input.localModelViaHarness,

@@ -1,7 +1,7 @@
 /**
- * Heuristic capability need from user text + access mode.
- * Create / write / install language forces the tools path so cloud and local
- * models go through the advanced engine instead of bare chat.
+ * Heuristic capability need from user text only.
+ * accessMode is unused here: it maps to sandbox strength in planTurn,
+ * and must never force tools (chitchat + 完全访问 stays on stream).
  */
 
 import type { AccessMode } from './settings.js';
@@ -39,14 +39,14 @@ const PLANNING_RE =
 
 /**
  * @param userText Latest user message
- * @param accessMode Composer permission chip; auto/full always need tools
+ * @param _accessMode Ignored. Kept so call sites can pass the chip; need is text-only.
  * @returns chat | tools | planning
  */
 export function inferCapabilityNeed(
   userText: string,
-  accessMode: AccessMode = 'default',
+  _accessMode?: AccessMode,
 ): CapabilityNeed {
-  if (accessMode === 'auto' || accessMode === 'full') return 'tools';
+  void _accessMode;
   const text = (userText || '').trim();
   if (!text) return 'chat';
   if (TOOLS_RE.test(text)) return 'tools';
@@ -63,7 +63,7 @@ export const CHAT_ONLY_NO_WRITE_SYSTEM =
   '你当前无法在用户电脑上创建或修改文件，也不能安装插件。请用文字说明做法，不要声称已经写入本地文件，也不要让用户复制 PowerShell。';
 
 export const CHAT_ONLY_NO_WRITE_TIP =
-  '当前是本机流式对话，创建/写入任务需要高级能力。已按文字说明继续，不会在本机生成文件。';
+  '当前无法在本机写文件或安装插件。已按文字说明继续，不会在本机生成文件。';
 
 export const HARNESS_PACKAGING_MESSAGE =
-  '高级能力组件未随安装包提供，无法在本机写文件或安装插件。这是安装包缺陷，不是路径配置问题。';
+  '本机写文件组件未随安装包提供。已改用文字说明继续，不会在本机生成文件。';

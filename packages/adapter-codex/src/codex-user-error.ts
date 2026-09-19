@@ -8,6 +8,7 @@ export const CODEX_ERROR_CODE = {
   SPAWN_ERROR: 'SPAWN_ERROR',
   ENOENT: 'ENOENT',
   MOCK_WITHOUT_FORCE: 'MOCK_WITHOUT_FORCE',
+  TIMEOUT: 'TIMEOUT',
 } as const;
 
 export type CodexErrorCode =
@@ -15,11 +16,12 @@ export type CodexErrorCode =
 
 const ZH: Record<CodexErrorCode, string> = {
   CODEX_BIN_MISSING:
-    '高级能力组件暂未就绪，已用本机模型继续流式回答。可稍后在设置中配置对话引擎路径。',
-  SPAWN_ERROR: '高级能力暂时无法启动，已改用本机模型继续回答。',
-  ENOENT: '未找到高级能力组件，已用本机模型继续回答。',
+    '写文件组件暂未就绪，已用本机模型继续流式回答。可稍后在设置中配置组件路径。',
+  SPAWN_ERROR: '暂时无法启动本机写文件，已改用本机模型继续回答。',
+  ENOENT: '未找到本机写文件组件，已用本机模型继续回答。',
   MOCK_WITHOUT_FORCE:
-    '高级能力组件暂未就绪，已用本机模型继续流式回答。可稍后在设置中配置对话引擎路径。',
+    '写文件组件暂未就绪，已用本机模型继续流式回答。可稍后在设置中配置组件路径。',
+  TIMEOUT: '这次操作时间过长，已改用本机对话继续。',
 };
 
 export interface CodexUserErrorPayload {
@@ -33,7 +35,8 @@ export function isCodexErrorCode(code: unknown): code is CodexErrorCode {
     code === CODEX_ERROR_CODE.BIN_MISSING ||
     code === CODEX_ERROR_CODE.SPAWN_ERROR ||
     code === CODEX_ERROR_CODE.ENOENT ||
-    code === CODEX_ERROR_CODE.MOCK_WITHOUT_FORCE
+    code === CODEX_ERROR_CODE.MOCK_WITHOUT_FORCE ||
+    code === CODEX_ERROR_CODE.TIMEOUT
   );
 }
 

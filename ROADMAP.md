@@ -38,5 +38,5 @@
 
 ## 本地 Ollama × Codex harness（P0）
 
-- **默认**：`engineMode: auto` → `ollama:*` 直连 `runOllamaTurn` 真流式；「高级本地引擎」才走 `codex exec --oss`（见 `LOCAL-HARNESS.md`）。
+- **默认**：`engineMode: auto` → `ollama:*` 直连 `runOllamaTurn` 真流式；仅设置「本机写文件」才连闲聊也走 `codex exec --oss`（见 `LOCAL-HARNESS.md`）。
 

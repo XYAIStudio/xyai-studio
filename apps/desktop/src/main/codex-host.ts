@@ -31,6 +31,7 @@ import {
   runCustomProviderTurn,
   runOllamaTurn,
   TurnAbortBag,
+  type TurnRoute,
 } from './turn-controller.js';
 import { customProviderCodexInjection } from './custom-provider-codex.js';
 import { installWorkspacePlugins } from './install-workspace-plugins.js';
@@ -41,9 +42,12 @@ import {
   workspaceToolPreamble,
 } from './studio-workspace.js';
 import {
+  classifyToolsFallback,
+  toolsFallbackPayload,
+} from './turn-fallback.js';
+import {
   CHAT_ONLY_NO_WRITE_SYSTEM,
   CHAT_ONLY_NO_WRITE_TIP,
-  HARNESS_PACKAGING_MESSAGE,
   isToolCapability,
 } from './turn-intent.js';
 import {
@@ -305,8 +309,11 @@ export class CodexHost {
     modelId: string;
     userText: string;
     honestyNoWrite: boolean;
+    omitUserAppend?: boolean;
   }): AsyncIterable<AgentEvent> {
-    this.appendHistory(opts.sessionId, 'user', opts.userText);
+    if (!opts.omitUserAppend) {
+      this.appendHistory(opts.sessionId, 'user', opts.userText);
+    }
     const messages = this.packForModel(opts.sessionId);
     if (opts.honestyNoWrite) {
       messages.unshift({
@@ -404,6 +411,75 @@ export class CodexHost {
       }
     } finally {
       this.aborts.clearOllama();
+    }
+  }
+
+  /**
+   * Continue a failed tools turn on the matching ollama / custom stream.
+   * No-op when the turn has no stream brain (plain cloud modelRef).
+   */
+  private async *fallbackBrainStream(opts: {
+    sessionId: string;
+    taskId: string;
+    userText: string;
+    route: TurnRoute;
+    honestyNoWrite: boolean;
+    omitUserAppend: boolean;
+  }): AsyncIterable<AgentEvent> {
+    if (opts.route.kind === 'custom') {
+      const provider = findCustomProvider(
+        this.settings.customProviders || [],
+        opts.route.providerId,
+      );
+      if (!provider) return;
+      yield* this.streamCustomProviderTurn({
+        sessionId: opts.sessionId,
+        taskId: opts.taskId,
+        provider,
+        modelId: opts.route.modelId,
+        userText: opts.userText,
+        honestyNoWrite: opts.honestyNoWrite,
+        omitUserAppend: opts.omitUserAppend,
+      });
+      return;
+    }
+    if (opts.route.kind === 'ollama') {
+      yield* this.streamLocalOllamaTurn({
+        sessionId: opts.sessionId,
+        taskId: opts.taskId,
+        model: opts.route.model,
+        userText: opts.userText,
+        honestyNoWrite: opts.honestyNoWrite,
+        omitUserAppend: opts.omitUserAppend,
+      });
+      return;
+    }
+    if (opts.route.kind === 'codex' && opts.route.customProviderId) {
+      const provider = findCustomProvider(
+        this.settings.customProviders || [],
+        opts.route.customProviderId,
+      );
+      if (!provider) return;
+      yield* this.streamCustomProviderTurn({
+        sessionId: opts.sessionId,
+        taskId: opts.taskId,
+        provider,
+        modelId: opts.route.modelId,
+        userText: opts.userText,
+        honestyNoWrite: opts.honestyNoWrite,
+        omitUserAppend: opts.omitUserAppend,
+      });
+      return;
+    }
+    if (opts.route.kind === 'codex' && opts.route.oss) {
+      yield* this.streamLocalOllamaTurn({
+        sessionId: opts.sessionId,
+        taskId: opts.taskId,
+        model: opts.route.modelId,
+        userText: opts.userText,
+        honestyNoWrite: opts.honestyNoWrite,
+        omitUserAppend: opts.omitUserAppend,
+      });
     }
   }
 
@@ -750,16 +826,26 @@ export class CodexHost {
 
       if (this.adapter.isMock && !this.settings.forceMock) {
         if (toolsNeed || route.customProviderId) {
+          const reason = classifyToolsFallback({
+            toolsNeed: true,
+            sawUseful: false,
+            packagingMissing: true,
+          });
           yield {
             type: 'error',
             timestamp: new Date().toISOString(),
             sessionId,
             taskId,
-            payload: {
-              message: HARNESS_PACKAGING_MESSAGE,
-              code: 'HARNESS_PACKAGING',
-            },
+            payload: toolsFallbackPayload(reason ?? 'packaging'),
           };
+          yield* this.fallbackBrainStream({
+            sessionId,
+            taskId,
+            userText: trimmed,
+            route,
+            honestyNoWrite: true,
+            omitUserAppend: false,
+          });
           return;
         }
         if (route.oss) {
@@ -844,58 +930,79 @@ export class CodexHost {
         content: prompt,
         modelId: route.modelId,
       })) {
-        if (
-          ev.type === 'error' &&
-          route.oss &&
-          !toolsNeed &&
-          !sawUseful &&
-          isHarnessUnavailablePayload(ev.payload)
-        ) {
-          yield ev;
-          fallback = true;
-          break;
-        }
-        if (ev.type === 'error' && toolsNeed && isHarnessUnavailablePayload(ev.payload)) {
-          yield {
-            type: 'error',
-            timestamp: new Date().toISOString(),
-            sessionId,
-            taskId,
-            payload: {
-              message: HARNESS_PACKAGING_MESSAGE,
-              code: 'HARNESS_PACKAGING',
-            },
-          };
-          return;
+        if (ev.type === 'error' && !sawUseful) {
+          const payload = (ev.payload || {}) as Record<string, unknown>;
+          const timedOut = payload.code === 'TIMEOUT';
+          const unavailable = isHarnessUnavailablePayload(ev.payload);
+          if (toolsNeed) {
+            const reason = classifyToolsFallback({
+              toolsNeed: true,
+              sawUseful: false,
+              timedOut,
+              unavailable,
+            });
+            yield {
+              type: 'error',
+              timestamp: new Date().toISOString(),
+              sessionId,
+              taskId,
+              payload: toolsFallbackPayload(reason ?? 'empty'),
+            };
+            fallback = true;
+            break;
+          }
+          if (route.oss && (unavailable || timedOut)) {
+            yield ev;
+            fallback = true;
+            break;
+          }
         }
         if (ev.type === 'message.delta') {
-          sawUseful = true;
           const p = (ev.payload || {}) as Record<string, unknown>;
           const piece =
             (typeof p.delta === 'string' && p.delta) ||
             (typeof p.text === 'string' && p.text) ||
             '';
-          if (piece) assistantText += piece;
+          if (piece) {
+            sawUseful = true;
+            assistantText += piece;
+          }
         }
         if (ev.type === 'message.completed') {
-          sawUseful = true;
           const p = (ev.payload || {}) as Record<string, unknown>;
           const finalText =
             (typeof p.text === 'string' && p.text.trim()) ||
             assistantText.trim();
           if (finalText) {
+            sawUseful = true;
             this.appendHistory(sessionId, 'assistant', finalText);
             this.rememberFromTurn(sessionId, trimmed, finalText);
           }
         }
         yield ev;
       }
-      if (fallback) {
-        yield* this.streamLocalOllamaTurn({
+      if (!fallback && toolsNeed && !sawUseful) {
+        yield {
+          type: 'error',
+          timestamp: new Date().toISOString(),
           sessionId,
           taskId,
-          model: route.modelId,
+          payload: toolsFallbackPayload('empty'),
+        };
+        fallback = true;
+      }
+      if (fallback) {
+        try {
+          this.adapter.abort(sessionId);
+        } catch {
+          /* abort is best-effort before stream fallback */
+        }
+        yield* this.fallbackBrainStream({
+          sessionId,
+          taskId,
           userText: trimmed,
+          route,
+          honestyNoWrite: toolsNeed,
           omitUserAppend: true,
         });
         return;
