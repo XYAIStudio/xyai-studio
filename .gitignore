@@ -31,3 +31,5 @@ apps/desktop/release/
 components/openxyos-pack/
 apps/desktop/dist/
 
+
+.scratch-kb-repro/
