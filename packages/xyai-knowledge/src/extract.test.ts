@@ -165,11 +165,16 @@ describe('docx extract (ZIP method 8 / Office OOXML)', () => {
     const file = path.join(dir, 'sample.docx');
     writeFileSync(
       file,
-      minimalDocx('授权管理制度第一条 为规范集团公司治理结构'),
+      minimalDocx(
+        '授权管理制度第一条 为规范集团公司治理结构，强化对子公司或者关联公司的统一管理，制订本制度。第二条 本制度所称授权包括基本授权和特别授权。',
+      ),
     );
     const res = extractTextFromFile(file);
     expect(res.text).toContain('授权管理制度');
     expect(res.text).toContain('集团公司');
+    expect(countMeaningfulChars(res.text)).toBeGreaterThanOrEqual(
+      PDF_MIN_MEANINGFUL_CHARS,
+    );
     expect(res.warn).toBeUndefined();
   });
 
