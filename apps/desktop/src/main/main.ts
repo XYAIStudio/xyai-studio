@@ -58,6 +58,10 @@ import {
 import { KnowledgeHost } from './knowledge/knowledge-host.js';
 import { registerKnowledgeIpc } from './knowledge/register-ipc.js';
 import {
+  configureKnowledgeTurn,
+  knowledgeTurnFromHost,
+} from './knowledge-turn.js';
+import {
   registerPersonalizeIpc,
   setPersonalizeUserDataDir,
 } from './personalize/register-ipc.js';
@@ -923,6 +927,7 @@ ipcMain.handle('xyai:status', () => {
   );
 
   registerKnowledgeIpc(getKnowledgeHost, () => mainWindow);
+  configureKnowledgeTurn(() => knowledgeTurnFromHost(getKnowledgeHost()));
   registerPersonalizeIpc();
 }
 
