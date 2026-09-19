@@ -8,6 +8,13 @@ describe('inferCapabilityNeed', () => {
     expect(inferCapabilityNeed('今天天气怎么样')).toBe('chat');
   });
 
+  it('ignores accessMode for capability — 你好 + full stays chat', () => {
+    expect(inferCapabilityNeed('你好', 'full')).toBe('chat');
+    expect(inferCapabilityNeed('你好', 'auto')).toBe('chat');
+    expect(inferCapabilityNeed('hello', 'full')).toBe('chat');
+    expect(inferCapabilityNeed('你好', 'default')).toBe('chat');
+  });
+
   it('forces tools for Chinese create/write/install language', () => {
     expect(inferCapabilityNeed('帮我创建一个插件')).toBe('tools');
     expect(inferCapabilityNeed('写一个技能到工作目录')).toBe('tools');
@@ -25,10 +32,9 @@ describe('inferCapabilityNeed', () => {
     expect(inferCapabilityNeed('add an MCP server')).toBe('tools');
   });
 
-  it('treats accessMode auto/full as tools even for chitchat', () => {
-    expect(inferCapabilityNeed('你好', 'auto')).toBe('tools');
-    expect(inferCapabilityNeed('hello', 'full')).toBe('tools');
-    expect(inferCapabilityNeed('你好', 'default')).toBe('chat');
+  it('create-plugin stays tools even under default access', () => {
+    expect(inferCapabilityNeed('帮我创建一个插件', 'default')).toBe('tools');
+    expect(inferCapabilityNeed('帮我创建一个插件', 'full')).toBe('tools');
   });
 
   it('marks planning phrases', () => {

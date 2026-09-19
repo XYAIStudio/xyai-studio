@@ -1,7 +1,7 @@
 /**
  * Claude harness adapter stub — implements AgentRuntime.
  * Not enabled in the default assembly profile. Settings may show
- * 「高级云端引擎」as coming soon; never a required brand wall.
+ * Settings may show 「云端写文件」as coming soon; never a required brand wall.
  */
 
 import type {

@@ -40,6 +40,11 @@ export function pickerRowHint(item: ModelOption): string {
   return item.hint || item.id.replace(/^ollama:/i, '');
 }
 
+/** Chip text: model name only. Never append engine / harness brands. */
+export function modelChipText(label: string, stale: boolean): string {
+  return stale ? `${label} · 未在本地列表` : label;
+}
+
 export function createModelPicker(opts: {
   chipBtn: HTMLButtonElement;
   chipLabel: HTMLElement;
@@ -229,19 +234,10 @@ export function createModelPicker(opts: {
     const stale =
       selectedId.startsWith('ollama:') &&
       !localListHas(selectedId, localModels);
-    const viaHarness =
-      selectedId.startsWith('ollama:') &&
-      (st.engineMode === 'codex-oss' || st.localModelViaHarness === true);
-    let chip = stale ? `${label} · 未在本地列表` : label;
-    if (viaHarness && !stale) {
-      chip = `${label} · 高级本地引擎`;
-    }
-    chipLabel.textContent = chip;
+    chipLabel.textContent = modelChipText(label, stale);
     chipBtn.title = stale
       ? `${selectedId}（请到「模型」页刷新或启动 Ollama 后再发送）`
-      : viaHarness
-        ? `${selectedId}（高级本地引擎）`
-        : selectedId || '';
+      : selectedId || '';
     if (open) {
       renderPanel(searchInput?.value || '');
       positionPanel();

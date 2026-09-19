@@ -219,6 +219,10 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
         code === 'HARNESS_SOFT_FALLBACK' ||
         code === 'HARNESS_STUB' ||
         code === 'CHAT_ONLY_NO_WRITE' ||
+        code === 'HARNESS_PACKAGING' ||
+        code === 'TOOLS_STREAM_FALLBACK' ||
+        code === 'TIMEOUT' ||
+        code === 'EMPTY_TURN' ||
         code === 'CODEX_BIN_MISSING' ||
         code === 'SPAWN_ERROR' ||
         code === 'ENOENT' ||

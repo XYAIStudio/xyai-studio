@@ -71,8 +71,8 @@ export function ensureStudioWorkspace(
 }
 
 /**
- * Map composer accessMode to Codex `-s` / `-a`.
- * default and auto are writable workspace, never prompt.
+ * Map composer accessMode to Codex `-s` / `-a` only.
+ * Never used to infer chat vs tools. default/auto = workspace-write.
  */
 export function accessModeToCodexSandbox(mode: AccessMode): CodexSandboxSpec {
   if (mode === 'full') {
