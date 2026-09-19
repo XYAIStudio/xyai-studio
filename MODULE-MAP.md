@@ -2,8 +2,9 @@
 
 | 路径 | 包名 | 职责 |
 |---|---|---|
-| `packages/xyai-contracts` | `@xyai/contracts` | 平台契约（session/task、agent-runtime、assembly…） |
+| `packages/xyai-contracts` | `@xyai/contracts` | 平台契约（session/task、SessionFacade、PermissionMode、AgentKind、TurnCapability、agent-runtime、assembly…） |
 | `packages/xyai-core` | `@xyai/core` | AssemblyGraph 加载/校验、SessionRegistry stub |
+| `packages/xyai-core-runtime` | `@xyai/core-runtime` | Core 连接层：RuntimeSession、文本能力推断、权限映射、停滞看门狗（见 [docs/XYAI-CORE.md](docs/XYAI-CORE.md)） |
 | `packages/adapter-codex` | `@xyai/adapter-codex` | **首个** Harness Adapter（真实 `codex exec --json` + MOCK 回退） |
 | `packages/xyos-bridge` | `@xyai/xyos-bridge` | OpenXYOS `healthCheck` 等宿主 API |
 | `packages/xyai-ui-shell` | `@xyai/ui-shell` | UI 壳占位（完整 UI 未落地） |

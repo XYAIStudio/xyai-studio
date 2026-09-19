@@ -4,7 +4,11 @@
  * and runs the Ollama stream with a shared abort bag.
  */
 
-import type { AgentEvent } from '@xyai/contracts';
+import type { AgentEvent, PermissionMode } from '@xyai/contracts';
+import {
+  accessModeToPermissionMode,
+  stallTimeoutForCapability,
+} from '@xyai/core-runtime';
 import {
   normalizeModelRef,
   parseCustomModelRef,
@@ -77,6 +81,9 @@ export interface PlanTurnInput {
 
 export interface TurnPlan {
   capabilityNeed: CapabilityNeed;
+  /** Approval policy only; never changes capabilityNeed. */
+  permissionMode: PermissionMode;
+  stallTimeoutMs: number;
   route: TurnRoute;
   sandbox: CodexSandboxSpec;
   cwd: string;
@@ -134,6 +141,7 @@ export function resolveTurnRoute(
  */
 export function planTurn(input: PlanTurnInput): TurnPlan {
   const accessMode = input.accessMode ?? 'default';
+  const permissionMode = accessModeToPermissionMode(accessMode);
   const capabilityNeed = inferCapabilityNeed(input.userText);
   const route = resolveTurnRoute(input.modelRef, {
     engineMode: input.engineMode,
@@ -149,6 +157,8 @@ export function planTurn(input: PlanTurnInput): TurnPlan {
     : studioPersonalizeDir();
   return {
     capabilityNeed,
+    permissionMode,
+    stallTimeoutMs: stallTimeoutForCapability(capabilityNeed),
     route,
     sandbox: accessModeToCodexSandbox(accessMode),
     cwd,

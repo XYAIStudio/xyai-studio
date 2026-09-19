@@ -1,4 +1,7 @@
-/** 高风险操作审批契约 */
+/**
+ * 高风险操作审批契约。
+ * Composer 审批政策见 {@link PermissionMode} — 它不是工具路由开关。
+ */
 
 export type ApprovalDecision = 'approved' | 'denied' | 'deferred';
 

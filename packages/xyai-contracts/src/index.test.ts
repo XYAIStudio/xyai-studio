@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { AssemblyProfile, AgentEvent, Session } from './index.js';
+import {
+  accessModeToPermissionMode,
+  permissionModeToAccessMode,
+  normalizeAccessMode,
+  normalizePermissionMode,
+  normalizeAgentKind,
+  isToolCapability,
+  type AssemblyProfile,
+  type AgentEvent,
+  type Session,
+} from './index.js';
 
 describe('@xyai/contracts', () => {
   it('AssemblyProfile shape is usable', () => {
@@ -41,5 +51,32 @@ describe('@xyai/contracts', () => {
       payload: { text: 'ok' },
     };
     expect(event.type).toBe('message.completed');
+  });
+
+  it('maps accessMode default/auto/full onto PermissionMode default/auto/bypass', () => {
+    expect(accessModeToPermissionMode('default')).toBe('default');
+    expect(accessModeToPermissionMode('auto')).toBe('auto');
+    expect(accessModeToPermissionMode('full')).toBe('bypass');
+  });
+
+  it('maps PermissionMode back onto the persisted chip', () => {
+    expect(permissionModeToAccessMode('default')).toBe('default');
+    expect(permissionModeToAccessMode('auto')).toBe('auto');
+    expect(permissionModeToAccessMode('bypass')).toBe('full');
+    expect(permissionModeToAccessMode('ask')).toBe('default');
+  });
+
+  it('normalizes unknown access and permission values to default', () => {
+    expect(normalizeAccessMode('nope')).toBe('default');
+    expect(normalizePermissionMode('bypassPermissions')).toBe('default');
+    expect(normalizePermissionMode('bypass')).toBe('bypass');
+    expect(normalizeAgentKind('pi')).toBe('codex');
+    expect(normalizeAgentKind('dsh')).toBe('dsh');
+  });
+
+  it('treats planning as a tool capability and chat as not', () => {
+    expect(isToolCapability('planning')).toBe(true);
+    expect(isToolCapability('tools')).toBe(true);
+    expect(isToolCapability('chat')).toBe(false);
   });
 });
