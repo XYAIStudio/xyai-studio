@@ -84,6 +84,19 @@ export function ensureStudioWorkspace(
 }
 
 /**
+ * Resolve the writable cwd for a turn from a project's cwd field.
+ * Empty / whitespace → Studio default workspace (ensureStudioWorkspace).
+ */
+export function effectiveCwd(
+  projectCwd: string | null | undefined,
+  userData: string = getWorkspaceUserDataDir(),
+): string {
+  const trimmed = (projectCwd ?? '').trim();
+  if (trimmed) return trimmed;
+  return ensureStudioWorkspace(userData);
+}
+
+/**
  * Map Core PermissionMode to Codex `-s` / `-a` only.
  * Never used to infer chat vs tools. default/auto = workspace-write;
  * bypass = danger-full-access; ask = workspace-write + on-request.

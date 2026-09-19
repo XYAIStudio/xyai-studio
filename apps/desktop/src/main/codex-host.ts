@@ -41,11 +41,15 @@ import {
 } from './custom-provider-codex.js';
 import { installWorkspacePlugins } from './install-workspace-plugins.js';
 import {
-  ensureStudioWorkspace,
+  effectiveCwd,
   getWorkspaceUserDataDir,
   setWorkspaceUserDataDir,
   workspaceToolPreamble,
 } from './studio-workspace.js';
+import {
+  DEFAULT_PROJECT_ID,
+  loadCollabState,
+} from './collab-store.js';
 import {
   classifyToolsFallback,
   shouldShowWriteFallbackTip,
@@ -128,6 +132,16 @@ export function configureChatPersistence(userDataDir: string): void {
   setWorkspaceUserDataDir(userDataDir);
 }
 
+/** Resolve CollabProject.cwd for a chat session (empty → studio workspace). */
+export function resolveSessionProjectCwd(sessionId: string): string {
+  const state = loadCollabState();
+  const meta = state.sessions.find((s) => s.sessionId === sessionId);
+  const projectId = meta?.projectId || DEFAULT_PROJECT_ID;
+  const project = state.projects.find((x) => x.id === projectId);
+  return effectiveCwd(project?.cwd ?? '');
+}
+
+
 export class CodexHost {
   private readonly registry = new SessionRegistry();
   private adapter: CodexAdapter;
@@ -186,7 +200,7 @@ export class CodexHost {
 
   private startSessionOpts(sessionId: string) {
     const route = this.resolveRoute();
-    const cwd = ensureStudioWorkspace();
+    const cwd = resolveSessionProjectCwd(sessionId);
     if (route.kind === 'codex') {
       return {
         sessionId,
@@ -735,6 +749,11 @@ export class CodexHost {
 
 
       const outbound = await maybeAttachKnowledgeContext(trimmed);
+      const collab = loadCollabState();
+      const sessMeta = collab.sessions.find((s) => s.sessionId === sessionId);
+      const project = collab.projects.find(
+        (x) => x.id === (sessMeta?.projectId || DEFAULT_PROJECT_ID),
+      );
       const plan = planTurn({
         modelRef: this.modelRef,
         userText: trimmed,
@@ -742,6 +761,7 @@ export class CodexHost {
         localModelViaHarness: this.settings.localModelViaHarness === true,
         accessMode: this.settings.accessMode,
         userDataDir: getWorkspaceUserDataDir(),
+        projectCwd: project?.cwd ?? '',
         customProviders: this.settings.customProviders || [],
       });
       const { route, capabilityNeed, gateway } = plan;

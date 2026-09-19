@@ -158,4 +158,27 @@ describe('planTurn', () => {
     expect(plan.gateway.gap).toBe('anthropic-messages');
     expect(plan.route.kind).toBe('custom');
   });
+
+  it('projectCwd overrides studio workspace; empty falls back', () => {
+    tmp = mkdtempSync(path.join(os.tmpdir(), 'xyai-plan-'));
+    const custom = path.join(tmp, 'repo');
+    const withCwd = planTurn({
+      modelRef: 'ollama:qwen',
+      userText: '你好',
+      engineMode: 'auto',
+      userDataDir: tmp,
+      projectCwd: custom,
+    });
+    expect(withCwd.cwd).toBe(custom);
+    expect(withCwd.addDirs).toEqual([path.join(tmp, 'personalize')]);
+
+    const empty = planTurn({
+      modelRef: 'ollama:qwen',
+      userText: '你好',
+      engineMode: 'auto',
+      userDataDir: tmp,
+      projectCwd: '  ',
+    });
+    expect(empty.cwd).toBe(path.join(tmp, 'workspace'));
+  });
 });

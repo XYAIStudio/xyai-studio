@@ -22,6 +22,10 @@ import {
   promptTask,
 } from './collab-modals.js';
 import { createAccessModeControl } from './access-mode.js';
+import {
+  createProjectChip,
+  pickTaskForProject,
+} from './project-chip.js';
 import { createComposer } from './composer.js';
 import { createHistoryNavRail } from './history-nav-rail.js';
 import { createModelPicker } from './model-picker.js';
@@ -165,6 +169,7 @@ export function mountChat(): ChatMount {
   ) as HTMLInputElement | null;
   const attachBtn = requireEl<HTMLButtonElement>('btn-attach');
   const accessChipBtn = requireEl<HTMLButtonElement>('access-chip');
+  const projectChipBtn = requireEl<HTMLButtonElement>('project-chip');
   const attachChipsEl = requireEl<HTMLElement>('attach-chips');
 
   const transcript = createTranscript(transcriptEl);
@@ -229,6 +234,30 @@ export function mountChat(): ChatMount {
   let collab: CollabRailState = emptyCollabState();
   let selectedProjectId = DEFAULT_PROJECT_ID;
   let selectedTaskId = DEFAULT_TASK_ID;
+
+  let studioWorkspacePath = '';
+  async function refreshStudioWorkspacePath(): Promise<string> {
+    if (studioWorkspacePath) return studioWorkspacePath;
+    try {
+      const res = await window.xyai.studioWorkspacePath?.();
+      if (res?.path) studioWorkspacePath = res.path;
+    } catch {
+      /* ignore */
+    }
+    return studioWorkspacePath;
+  }
+  function syncProjectChip(): void {
+    projectChip.sync(collab, selectedProjectId, studioWorkspacePath);
+  }
+  const projectChip = createProjectChip({
+    chipBtn: projectChipBtn,
+    handlers: {
+      onEditProject: (id) => void onEditProject(id),
+      onSelectProject: (id) => void bindSessionProject(id),
+      onNewProject: () => void onNewProjectAndBind(),
+    },
+  });
+
   /** sessionId -> opened attachment paths */
   const sessionFiles = new Map<string, OpenedFile[]>();
   let pendingAttach: OpenedFile[] = [];
@@ -336,6 +365,8 @@ export function mountChat(): ChatMount {
     renderRails(status);
     composer.setBusy(Boolean(status.isSending));
     await accessMode.syncFromSettings();
+    await refreshStudioWorkspacePath();
+    syncProjectChip();
   }
 
   async function adoptOrphans(status: XyaiStatus): Promise<void> {
@@ -468,6 +499,7 @@ export function mountChat(): ChatMount {
     const created = collab.projects[collab.projects.length - 1];
     if (created) selectedProjectId = created.id;
     setRailTab('sessions');
+    syncProjectChip();
     if (lastStatus) renderRails(lastStatus);
     else await refreshFromStatus();
   }
@@ -487,7 +519,35 @@ export function mountChat(): ChatMount {
       name: form.name,
       cwd: form.cwd,
     })) as CollabRailState;
+    syncProjectChip();
     if (lastStatus) renderRails(lastStatus);
+  }
+
+  async function bindSessionProject(projectId: string): Promise<void> {
+    selectedProjectId = projectId;
+    selectedTaskId = pickTaskForProject(collab, projectId);
+    const activeId = lastStatus?.activeSessionId;
+    if (activeId && window.xyai.collabSessionUpsert) {
+      const meta = collab.sessions.find((s) => s.sessionId === activeId);
+      collab = (await window.xyai.collabSessionUpsert({
+        sessionId: activeId,
+        kind: meta?.kind || 'dm',
+        projectId,
+        taskId: selectedTaskId,
+        agentIds:
+          meta?.agentIds?.length
+            ? meta.agentIds
+            : [getSelectedAgentId() || DEFAULT_AGENT.id],
+        title: meta?.title,
+      })) as CollabRailState;
+    }
+    syncProjectChip();
+    if (lastStatus) renderRails(lastStatus);
+  }
+
+  async function onNewProjectAndBind(): Promise<void> {
+    await onNewProject();
+    if (selectedProjectId) await bindSessionProject(selectedProjectId);
   }
 
   async function onNewTask(projectId: string): Promise<void> {
