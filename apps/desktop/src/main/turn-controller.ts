@@ -25,13 +25,32 @@ import {
 import { streamOpenAiChatCompletions } from './openai-compat.js';
 import type { CustomProvider } from './custom-providers.js';
 
+export type CodexLocalProvider = 'ollama' | 'lmstudio';
+
 export type TurnRoute =
   | { kind: 'ollama'; model: string }
-  | { kind: 'codex'; modelId: string }
+  | {
+      kind: 'codex';
+      modelId: string;
+      /** Local OSS inference via `codex exec --oss`. */
+      oss?: boolean;
+      localProvider?: CodexLocalProvider;
+    }
   | { kind: 'custom'; providerId: string; modelId: string };
 
+export interface ResolveTurnRouteOptions {
+  /**
+   * When true (default), `ollama:*` routes through Codex OSS harness.
+   * When false, keep Phase A direct `runOllamaTurn` chat stream.
+   */
+  localModelViaHarness?: boolean;
+}
+
 /** Resolve send route from a modelRef (settings.modelId may hold modelRef). */
-export function resolveTurnRoute(modelRef: string): TurnRoute {
+export function resolveTurnRoute(
+  modelRef: string,
+  opts: ResolveTurnRouteOptions = {},
+): TurnRoute {
   const ref = normalizeModelRef(modelRef);
   const custom = parseCustomModelRef(ref);
   if (custom) {
@@ -42,7 +61,18 @@ export function resolveTurnRoute(modelRef: string): TurnRoute {
     };
   }
   const ollama = toOllamaModelName(ref);
-  if (ollama) return { kind: 'ollama', model: ollama };
+  if (ollama) {
+    const viaHarness = opts.localModelViaHarness !== false;
+    if (viaHarness) {
+      return {
+        kind: 'codex',
+        modelId: ollama,
+        oss: true,
+        localProvider: 'ollama',
+      };
+    }
+    return { kind: 'ollama', model: ollama };
+  }
   return { kind: 'codex', modelId: toCodexModelId(ref) };
 }
 

@@ -35,3 +35,8 @@
 
 按 `CHAT-ARCHITECTURE.md`：**A ✅ → B ✅ → C ✅ → D 打包门禁 → E 后置能力**。
 禁止跳过阶段硬堆 UI。详见 `apps/desktop/PHASE-C-DONE.md`。
+
+## 本地 Ollama × Codex harness（P0）
+
+- **默认**：`ollama:*` → `codex exec --oss`（见 `LOCAL-HARNESS.md`）；Phase A 直连 `runOllamaTurn` 仅作设置逃生舱（`localModelViaHarness: false`）。
+

@@ -146,10 +146,18 @@ describe('Phase A model-catalog-facade', () => {
 });
 
 describe('Phase A turn route', () => {
-  it('routes ollama:* to ollama and else to codex', () => {
+  it('routes ollama:* via Codex OSS harness by default', () => {
     expect(resolveTurnRoute('ollama:qwen')).toEqual({
-      kind: 'ollama',
-      model: 'qwen',
+      kind: 'codex',
+      modelId: 'qwen',
+      oss: true,
+      localProvider: 'ollama',
+    });
+    expect(resolveTurnRoute('ollama:qwen3:8b')).toEqual({
+      kind: 'codex',
+      modelId: 'qwen3:8b',
+      oss: true,
+      localProvider: 'ollama',
     });
     expect(resolveTurnRoute('codex:gpt-5')).toEqual({
       kind: 'codex',
@@ -160,4 +168,26 @@ describe('Phase A turn route', () => {
       modelId: 'gpt-5',
     });
   });
+
+  it('keeps direct ollama stream when localModelViaHarness is false', () => {
+    expect(
+      resolveTurnRoute('ollama:qwen', { localModelViaHarness: false }),
+    ).toEqual({
+      kind: 'ollama',
+      model: 'qwen',
+    });
+  });
 });
+
+describe('localModelViaHarness setting', () => {
+  it('defaults to true and only explicit false opts out', () => {
+    expect(normalizeSettings({}).localModelViaHarness).toBe(true);
+    expect(normalizeSettings({ localModelViaHarness: false }).localModelViaHarness).toBe(
+      false,
+    );
+    expect(normalizeSettings({ localModelViaHarness: true }).localModelViaHarness).toBe(
+      true,
+    );
+  });
+});
+

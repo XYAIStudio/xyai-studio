@@ -38,9 +38,45 @@ export interface CodexAdapterOptions {
   sandbox?: string;
 }
 
+export type CodexLocalProvider = 'ollama' | 'lmstudio';
+
 interface SessionState {
   cwd?: string;
   modelId?: string;
+  oss?: boolean;
+  localProvider?: CodexLocalProvider;
+}
+
+/** Pure argv builder for `codex exec` (testable without spawn). */
+export function buildCodexExecArgs(opts: {
+  sandbox: string;
+  cwd: string;
+  content: string;
+  modelId?: string;
+  oss?: boolean;
+  localProvider?: CodexLocalProvider;
+}): string[] {
+  const args = [
+    'exec',
+    '--json',
+    '--ephemeral',
+    '--skip-git-repo-check',
+    '-s',
+    opts.sandbox,
+    '-C',
+    opts.cwd,
+  ];
+  if (opts.oss) {
+    args.push('--oss');
+    if (opts.localProvider) {
+      args.push('--local-provider', opts.localProvider);
+    }
+  }
+  if (opts.modelId) {
+    args.push('-m', opts.modelId);
+  }
+  args.push(opts.content);
+  return args;
 }
 
 function envWantsMock(): boolean {
@@ -92,6 +128,8 @@ export class CodexAdapter implements AgentRuntime {
     this.active.set(options.sessionId, {
       cwd: options.cwd,
       modelId: options.modelId,
+      oss: options.oss === true,
+      localProvider: options.localProvider,
     });
   }
 
@@ -206,23 +244,17 @@ export class CodexAdapter implements AgentRuntime {
     const session = this.active.get(sessionId);
     const cwd = session?.cwd || this.options.cwd || process.cwd();
     const sandbox = this.options.sandbox ?? 'read-only';
-    const modelId = session?.modelId;
+    const modelId = options.modelId || session?.modelId;
 
     // IMPORTANT: prompt is ONE argv token; do not join args into a single string.
-    const args = [
-      'exec',
-      '--json',
-      '--ephemeral',
-      '--skip-git-repo-check',
-      '-s',
+    const args = buildCodexExecArgs({
       sandbox,
-      '-C',
       cwd,
-    ];
-    if (modelId) {
-      args.push('-m', modelId);
-    }
-    args.push(content);
+      content,
+      modelId,
+      oss: session?.oss === true,
+      localProvider: session?.localProvider,
+    });
 
     const ctx: ParseCodexJsonlContext = {
       sessionId,

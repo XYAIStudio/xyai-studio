@@ -1,6 +1,7 @@
 export {
   CodexAdapter,
   createCodexAdapter,
+  buildCodexExecArgs,
   MOCK_MARKER,
   resolveCodexBinary,
   parseCodexJsonlLine,
@@ -8,6 +9,7 @@ export {
 } from './codex-adapter.js';
 export type {
   CodexAdapterOptions,
+  CodexLocalProvider,
   ResolveCodexBinaryResult,
   CodexBinarySource,
 } from './codex-adapter.js';

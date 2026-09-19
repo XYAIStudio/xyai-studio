@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createCodexAdapter, MOCK_MARKER } from './codex-adapter.js';
+import {
+  buildCodexExecArgs,
+  createCodexAdapter,
+  MOCK_MARKER,
+} from './codex-adapter.js';
 
 describe('@xyai/adapter-codex mock', () => {
   it('returns deterministic mock event stream for one turn', async () => {
@@ -30,5 +34,58 @@ describe('@xyai/adapter-codex mock', () => {
     );
 
     await adapter.stop('s1');
+  });
+});
+
+describe('buildCodexExecArgs', () => {
+  it('builds cloud/codex argv without oss flags', () => {
+    expect(
+      buildCodexExecArgs({
+        sandbox: 'read-only',
+        cwd: '/tmp/ws',
+        content: 'hello',
+        modelId: 'gpt-5',
+      }),
+    ).toEqual([
+      'exec',
+      '--json',
+      '--ephemeral',
+      '--skip-git-repo-check',
+      '-s',
+      'read-only',
+      '-C',
+      '/tmp/ws',
+      '-m',
+      'gpt-5',
+      'hello',
+    ]);
+  });
+
+  it('adds --oss and --local-provider before -m for Ollama', () => {
+    expect(
+      buildCodexExecArgs({
+        sandbox: 'workspace-write',
+        cwd: 'E:\\proj',
+        content: 'fix bug',
+        modelId: 'qwen3:8b',
+        oss: true,
+        localProvider: 'ollama',
+      }),
+    ).toEqual([
+      'exec',
+      '--json',
+      '--ephemeral',
+      '--skip-git-repo-check',
+      '-s',
+      'workspace-write',
+      '-C',
+      'E:\\proj',
+      '--oss',
+      '--local-provider',
+      'ollama',
+      '-m',
+      'qwen3:8b',
+      'fix bug',
+    ]);
   });
 });

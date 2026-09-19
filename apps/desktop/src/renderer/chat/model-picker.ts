@@ -229,10 +229,18 @@ export function createModelPicker(opts: {
     const stale =
       selectedId.startsWith('ollama:') &&
       !localListHas(selectedId, localModels);
-    chipLabel.textContent = stale ? `${label} · 未在本地列表` : label;
+    const viaHarness =
+      selectedId.startsWith('ollama:') && st.localModelViaHarness !== false;
+    let chip = stale ? `${label} · 未在本地列表` : label;
+    if (viaHarness && !stale) {
+      chip = `${label} · Codex · 本地 Ollama`;
+    }
+    chipLabel.textContent = chip;
     chipBtn.title = stale
       ? `${selectedId}（请到「模型」页刷新或启动 Ollama 后再发送）`
-      : selectedId || '';
+      : viaHarness
+        ? `${selectedId}（Codex harness · --oss）`
+        : selectedId || '';
     if (open) {
       renderPanel(searchInput?.value || '');
       positionPanel();

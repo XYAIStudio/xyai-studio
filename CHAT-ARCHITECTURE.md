@@ -88,8 +88,10 @@ Cindy 明确行为（首期必须对齐）：
 **modelRef**（会话当前模型，统一 ID）：
 
 - `codex:<modelId>` — 走 `adapter-codex`
-- `ollama:<name>` — 走 model-hub 本地流式
+- `ollama:<name>` — **默认**走 Codex OSS harness（`codex exec --oss --local-provider ollama`）；仅当设置 `localModelViaHarness: false` 时退回 model-hub 直连流式（Phase A bypass，逃生舱）
 - 后续：`claude:…` / `cloud:openai:…` 等，仍只扩展解析表，不改 UI 合同
+
+> 详见仓库根目录 `LOCAL-HARNESS.md`（推理机 vs 大脑）。
 
 **Session**：
 
@@ -106,7 +108,7 @@ Cindy 明确行为（首期必须对齐）：
 | 模块 | 位置（目标） | 职责 |
 |---|---|---|
 | `SessionStore` | `packages/xyai-core` 或 `apps/desktop/src/main/session-store.ts` | 会话 CRUD、当前会话、标题 |
-| `TurnController` | `apps/desktop/src/main/turn-controller.ts`（由 CodexHost 演进） | 按 modelRef 路由 Codex / Ollama；abort |
+| `TurnController` | `apps/desktop/src/main/turn-controller.ts`（由 CodexHost 演进） | 按 modelRef 路由 Codex / Codex-OSS / Ollama 直连 / custom；abort |
 | `ModelCatalogFacade` | main：聚合 DEFAULT_MODELS + model-hub.installed + 已启用 cloud | 给 Picker 的统一列表 |
 | `Composer` | `apps/desktop/src/renderer/chat/composer.ts` | 输入、发送/停止、IME、焦点 |
 | `ModelPicker` | `apps/desktop/src/renderer/chat/model-picker.ts` | 对标 Cindy：分组（本地 / Codex）、搜索、当前 chip |

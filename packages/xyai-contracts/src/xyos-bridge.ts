@@ -15,7 +15,11 @@ export interface XyosBridge {
 export type InteropAssetKind =
   | 'agent'
   | 'knowledge-mount'
-  | 'model-provider';
+  | 'model-provider'
+  | 'skill'
+  | 'plugin'
+  | 'mcp'
+  | 'connector';
 
 export type InteropDirection = 'dev-to-biz' | 'biz-to-dev';
 
@@ -26,7 +30,7 @@ export interface InteropAsset {
   kind: InteropAssetKind;
   name: string;
   description?: string;
-  /** Opaque package payload (agent meta, mount snapshot, provider meta). */
+  /** Opaque package payload (agent meta, mount snapshot, provider meta, personalize manifest). */
   payload: Record<string, unknown>;
   direction: InteropDirection;
   status: InteropAssetStatus;
@@ -46,4 +50,23 @@ export interface XyosInteropBridge {
   registerInDev(assetId: string): Promise<InteropAsset>;
   installIncoming(assetId: string): Promise<InteropAsset>;
   selectAsset(assetId: string, space: 'dev' | 'biz'): Promise<InteropAsset>;
+}
+
+/** Personalize kinds that sync via /api/xyai/personalize (+ file bridge). */
+export const INTEROP_PERSONALIZE_KINDS: readonly InteropAssetKind[] = [
+  'skill',
+  'plugin',
+  'mcp',
+  'connector',
+] as const;
+
+export function isInteropPersonalizeKind(
+  kind: string,
+): kind is 'skill' | 'plugin' | 'mcp' | 'connector' {
+  return (
+    kind === 'skill' ||
+    kind === 'plugin' ||
+    kind === 'mcp' ||
+    kind === 'connector'
+  );
 }

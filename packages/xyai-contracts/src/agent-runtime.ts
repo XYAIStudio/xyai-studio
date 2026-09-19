@@ -25,6 +25,10 @@ export interface StartSessionOptions {
   harnessId: string;
   modelId?: string;
   cwd?: string;
+  /** When true, Codex uses local OSS provider (`codex exec --oss`). */
+  oss?: boolean;
+  /** Local inference provider for OSS mode (Ollama / LM Studio). */
+  localProvider?: 'ollama' | 'lmstudio';
 }
 
 export interface SendMessageOptions {

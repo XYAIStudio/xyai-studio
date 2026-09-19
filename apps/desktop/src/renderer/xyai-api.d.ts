@@ -18,6 +18,7 @@ export interface XyaiStatus {
   /** Current modelRef (e.g. codex:gpt-5 / ollama:qwen2.5). */
   modelId?: string;
   forceMock?: boolean;
+  localModelViaHarness?: boolean;
   models?: { id: string; label: string; hint?: string }[];
   localModels?: { id: string; label: string; hint?: string }[];
   activeSessionId?: string;
@@ -29,6 +30,8 @@ export interface XyaiStatus {
   }[];
   isSending?: boolean;
   accessMode?: AccessMode;
+  /** Default true: ollama:* via Codex --oss. */
+  localModelViaHarness?: boolean;
 }
 
 export type AccessMode = 'default' | 'auto' | 'full';
@@ -41,6 +44,8 @@ export interface XyaiSettings {
   cloudProviders: CloudProvidersSettings;
   customProviders?: import('./types-custom-provider.js').CustomProvider[];
   accessMode?: AccessMode;
+  /** Default true: ollama:* via Codex --oss. */
+  localModelViaHarness?: boolean;
 }
 
 export interface XyaiAgentEvent {
@@ -153,7 +158,11 @@ export type KbParseableFile = {
 export type InteropAssetKind =
   | 'agent'
   | 'knowledge-mount'
-  | 'model-provider';
+  | 'model-provider'
+  | 'skill'
+  | 'plugin'
+  | 'mcp'
+  | 'connector';
 
 export type InteropAsset = {
   id: string;
@@ -402,6 +411,7 @@ export interface XyaiApi {
   interopListInstalledBiz?: () => Promise<InteropAsset[]>;
   interopListInstalledDev?: () => Promise<InteropAsset[]>;
   interopPushToBiz?: (input: {
+    id?: string;
     kind: InteropAssetKind;
     name: string;
     description?: string;

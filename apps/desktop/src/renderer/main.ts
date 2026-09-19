@@ -40,6 +40,9 @@ const settingsModel = document.getElementById('settings-model') as HTMLSelectEle
 const settingsForceMock = document.getElementById(
   'settings-force-mock',
 ) as HTMLInputElement;
+const settingsLocalHarness = document.getElementById(
+  'settings-local-harness',
+) as HTMLInputElement;
 const settingsCodexBin = document.getElementById(
   'settings-codex-bin',
 ) as HTMLInputElement;
@@ -860,6 +863,9 @@ async function loadSettingsForms(chatFill?: typeof fillModelSelect): Promise<voi
   (chatFill || fillModelSelect)(settingsModel, status);
   settingsCodexBin.value = settings.codexBin || '';
   settingsForceMock.checked = Boolean(settings.forceMock);
+  if (settingsLocalHarness) {
+    settingsLocalHarness.checked = settings.localModelViaHarness !== false;
+  }
   renderCloudForm(settings.cloudProviders);
   renderCustomProviders(settings.customProviders || []);
 }
@@ -1207,6 +1213,9 @@ async function boot(): Promise<void> {
         modelId: settingsModel.value,
         forceMock: settingsForceMock.checked,
         codexBin: settingsCodexBin.value,
+        localModelViaHarness: settingsLocalHarness
+          ? settingsLocalHarness.checked
+          : true,
       });
       await chat.refreshFromStatus();
       const st = await window.xyai.getStatus();

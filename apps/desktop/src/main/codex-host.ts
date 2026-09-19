@@ -26,6 +26,11 @@ import {
 } from './turn-controller.js';
 import type { OllamaChatMessage } from '@xyai/model-hub';
 import {
+  ensureOllamaRunning,
+  OLLAMA_NOT_RUNNING_CODE,
+  OLLAMA_NOT_RUNNING_MESSAGE,
+} from '@xyai/model-hub';
+import {
   DEFAULT_MODELS,
   loadSettings,
   saveSettings,
@@ -56,6 +61,8 @@ export interface CodexHostStatus {
   modelId: string;
   forceMock: boolean;
   codexBin: string;
+  /** Default true: ollama:* via Codex --oss. */
+  localModelViaHarness: boolean;
   models: { id: string; label: string; hint?: string }[];
   localModels: { id: string; label: string; hint?: string }[];
   cloudProviders: XyaiSettings['cloudProviders'];
@@ -104,9 +111,30 @@ export class CodexHost {
     });
   }
 
-  private codexModelId(): string {
-    const route = resolveTurnRoute(this.modelRef);
-    return route.kind === 'codex' ? route.modelId : toFallbackCodexId();
+  private routeOpts() {
+    return { localModelViaHarness: this.settings.localModelViaHarness !== false };
+  }
+
+  private resolveRoute() {
+    return resolveTurnRoute(this.modelRef, this.routeOpts());
+  }
+
+  private startSessionOpts(sessionId: string) {
+    const route = this.resolveRoute();
+    if (route.kind === 'codex') {
+      return {
+        sessionId,
+        harnessId: 'codex' as const,
+        modelId: route.modelId,
+        oss: route.oss === true,
+        localProvider: route.localProvider,
+      };
+    }
+    return {
+      sessionId,
+      harnessId: 'codex' as const,
+      modelId: toFallbackCodexId(),
+    };
   }
 
   /** Rebuild adapter when forceMock / codexBin change. */
@@ -132,11 +160,7 @@ export class CodexHost {
       void this.adapter.abort();
       this.adapter = this.buildAdapter();
       for (const s of this.registry.list()) {
-        void this.adapter.start({
-          sessionId: s.id,
-          harnessId: 'codex',
-          modelId: this.codexModelId(),
-        });
+        void this.adapter.start(this.startSessionOpts(s.id));
       }
     }
     return this.settings;
@@ -219,11 +243,7 @@ export class CodexHost {
       harnessId: 'codex',
       modelRef: this.modelRef,
     });
-    void this.adapter.start({
-      sessionId: session.id,
-      harnessId: 'codex',
-      modelId: this.codexModelId(),
-    });
+    void this.adapter.start(this.startSessionOpts(session.id));
     this.activeSessionId = session.id;
     return {
       id: session.id,
@@ -280,6 +300,7 @@ export class CodexHost {
       modelId: this.modelRef,
       forceMock: this.settings.forceMock,
       codexBin: this.settings.codexBin,
+      localModelViaHarness: this.settings.localModelViaHarness !== false,
       models: (() => {
         const custom = customModelsForStatus(this.settings.customProviders || []);
         if (!custom.length) return this.catalogModels;
@@ -303,11 +324,7 @@ export class CodexHost {
     await this.refreshLocalModels();
     const id = this.activeSessionId;
     if (!id) return;
-    await this.adapter.start({
-      sessionId: id,
-      harnessId: 'codex',
-      modelId: this.codexModelId(),
-    });
+    await this.adapter.start(this.startSessionOpts(id));
   }
 
   stopTurn(): void {
@@ -388,8 +405,8 @@ export class CodexHost {
         });
       }
 
-      
-      const route = resolveTurnRoute(this.modelRef);
+
+      const route = this.resolveRoute();
       if (route.kind === 'custom') {
         const provider = findCustomProvider(
           this.settings.customProviders || [],
@@ -486,10 +503,44 @@ export class CodexHost {
         return;
       }
 
+      // Codex / Codex-OSS harness path (default for ollama:* when localModelViaHarness).
+      if (route.oss) {
+        const ensured = await ensureOllamaRunning({ timeoutMs: 15000 });
+        if (!ensured.running) {
+          yield {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            taskId,
+            payload: {
+              message: ensured.message || OLLAMA_NOT_RUNNING_MESSAGE,
+              code: OLLAMA_NOT_RUNNING_CODE,
+            },
+          };
+          return;
+        }
+        if (this.adapter.isMock && !this.settings.forceMock) {
+          yield {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            taskId,
+            payload: {
+              message:
+                '未找到 Codex 二进制。本地 Ollama 默认经 Codex harness（codex exec --oss）运行；请安装 Codex CLI，或在设置中填写 Codex 路径 / 环境变量 XYAI_CODEX_BIN。若只需直连 Ollama 聊天，可在设置中关闭「本地模型走 Codex harness」。',
+              code: 'CODEX_BIN_MISSING',
+            },
+          };
+          return;
+        }
+      }
+
       await this.adapter.start({
         sessionId,
         harnessId: 'codex',
         modelId: route.modelId,
+        oss: route.oss === true,
+        localProvider: route.localProvider,
       });
       yield* this.adapter.send({
         sessionId,

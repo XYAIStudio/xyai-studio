@@ -47,3 +47,9 @@ Expected:
 - Cindy Composer / ModelPicker panel chrome
 - SessionRail / Transcript refactor
 - Per-session modelRef persistence beyond `settings.modelId`
+
+## Superseded note (local harness P0)
+
+- Phase A `resolveTurnRoute('ollama:…') → kind: 'ollama'` **bypass is superseded by default**: ollama refs now resolve to `{ kind: 'codex', oss: true, localProvider: 'ollama' }` unless `localModelViaHarness: false`.
+- See `LOCAL-HARNESS.md`.
+

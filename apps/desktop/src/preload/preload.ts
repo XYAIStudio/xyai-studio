@@ -23,6 +23,7 @@ export interface XyaiStatus {
   binaryPath: string | null;
   modelId: string;
   forceMock: boolean;
+  localModelViaHarness?: boolean;
   models: { id: string; label: string; hint?: string }[];
   localModels: { id: string; label: string; hint?: string }[];
   activeSessionId: string;
@@ -39,6 +40,7 @@ export interface XyaiSettings {
   codexBin: string;
   cloudProviders: CloudProvidersSettings;
   accessMode: AccessMode;
+  localModelViaHarness?: boolean;
 }
 
 export interface XyaiAgentEvent {
@@ -449,14 +451,29 @@ const api = {
   interopListInstalledDev: (): Promise<unknown[]> =>
     ipcRenderer.invoke('xyai:interop-list-installed-dev'),
   interopPushToBiz: (input: {
-    kind: 'agent' | 'knowledge-mount' | 'model-provider';
+    id?: string;
+    kind:
+      | 'agent'
+      | 'knowledge-mount'
+      | 'model-provider'
+      | 'skill'
+      | 'plugin'
+      | 'mcp'
+      | 'connector';
     name: string;
     description?: string;
     payload?: Record<string, unknown>;
-  }): Promise<{ ok: boolean; asset?: unknown; message?: string }> =>
+  }): Promise<{ ok: boolean; asset?: unknown; message?: string; publishOk?: boolean; publishMessage?: string }> =>
     ipcRenderer.invoke('xyai:interop-push-to-biz', input),
   interopPushToDev: (input: {
-    kind: 'agent' | 'knowledge-mount' | 'model-provider';
+    kind:
+      | 'agent'
+      | 'knowledge-mount'
+      | 'model-provider'
+      | 'skill'
+      | 'plugin'
+      | 'mcp'
+      | 'connector';
     name: string;
     description?: string;
     payload?: Record<string, unknown>;

@@ -14,13 +14,15 @@ import {
   shell,
   type MenuItemConstructorOptions,
 } from 'electron';
-import type { AgentEvent } from '@xyai/contracts';
+import type { AgentEvent, InteropAssetKind } from '@xyai/contracts';
+import { isInteropPersonalizeKind } from '@xyai/contracts';
 import { CodexHost } from './codex-host.js';
 import {
   findOpenXyosRuntimeRoot,
   getOpenXyosServerBaseUrl,
   resolveOpenXyos,
   restartOpenXyosServices,
+  syncOpenXyosChatModels,
   setOpenXyosLogDir,
   stopOpenXyosServer,
 } from './openxyos-host.js';
@@ -306,7 +308,12 @@ function registerIpc(): void {
           ? normalizeCustomProviders(partial.customProviders)
           : undefined,
         accessMode,
+        localModelViaHarness:
+          typeof partial.localModelViaHarness === 'boolean'
+            ? partial.localModelViaHarness
+            : undefined,
       });
+      void syncOpenXyosChatModels();
       return { settings, status: h.getStatus() };
     },
   );
@@ -722,6 +729,18 @@ ipcMain.handle('xyai:status', () => {
   });
 
   // —— Dev ↔ Biz asset interop ——
+  const parseInteropKind = (kind: unknown): InteropAssetKind | null => {
+    if (
+      kind === 'agent' ||
+      kind === 'knowledge-mount' ||
+      kind === 'model-provider'
+    ) {
+      return kind;
+    }
+    if (typeof kind === 'string' && isInteropPersonalizeKind(kind)) return kind;
+    return null;
+  };
+
   ipcMain.handle('xyai:interop-list-outgoing', async () => {
     return getInteropHost().listOutgoingAssets();
   });
@@ -742,25 +761,27 @@ ipcMain.handle('xyai:status', () => {
     async (
       _e,
       payload: {
+        id?: unknown;
         kind?: unknown;
         name?: unknown;
         description?: unknown;
         payload?: unknown;
       },
     ) => {
-      const kind = payload?.kind;
-      if (
-        kind !== 'agent' &&
-        kind !== 'knowledge-mount' &&
-        kind !== 'model-provider'
-      ) {
+      const kind = parseInteropKind(payload?.kind);
+      if (!kind) {
         return { ok: false as const, message: 'invalid kind' };
       }
       const name = typeof payload?.name === 'string' ? payload.name : '';
       if (!name) return { ok: false as const, message: 'missing name' };
+      const stableId =
+        typeof payload?.id === 'string' && payload.id.trim()
+          ? payload.id.trim()
+          : undefined;
       try {
         const host = getInteropHost();
         const asset = await host.pushToBiz({
+          id: stableId,
           kind,
           name,
           description:
@@ -847,18 +868,15 @@ ipcMain.handle('xyai:status', () => {
     async (
       _e,
       payload: {
+        id?: unknown;
         kind?: unknown;
         name?: unknown;
         description?: unknown;
         payload?: unknown;
       },
     ) => {
-      const kind = payload?.kind;
-      if (
-        kind !== 'agent' &&
-        kind !== 'knowledge-mount' &&
-        kind !== 'model-provider'
-      ) {
+      const kind = parseInteropKind(payload?.kind);
+      if (!kind) {
         return { ok: false as const, message: 'invalid kind' };
       }
       const name = typeof payload?.name === 'string' ? payload.name : '';
