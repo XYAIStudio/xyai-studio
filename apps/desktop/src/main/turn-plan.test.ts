@@ -76,6 +76,12 @@ describe('planTurn', () => {
     expect(plan.capabilityNeed).toBe('tools');
     expect(plan.permissionMode).toBe('default');
     expect(plan.stallTimeoutMs).toBe(STALL_TIMEOUT_TOOLS_MS);
+    expect(plan.gateway.mode).toBe('agent');
+    expect(plan.gateway.agent).toEqual({
+      runtime: 'codex',
+      modelId: 'deepseek-chat',
+      injectProviderId: 'ds',
+    });
     expect(plan.route).toEqual({
       kind: 'codex',
       modelId: 'deepseek-chat',
@@ -101,6 +107,7 @@ describe('planTurn', () => {
     expect(plan.capabilityNeed).toBe('chat');
     expect(plan.permissionMode).toBe('bypass');
     expect(plan.stallTimeoutMs).toBe(STALL_TIMEOUT_CHAT_MS);
+    expect(plan.gateway.mode).toBe('stream');
     expect(plan.route).toEqual({
       kind: 'custom',
       providerId: 'ds',
@@ -122,6 +129,33 @@ describe('planTurn', () => {
       userDataDir: tmp,
     });
     expect(plan.capabilityNeed).toBe('chat');
+    expect(plan.gateway.mode).toBe('stream');
     expect(plan.route).toEqual({ kind: 'ollama', model: 'qwen' });
+  });
+
+  it('Anthropic Messages + tools stays stream and records the protocol gap', () => {
+    tmp = mkdtempSync(path.join(os.tmpdir(), 'xyai-plan-'));
+    const plan = planTurn({
+      modelRef: 'custom:anth/claude-sonnet-4-5',
+      userText: '帮我创建一个插件',
+      engineMode: 'auto',
+      accessMode: 'default',
+      userDataDir: tmp,
+      customProviders: [
+        {
+          id: 'anth',
+          name: 'Anthropic',
+          runtime: 'claude-code',
+          auth: 'apiKey',
+          protocol: 'anthropic-messages',
+          baseUrl: 'https://api.anthropic.com',
+          models: [{ id: 'claude-sonnet-4-5', label: 'Claude' }],
+        },
+      ],
+    });
+    expect(plan.capabilityNeed).toBe('tools');
+    expect(plan.gateway.mode).toBe('stream');
+    expect(plan.gateway.gap).toBe('anthropic-messages');
+    expect(plan.route.kind).toBe('custom');
   });
 });

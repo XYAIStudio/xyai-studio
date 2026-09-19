@@ -6,6 +6,7 @@ import {
   normalizePermissionMode,
   normalizeAgentKind,
   isToolCapability,
+  protocolDrivesCodexTools,
   type AssemblyProfile,
   type AgentEvent,
   type Session,
@@ -78,5 +79,10 @@ describe('@xyai/contracts', () => {
     expect(isToolCapability('planning')).toBe(true);
     expect(isToolCapability('tools')).toBe(true);
     expect(isToolCapability('chat')).toBe(false);
+  });
+
+  it('treats Anthropic Messages as unable to drive Codex tools', () => {
+    expect(protocolDrivesCodexTools('anthropic-messages')).toBe(false);
+    expect(protocolDrivesCodexTools('chat-completions')).toBe(true);
   });
 });

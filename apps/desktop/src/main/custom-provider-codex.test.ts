@@ -4,6 +4,8 @@ import {
   CODEX_CUSTOM_PROVIDER_ID,
   customProviderCodexInjection,
   normalizeOpenAiCompatBaseUrl,
+  openaiCompatDrivesCodexTools,
+  sanitizeDeepSeekV4CustomTools,
 } from './custom-provider-codex.js';
 import { normalizeCustomProvider } from './custom-providers.js';
 
@@ -41,5 +43,36 @@ describe('customProviderCodexInjection', () => {
         `model_providers.${CODEX_CUSTOM_PROVIDER_ID}.env_key="${CODEX_CUSTOM_ENV_KEY}"`,
       ]),
     );
+  });
+});
+
+describe('openaiCompatDrivesCodexTools', () => {
+  it('allows Chat Completions and Responses; not Anthropic Messages', () => {
+    expect(openaiCompatDrivesCodexTools('chat-completions')).toBe(true);
+    expect(openaiCompatDrivesCodexTools('openai-responses')).toBe(true);
+    expect(openaiCompatDrivesCodexTools('anthropic-messages')).toBe(false);
+  });
+});
+
+describe('sanitizeDeepSeekV4CustomTools', () => {
+  it('drops unnamed tools for DeepSeek V4 / chat aliases', () => {
+    const tools = [
+      { type: 'function', function: { name: 'write_file' } },
+      { type: 'tool_search' },
+      { type: 'web_search' },
+      { name: 'apply_patch' },
+    ];
+    expect(sanitizeDeepSeekV4CustomTools(tools, 'deepseek-v4-flash')).toEqual([
+      { type: 'function', function: { name: 'write_file' } },
+      { name: 'apply_patch' },
+    ]);
+    expect(sanitizeDeepSeekV4CustomTools(tools, 'deepseek-chat')).toHaveLength(
+      2,
+    );
+  });
+
+  it('leaves non-DeepSeek tools unchanged', () => {
+    const tools = [{ type: 'web_search' }];
+    expect(sanitizeDeepSeekV4CustomTools(tools, 'gpt-4o')).toEqual(tools);
   });
 });
