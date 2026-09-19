@@ -22,6 +22,7 @@ import type { EngineMode } from './engine-mode.js';
 import type { AgentEvent } from '@xyai/contracts';
 import { normalizeModelRef } from '@xyai/contracts';
 import { watchStall } from '@xyai/core-runtime';
+import { maybeAttachKnowledgeContext } from './knowledge-turn.js';
 import {
   loadUnifiedModelCatalog,
   toStatusModelLists,
@@ -732,6 +733,7 @@ export class CodexHost {
       }
 
 
+      const outbound = await maybeAttachKnowledgeContext(trimmed);
       const plan = planTurn({
         modelRef: this.modelRef,
         userText: trimmed,
@@ -812,7 +814,7 @@ export class CodexHost {
               taskId,
               provider,
               modelId: gateway.stream.modelId,
-              userText: trimmed,
+              userText: outbound,
               honestyNoWrite: toolsNeed,
             }),
           );
@@ -837,7 +839,7 @@ export class CodexHost {
             sessionId,
             taskId,
             model: gateway.stream?.modelId ?? (route.kind === 'ollama' ? route.model : ''),
-            userText: trimmed,
+            userText: outbound,
             honestyNoWrite: toolsNeed,
           }),
         );
@@ -893,7 +895,7 @@ export class CodexHost {
             this.fallbackBrainStream({
               sessionId,
               taskId,
-              userText: trimmed,
+              userText: outbound,
               route: agentRoute,
               honestyNoWrite: true,
               omitUserAppend: false,
@@ -918,7 +920,7 @@ export class CodexHost {
               sessionId,
               taskId,
               model: agent.modelId,
-              userText: trimmed,
+              userText: outbound,
             }),
           );
           return;
@@ -964,8 +966,8 @@ export class CodexHost {
       }
 
       const prompt = toolsNeed
-        ? `${workspaceToolPreamble(plan.cwd)}\n\n${trimmed}`
-        : trimmed;
+        ? `${workspaceToolPreamble(plan.cwd)}\n\n${outbound}`
+        : outbound;
 
       await this.adapter.start({
         sessionId,
@@ -980,7 +982,7 @@ export class CodexHost {
         extraEnv,
         configOverrides,
       });
-      this.appendHistory(sessionId, 'user', trimmed);
+      this.appendHistory(sessionId, 'user', outbound);
       let sawUseful = false;
       let fallback = false;
       let assistantText = '';
@@ -1065,7 +1067,7 @@ export class CodexHost {
           this.fallbackBrainStream({
             sessionId,
             taskId,
-            userText: trimmed,
+            userText: outbound,
             route: agentRoute,
             honestyNoWrite: toolsNeed,
             omitUserAppend: true,

@@ -6,6 +6,7 @@ export * from './permission.js';
 export * from './turn-capability.js';
 export * from './model-catalog.js';
 export * from './model-gateway.js';
+export * from './knowledge-gateway.js';
 export * from './model-ref.js';
 export * from './tool-mcp.js';
 export * from './approval.js';

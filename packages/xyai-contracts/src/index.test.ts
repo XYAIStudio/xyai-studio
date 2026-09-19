@@ -10,6 +10,8 @@ import {
   type AssemblyProfile,
   type AgentEvent,
   type Session,
+  type KnowledgeGateway,
+  type KnowledgeHit,
 } from './index.js';
 
 describe('@xyai/contracts', () => {
@@ -84,5 +86,24 @@ describe('@xyai/contracts', () => {
   it('treats Anthropic Messages as unable to drive Codex tools', () => {
     expect(protocolDrivesCodexTools('anthropic-messages')).toBe(false);
     expect(protocolDrivesCodexTools('chat-completions')).toBe(true);
+  });
+
+  it('composes KnowledgeGateway search hits for local and cloud', async () => {
+    const hit: KnowledgeHit = {
+      id: 'h1',
+      sourceKind: 'local',
+      sourceId: 'kb1',
+      title: 'note',
+      snippet: 'body',
+      score: 1,
+    };
+    const gateway: KnowledgeGateway = {
+      async search() {
+        return [hit];
+      },
+    };
+    expect((await gateway.search({ text: 'note' }))[0]?.sourceKind).toBe(
+      'local',
+    );
   });
 });
