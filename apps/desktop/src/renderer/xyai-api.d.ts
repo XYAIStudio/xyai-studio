@@ -391,6 +391,7 @@ export interface XyaiApi {
     citations: KbCitation[];
     context: string;
     emptyIndexNames?: string[];
+    emptyIndexNotes?: string[];
   }>;
   kbGetCitations?: (input: {
     kbIds: string[];

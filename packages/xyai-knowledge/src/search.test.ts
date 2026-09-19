@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  emptyIndexReasonFromMeta,
   formatAttachedKbBanner,
   formatContextBlock,
   formatEmptyIndexNote,
@@ -72,8 +73,18 @@ describe('searchChunks overview fallback', () => {
 });
 
 describe('attached KB banners', () => {
-  it('formats banner and empty-index note', () => {
+  it('formats banner and empty-index notes by reason', () => {
     expect(formatAttachedKbBanner(['政策', '手册'])).toContain('政策');
+    expect(emptyIndexReasonFromMeta(null)).toBe('never-parsed');
+    expect(emptyIndexReasonFromMeta({ chunkCount: 0 })).toBe(
+      'no-searchable-text',
+    );
     expect(formatEmptyIndexNote('政策')).toContain('尚未有可用索引');
+    expect(formatEmptyIndexNote('制度', 'no-searchable-text')).toContain(
+      '解析未产生可检索正文',
+    );
+    expect(formatEmptyIndexNote('制度', 'no-searchable-text')).toContain(
+      '请重新解析或换可读文件',
+    );
   });
 });

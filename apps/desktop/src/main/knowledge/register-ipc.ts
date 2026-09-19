@@ -284,7 +284,13 @@ export function registerKnowledgeIpc(
       const limit =
         typeof payload?.limit === 'number' ? payload.limit : undefined;
       if (!query || !kbIds.length) {
-        return { hits: [], citations: [], context: '', emptyIndexNames: [] };
+        return {
+          hits: [],
+          citations: [],
+          context: '',
+          emptyIndexNames: [],
+          emptyIndexNotes: [],
+        };
       }
       return getHost().search({ kbIds, query, limit });
     },

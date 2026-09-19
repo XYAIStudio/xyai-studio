@@ -10,9 +10,11 @@ import {
   createLocalMount,
   formatAttachedKbBanner,
   formatContextBlock,
+  emptyIndexReasonFromMeta,
   formatEmptyIndexNote,
   hitsToCitations,
   readChunks,
+  readMeta,
   distillChunks,
   listCloudFiles,
   listImaKnowledgeBases,
@@ -471,6 +473,7 @@ export class KnowledgeHost {
     citations: Citation[];
     context: string;
     emptyIndexNames: string[];
+    emptyIndexNotes: string[];
   }> {
     const allHits: SearchHit[] = [];
     let queryEmbedding: number[] | null = null;
@@ -483,6 +486,7 @@ export class KnowledgeHost {
     }
     const labels: string[] = [];
     const emptyIndexNames: string[] = [];
+    const emptyIndexNotes: string[] = [];
     for (const id of input.kbIds) {
       const m = this.getMount(id);
       if (!m) continue;
@@ -517,6 +521,13 @@ export class KnowledgeHost {
       const existing = readChunks(indexRoot, id);
       if (!existing.length) {
         emptyIndexNames.push(m.name);
+        const meta = indexRoot ? readMeta(indexRoot, id) : null;
+        emptyIndexNotes.push(
+          formatEmptyIndexNote(
+            m.name,
+            emptyIndexReasonFromMeta(meta),
+          ).trim(),
+        );
         continue;
       }
       const hits = searchKb(indexRoot, id, input.query, {
@@ -600,8 +611,8 @@ export class KnowledgeHost {
     if (top.length) {
       parts.push(formatContextBlock(top, labels.join('、') || '知识库'));
     }
-    for (const name of emptyIndexNames) {
-      parts.push(formatEmptyIndexNote(name));
+    for (const note of emptyIndexNotes) {
+      parts.push(note.endsWith('\n') ? note : `${note}\n`);
     }
     // If kbIds were selected but every mount missing / empty, still never silent
     if (input.kbIds.length && !parts.length) {
@@ -615,6 +626,7 @@ export class KnowledgeHost {
       citations,
       context: parts.join('\n'),
       emptyIndexNames,
+      emptyIndexNotes,
     };
   }
 

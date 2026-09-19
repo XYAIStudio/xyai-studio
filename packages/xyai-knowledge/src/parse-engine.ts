@@ -22,8 +22,6 @@ import {
   extractTextFromFileAsync,
   chunkText,
   isJunkIndexText,
-  countMeaningfulChars,
-  PDF_MIN_MEANINGFUL_CHARS,
 } from './extract.js';
 import {
   appendAudit,
@@ -259,7 +257,6 @@ export class ParseEngine {
     await yieldEventLoop();
 
     let ollamaUsed = false;
-    let fileCount = 0;
     let chunkCount = 0;
     let cancelled = false;
     const embedModel = models.embedModel;
@@ -345,36 +342,20 @@ ${summary.trim()}`,
         }
 
         if (!chunks.length) {
-          if (
-            extractIsJunk ||
-            countMeaningfulChars(rawText) < PDF_MIN_MEANINGFUL_CHARS
-          ) {
-            rec.status = 'warn';
-            rec.message = [
-              rec.message,
-              extracted.warn,
-              '未能提取到可索引正文（可能是扫描件或仅含 XMP/元数据），未写入垃圾分块',
-            ]
-              .filter(Boolean)
-              .join(' · ');
-            job.warned += 1;
-            job.completed += 1;
-            rec.updatedAt = new Date().toISOString();
-            this.notify(job, input.onProgress);
-            await yieldEventLoop();
-            continue;
-          }
-          chunks.push({
-            id: `chk-${randomUUID()}`,
-            kbId: input.kbId,
-            sourcePath: file.path,
-            relativePath: file.relativePath,
-            sourceKind: 'local',
-            title: path.basename(file.name),
-            text: `(no extractable text) ${file.relativePath}`,
-            startOffset: 0,
-            endOffset: 0,
-          });
+          rec.status = 'failed';
+          rec.message = [
+            rec.message,
+            extracted.warn,
+            '解析未产生可检索正文（可能是扫描件、空文档或仅含元数据），未写入索引',
+          ]
+            .filter(Boolean)
+            .join(' · ');
+          job.failed += 1;
+          job.completed += 1;
+          rec.updatedAt = new Date().toISOString();
+          this.notify(job, input.onProgress);
+          await yieldEventLoop();
+          continue;
         }
 
         appendChunksStaging(
@@ -385,7 +366,6 @@ ${summary.trim()}`,
         );
         commitStaging(input.indexRoot, input.kbId, sourceRoots);
 
-        fileCount += 1;
         chunkCount += chunks.length;
         rec.chunkCount = chunks.length;
         if (extracted.warn) {
@@ -434,8 +414,10 @@ ${summary.trim()}`,
     clearStaging(input.indexRoot, input.kbId, sourceRoots);
 
     const prev = readMeta(input.indexRoot, input.kbId);
-    const successFiles = job.files.filter(
-      (f) => f.status === 'done' || f.status === 'warn',
+    const indexedFiles = job.files.filter(
+      (f) =>
+        (f.status === 'done' || f.status === 'warn') &&
+        (f.chunkCount ?? 0) > 0,
     ).length;
     const meta: IndexMeta = {
       version: 1,
@@ -444,8 +426,8 @@ ${summary.trim()}`,
       kind: 'local',
       createdAt: prev?.createdAt || job.startedAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      fileCount: successFiles || fileCount,
-      chunkCount: chunkCount || prev?.chunkCount || 0,
+      fileCount: indexedFiles,
+      chunkCount,
       cancelled,
       ollamaUsed,
       embedModel,
@@ -456,9 +438,13 @@ ${summary.trim()}`,
     job.running = false;
     job.currentFile = null;
     job.finishedAt = new Date().toISOString();
-    job.statusMessage = `解析结束 · 完成 ${job.completed} · 失败 ${job.failed} · 警告 ${job.warned}` +
+    const noIndexNote =
+      !cancelled && chunkCount === 0 ? ' · 未产生可检索正文' : '';
+    job.statusMessage =
+      `解析结束 · 完成 ${indexedFiles} · 失败 ${job.failed} · 警告 ${job.warned}` +
       (chatModel ? ` · 模型 ${chatModel}` : '') +
-      (embedModel ? ` · 嵌入 ${embedModel}` : '');
+      (embedModel ? ` · 嵌入 ${embedModel}` : '') +
+      noIndexNote;
     this.notify(job, input.onProgress);
   }
 }

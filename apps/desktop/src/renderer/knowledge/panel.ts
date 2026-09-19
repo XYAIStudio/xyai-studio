@@ -40,9 +40,13 @@ function normPathKey(p: string): string {
   return p.replace(/\\/g, '/').toLowerCase();
 }
 
-/** Locked Chinese labels for the parse column. */
-function mapParseStatus(input: {
+/**
+ * Locked Chinese labels for the parse column.
+ * Warn/fail with no indexed chunks is 无正文, not green 已解析.
+ */
+export function mapParseStatus(input: {
   jobStatus?: string;
+  jobMessage?: string;
   indexed?: boolean;
   unsupported?: boolean;
   isCurrent?: boolean;
@@ -52,8 +56,21 @@ function mapParseStatus(input: {
   if (st === 'progress' || (input.isCurrent && (!st || st === 'queued'))) {
     return { text: '正在解析', cls: 'kb-st-progress' };
   }
-  if (st === 'done' || st === 'warn') return { text: '已解析', cls: 'kb-st-done' };
-  if (st === 'failed') return { text: '无法解析', cls: 'kb-st-failed' };
+  const noBody =
+    !!input.jobMessage &&
+    /可检索正文|未能提取|无正文/.test(input.jobMessage);
+  if (st === 'failed') {
+    return noBody
+      ? { text: '无正文', cls: 'kb-st-failed' }
+      : { text: '无法解析', cls: 'kb-st-failed' };
+  }
+  if (st === 'warn') {
+    if (!input.indexed || noBody) {
+      return { text: '无正文', cls: 'kb-st-failed' };
+    }
+    return { text: '已解析', cls: 'kb-st-done' };
+  }
+  if (st === 'done') return { text: '已解析', cls: 'kb-st-done' };
   if (st === 'queued' || st === 'skipped') return { text: '待解析', cls: 'kb-st-queued' };
   if (input.indexed) return { text: '已解析', cls: 'kb-st-done' };
   return { text: '待解析', cls: 'kb-st-queued' };
@@ -371,6 +388,7 @@ export function mountKnowledgePanel(root: HTMLElement): KnowledgePanelApi {
           normPathKey(f.path) === currentRel);
       const mapped = mapParseStatus({
         jobStatus: st?.status,
+        jobMessage: st?.message,
         indexed: indexedRelativePaths.has(f.relativePath),
         unsupported: f.unsupported,
         isCurrent,
