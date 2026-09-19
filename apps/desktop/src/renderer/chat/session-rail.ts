@@ -3,7 +3,9 @@
  */
 
 import type { CollabRailState, CollabSessionMeta, SessionKind } from './collab-types.js';
-import { DEFAULT_PROJECT_ID, DEFAULT_TASK_ID } from './collab-types.js';
+import { DEFAULT_PROJECT_ID, DEFAULT_TASK_ID,
+  STUDIO_WORKSPACE_LABEL,
+} from './collab-types.js';
 import type { SessionSummary } from './types.js';
 
 export type SessionRailHandlers = {
@@ -140,11 +142,12 @@ export function createSessionRail(opts: {
       pHead.appendChild(pTitle);
       pHead.appendChild(pActions);
 
-      if (project.cwd) {
+      {
         const cwd = document.createElement('div');
         cwd.className = 'collab-cwd';
-        cwd.title = project.cwd;
-        cwd.textContent = project.cwd;
+        const path = project.cwd.trim();
+        cwd.title = path || STUDIO_WORKSPACE_LABEL;
+        cwd.textContent = path || STUDIO_WORKSPACE_LABEL;
         pHead.appendChild(cwd);
       }
 

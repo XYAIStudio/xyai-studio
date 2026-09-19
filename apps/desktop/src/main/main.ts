@@ -75,7 +75,10 @@ import {
 import { discoverWorkspaceAssets } from './install-workspace-plugins.js';
 import { listStored } from './personalize/store.js';
 import { listByKindAndSource } from './personalize/actions.js';
-import { studioWorkspaceDir } from './studio-workspace.js';
+import {
+  ensureStudioWorkspace,
+  studioWorkspaceDir,
+} from './studio-workspace.js';
 import {
   registerPersonalizeIpc,
   setPersonalizeUserDataDir,
@@ -523,6 +526,10 @@ function registerIpc(): void {
       });
     },
   );
+
+  ipcMain.handle('xyai:studio-workspace-path', () => ({
+    path: ensureStudioWorkspace(),
+  }));
 
   ipcMain.handle('xyai:collab-pick-directory', async () => {
     const win = BrowserWindow.getFocusedWindow() || mainWindow;

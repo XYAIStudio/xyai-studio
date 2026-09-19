@@ -256,6 +256,9 @@ const api = {
   collabPickDirectory: (): Promise<{ ok: boolean; path: string }> =>
     ipcRenderer.invoke('xyai:collab-pick-directory'),
 
+  studioWorkspacePath: (): Promise<{ path: string }> =>
+    ipcRenderer.invoke('xyai:studio-workspace-path'),
+
   pickFiles: (): Promise<{ ok: boolean; paths: string[] }> =>
     ipcRenderer.invoke('xyai:pick-files'),
 

@@ -37,7 +37,7 @@ import { type CapabilityNeed } from './harness/router.js';
 import { inferCapabilityNeed } from './turn-intent.js';
 import {
   accessModeToCodexSandbox,
-  ensureStudioWorkspace,
+  effectiveCwd,
   studioPersonalizeDir,
   type CodexSandboxSpec,
 } from './studio-workspace.js';
@@ -78,6 +78,11 @@ export interface PlanTurnInput {
   localModelViaHarness?: boolean;
   accessMode?: AccessMode;
   userDataDir?: string;
+  /**
+   * Project working directory (CollabProject.cwd).
+   * Empty / omitted → Studio default workspace via effectiveCwd.
+   */
+  projectCwd?: string;
   /** Used to resolve custom-provider protocol (Anthropic tools gap). */
   customProviders?: CustomProvider[];
   protocol?: CatalogProtocol;
@@ -190,8 +195,8 @@ export function planTurn(input: PlanTurnInput): TurnPlan {
   const route = gatewayPlanToTurnRoute(gateway);
   const userDataDir = input.userDataDir;
   const cwd = userDataDir
-    ? ensureStudioWorkspace(userDataDir)
-    : ensureStudioWorkspace();
+    ? effectiveCwd(input.projectCwd, userDataDir)
+    : effectiveCwd(input.projectCwd);
   const personalize = userDataDir
     ? studioPersonalizeDir(userDataDir)
     : studioPersonalizeDir();

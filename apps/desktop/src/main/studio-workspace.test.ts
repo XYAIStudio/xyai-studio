@@ -5,6 +5,7 @@ import path from 'node:path';
 import { accessModeToPermissionMode } from '@xyai/core-runtime';
 import {
   accessModeToCodexSandbox,
+  effectiveCwd,
   ensureStudioWorkspace,
   permissionModeToCodexSandbox,
   setWorkspaceUserDataDir,
@@ -65,5 +66,30 @@ describe('ensureStudioWorkspace', () => {
     expect(existsSync(path.join(cwd, 'systems'))).toBe(true);
     expect(existsSync(path.join(cwd, 'README.md'))).toBe(true);
     expect(existsSync(studioPersonalizeDir(tmp))).toBe(true);
+  });
+});
+
+describe('effectiveCwd', () => {
+  const prev = process.cwd();
+  let tmp: string;
+
+  afterEach(() => {
+    setWorkspaceUserDataDir(prev);
+    if (tmp) rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('empty / whitespace → studio workspace', () => {
+    tmp = mkdtempSync(path.join(os.tmpdir(), 'xyai-cwd-'));
+    setWorkspaceUserDataDir(tmp);
+    expect(effectiveCwd('')).toBe(studioWorkspaceDir(tmp));
+    expect(effectiveCwd('   ')).toBe(studioWorkspaceDir(tmp));
+    expect(effectiveCwd(null)).toBe(studioWorkspaceDir(tmp));
+    expect(effectiveCwd(undefined, tmp)).toBe(studioWorkspaceDir(tmp));
+  });
+
+  it('trims and returns project cwd when set', () => {
+    tmp = mkdtempSync(path.join(os.tmpdir(), 'xyai-cwd-'));
+    const custom = path.join(tmp, 'my-project');
+    expect(effectiveCwd(`  ${custom}  `, tmp)).toBe(custom);
   });
 });

@@ -290,6 +290,7 @@ export interface XyaiApi {
     collapsed: boolean;
   }) => Promise<CollabRailState>;
   collabPickDirectory?: () => Promise<{ ok: boolean; path: string }>;
+  studioWorkspacePath?: () => Promise<{ path: string }>;
   pickFiles?: () => Promise<{ ok: boolean; paths: string[] }>;
   openExternal?: (url: string) => Promise<{ ok: boolean; message?: string }>;
 

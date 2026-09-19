@@ -68,3 +68,20 @@ export function emptyCollabState(): CollabRailState {
     collapsedTasks: [],
   };
 }
+
+/** Chip / path label when project.cwd is empty (Studio default workspace). */
+export const STUDIO_WORKSPACE_LABEL = '程序工作区';
+
+export function projectUsesStudioWorkspace(
+  project: CollabProject | undefined | null,
+): boolean {
+  return !project || !project.cwd.trim();
+}
+
+/** Composer chip label: empty cwd → 程序工作区, else project name. */
+export function projectChipLabel(
+  project: CollabProject | undefined | null,
+): string {
+  if (projectUsesStudioWorkspace(project)) return STUDIO_WORKSPACE_LABEL;
+  return project!.name;
+}
