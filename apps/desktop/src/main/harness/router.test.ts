@@ -45,10 +45,17 @@ describe('chooseHarness', () => {
     expect(ollamaTurnUsesHarness('codex-oss', 'chat')).toBe(true);
   });
 
-  it('dsh/claude stubs degrade to stream', () => {
+  it('dsh/claude stubs degrade chat to stream', () => {
     expect(chooseHarness('chat', healthy, 'dsh').harness).toBe('local-stream');
     expect(chooseHarness('chat', healthy, 'claude').harness).toBe(
       'local-stream',
     );
+  });
+
+  it('dsh/claude tools lift to Codex when the stub is not ready', () => {
+    expect(chooseHarness('tools', healthy, 'dsh').harness).toBe('codex');
+    expect(chooseHarness('tools', healthy, 'claude').harness).toBe('codex');
+    expect(ollamaTurnUsesHarness('dsh', 'tools')).toBe(true);
+    expect(ollamaTurnUsesHarness('claude', 'tools')).toBe(true);
   });
 });

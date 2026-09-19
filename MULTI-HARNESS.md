@@ -28,4 +28,4 @@
 | adapter-dsh / adapter-claude | 脚手架，装配图里 `enabled: false` |
 | local-stream | 无 harness 时仍保证真流式 |
 
-缺引擎二进制时：**软提示 + 本机流式续答**，不中断对话。
+缺引擎二进制时：闲聊 **软提示 + 本机流式续答**；创建/写入任务 **不得** 降级成裸 chat 再声称已写文件。

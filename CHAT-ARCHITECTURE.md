@@ -88,7 +88,8 @@ Cindy 明确行为（首期必须对齐）：
 **modelRef**（会话当前模型，统一 ID）：
 
 - `codex:<modelId>` — 走 `adapter-codex`
-- `ollama:<name>` — **默认**（`engineMode: auto`）走 model-hub 直连 NDJSON 真流式；仅「高级本地引擎」/`codex-oss` 走 `codex exec --oss --local-provider ollama`，缺二进制时软降级
+- `ollama:<name>` — **默认**（`engineMode: auto`）闲聊走 model-hub 直连 NDJSON 真流式；创建/写入/安装或「完全访问」抬到 `codex exec --oss`（可写工作目录）。仅「高级本地引擎」/`codex-oss` 连闲聊也走 `--oss`，缺二进制时闲聊软降级
+- `custom:<provider>/<model>` — 闲聊走 OpenAI 兼容 HTTP 流；创建/写入同样抬到 Codex，并把该供应商的 base URL + API key 注入 `--config`（不是裸 chat 写文件）
 - 后续：`claude:…` / `cloud:openai:…` 等，仍只扩展解析表，不改 UI 合同
 
 > 详见仓库根目录 `LOCAL-HARNESS.md`（推理机 vs 大脑）。

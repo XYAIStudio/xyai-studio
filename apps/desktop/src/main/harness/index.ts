@@ -11,6 +11,7 @@ export { DEFAULT_STUDIO_ASSEMBLY } from './default-profile.js';
 export {
   chooseHarness,
   ollamaTurnUsesHarness,
+  turnUsesHarness,
   type CapabilityNeed,
   type HarnessCandidate,
   type HarnessHealth,
