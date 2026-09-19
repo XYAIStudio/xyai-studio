@@ -30,8 +30,12 @@ Missing binary / spawn / ENOENT map to Chinese **soft** payloads (`CODEX_BIN_MIS
 ## Real exec flags
 
 ```
-codex exec --json --ephemeral --skip-git-repo-check -s read-only -C <cwd> "<prompt>"
+codex exec --json --ephemeral --skip-git-repo-check -s <sandbox> -C <cwd> \
+  [-a never] [--add-dir <dir>…] [--config key=value…] \
+  [--oss --local-provider ollama] [-m <model>] "<prompt>"
 ```
+
+Studio tool turns use `-s workspace-write -a never` (accessMode `full` → `danger-full-access`), cwd = `userData/workspace`, and `--add-dir userData/personalize`. Custom OpenAI-compatible brains (DeepSeek etc.) inject `OPENAI_API_KEY` plus `--config model_provider=xyai` / `model_providers.xyai.base_url`.
 
 Local OSS (`session.oss`):
 

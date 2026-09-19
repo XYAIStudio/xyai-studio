@@ -29,6 +29,16 @@ export interface StartSessionOptions {
   oss?: boolean;
   /** Local inference provider for OSS mode (Ollama / LM Studio). */
   localProvider?: 'ollama' | 'lmstudio';
+  /** Codex `-s` sandbox (e.g. workspace-write). Ignored by other adapters. */
+  sandbox?: string;
+  /** Codex `-a` approval policy (e.g. never). Ignored by other adapters. */
+  approval?: string;
+  /** Extra writable roots passed as Codex `--add-dir`. */
+  addDirs?: string[];
+  /** Extra child env (API keys / base URL). Never log these. */
+  extraEnv?: Record<string, string>;
+  /** Repeatable Codex `--config key=value` overrides (custom OpenAI-compat). */
+  configOverrides?: string[];
 }
 
 export interface SendMessageOptions {

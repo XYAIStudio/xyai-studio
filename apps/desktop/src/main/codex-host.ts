@@ -26,27 +26,33 @@ import {
   toStatusModelLists,
 } from './model-catalog-facade.js';
 import {
+  planTurn,
   resolveTurnRoute,
   runCustomProviderTurn,
   runOllamaTurn,
   TurnAbortBag,
 } from './turn-controller.js';
+import { customProviderCodexInjection } from './custom-provider-codex.js';
+import { installWorkspacePlugins } from './install-workspace-plugins.js';
 import {
-  buildHarnessPrompt,
+  ensureStudioWorkspace,
+  getWorkspaceUserDataDir,
+  setWorkspaceUserDataDir,
+  workspaceToolPreamble,
+} from './studio-workspace.js';
+import {
+  CHAT_ONLY_NO_WRITE_SYSTEM,
+  CHAT_ONLY_NO_WRITE_TIP,
+  HARNESS_PACKAGING_MESSAGE,
+  isToolCapability,
+} from './turn-intent.js';
+import {
   emptySessionMemory,
   harvestFactsFromTurn,
   packMessagesForTurn,
   type ChatMessage,
   type SessionMemoryState,
 } from './context-pack.js';
-import {
-  accessModeToCodexSandbox,
-  ensureStudioWorkspace,
-  setStudioWorkspaceUserDataDir,
-  type StudioWorkspacePaths,
-} from './studio-workspace.js';
-import { installPluginsFromWorkspaceDir } from './personalize/install-workspace-plugins.js';
-import { getPersonalizeRoot } from './personalize/store.js';
 import {
   loadDurableFacts,
   mergeDurableFacts,
@@ -109,7 +115,7 @@ export interface CodexHostStatus {
 export function configureChatPersistence(userDataDir: string): void {
   setMemoryUserDataDir(userDataDir);
   setSessionUserDataDir(userDataDir);
-  setStudioWorkspaceUserDataDir(userDataDir);
+  setWorkspaceUserDataDir(userDataDir);
 }
 
 export class CodexHost {
@@ -149,27 +155,11 @@ export class CodexHost {
     return normalizeModelRef(this.settings.modelId);
   }
 
-  private workspacePaths(): StudioWorkspacePaths {
-    return ensureStudioWorkspace();
-  }
-
   private buildAdapter(): CodexAdapter {
-    const ws = this.workspacePaths();
-    const sandbox = accessModeToCodexSandbox(this.settings.accessMode);
-    const personalizeRoot = getPersonalizeRoot();
-    // Writable sandboxes must not wait on an interactive approval UI.
-    const askForApproval =
-      sandbox === 'read-only' ? undefined : ('never' as const);
     return createCodexHostAdapter({
       forceMock: this.settings.forceMock,
       binaryPath: this.settings.codexBin.trim() || undefined,
       profile: this.profile,
-      cwd: ws.workspaceDir,
-      sandbox,
-      askForApproval,
-      // Allow installing into personalize store even under workspace-write.
-      addDirs:
-        sandbox === 'workspace-write' ? [personalizeRoot] : undefined,
     });
   }
 
@@ -186,6 +176,7 @@ export class CodexHost {
 
   private startSessionOpts(sessionId: string) {
     const route = this.resolveRoute();
+    const cwd = ensureStudioWorkspace();
     if (route.kind === 'codex') {
       return {
         sessionId,
@@ -193,20 +184,21 @@ export class CodexHost {
         modelId: route.modelId,
         oss: route.oss === true,
         localProvider: route.localProvider,
+        cwd,
       };
     }
     return {
       sessionId,
       harnessId: 'codex' as const,
       modelId: toFallbackCodexId(),
+      cwd,
     };
   }
 
-  /** Rebuild adapter when forceMock / codexBin / accessMode change. */
+  /** Rebuild adapter when forceMock / codexBin change. */
   async applySettings(partial: Partial<XyaiSettings>): Promise<XyaiSettings> {
     const prevBin = this.settings.codexBin;
     const prevMock = this.settings.forceMock;
-    const prevAccess = this.settings.accessMode;
     const patched =
       partial.modelId !== undefined
         ? { ...partial, modelId: normalizeModelRef(partial.modelId) }
@@ -221,8 +213,7 @@ export class CodexHost {
     };
     if (
       this.settings.codexBin !== prevBin ||
-      this.settings.forceMock !== prevMock ||
-      this.settings.accessMode !== prevAccess
+      this.settings.forceMock !== prevMock
     ) {
       void this.adapter.abort();
       this.adapter = this.buildAdapter();
@@ -307,18 +298,76 @@ export class CodexHost {
     });
   }
 
+  private async *streamCustomProviderTurn(opts: {
+    sessionId: string;
+    taskId: string;
+    provider: CustomProvider;
+    modelId: string;
+    userText: string;
+    honestyNoWrite: boolean;
+  }): AsyncIterable<AgentEvent> {
+    this.appendHistory(opts.sessionId, 'user', opts.userText);
+    const messages = this.packForModel(opts.sessionId);
+    if (opts.honestyNoWrite) {
+      messages.unshift({
+        role: 'system',
+        content: CHAT_ONLY_NO_WRITE_SYSTEM,
+      });
+    }
+    const signal = this.aborts.beginCustom();
+    let assistantText = '';
+    try {
+      for await (const ev of runCustomProviderTurn({
+        sessionId: opts.sessionId,
+        taskId: opts.taskId,
+        provider: opts.provider,
+        modelId: opts.modelId,
+        messages,
+        signal,
+      })) {
+        if (ev.type === 'message.delta') {
+          const p = (ev.payload || {}) as Record<string, unknown>;
+          const piece =
+            (typeof p.delta === 'string' && p.delta) ||
+            (typeof p.text === 'string' && p.text) ||
+            '';
+          if (piece) assistantText += piece;
+        }
+        if (ev.type === 'message.completed') {
+          const p = (ev.payload || {}) as Record<string, unknown>;
+          const finalText =
+            (typeof p.text === 'string' && p.text.trim()) ||
+            assistantText.trim();
+          if (finalText) {
+            this.appendHistory(opts.sessionId, 'assistant', finalText);
+            this.rememberFromTurn(opts.sessionId, opts.userText, finalText);
+          }
+        }
+        yield ev;
+      }
+    } finally {
+      this.aborts.clearOllama();
+    }
+  }
+
   private async *streamLocalOllamaTurn(opts: {
     sessionId: string;
     taskId: string;
     model: string;
     userText: string;
-    /** When true, user turn was already appended (Codex soft-fallback path). */
-    skipUserAppend?: boolean;
+    omitUserAppend?: boolean;
+    honestyNoWrite?: boolean;
   }): AsyncIterable<AgentEvent> {
-    if (!opts.skipUserAppend) {
+    if (!opts.omitUserAppend) {
       this.appendHistory(opts.sessionId, 'user', opts.userText);
     }
     const messages = this.packForModel(opts.sessionId);
+    if (opts.honestyNoWrite) {
+      messages.unshift({
+        role: 'system',
+        content: CHAT_ONLY_NO_WRITE_SYSTEM,
+      });
+    }
     const signal = this.aborts.beginOllama();
     let assistantText = '';
     try {
@@ -514,12 +563,8 @@ export class CodexHost {
   }
 
   stopTurn(): void {
-    try {
-      this.aborts.stop(this.adapter, this.activeSessionId);
-    } finally {
-      // Always clear busy so follow-up turns are not stuck after abort/hang.
-      this.sending = false;
-    }
+    this.aborts.stop(this.adapter, this.activeSessionId);
+    this.sending = false;
   }
 
   async *sendMessage(content: string): AsyncIterable<AgentEvent> {
@@ -596,10 +641,21 @@ export class CodexHost {
       }
 
 
-      const route = this.resolveRoute();
+      const plan = planTurn({
+        modelRef: this.modelRef,
+        userText: trimmed,
+        engineMode: this.settings.engineMode,
+        localModelViaHarness: this.settings.localModelViaHarness === true,
+        accessMode: this.settings.accessMode,
+        userDataDir: getWorkspaceUserDataDir(),
+      });
+      const { route, capabilityNeed } = plan;
+      const toolsNeed = isToolCapability(capabilityNeed);
+
       if (
-        this.settings.engineMode === 'dsh' ||
-        this.settings.engineMode === 'claude'
+        (this.settings.engineMode === 'dsh' ||
+          this.settings.engineMode === 'claude') &&
+        route.kind !== 'codex'
       ) {
         yield {
           type: 'error',
@@ -627,62 +683,54 @@ export class CodexHost {
           };
           return;
         }
-        this.appendHistory(sessionId, 'user', trimmed);
-        const messages = this.packForModel(sessionId);
-        const signal = this.aborts.beginCustom();
-        let assistantText = '';
-        let completedOk = false;
-        try {
-          for await (const ev of runCustomProviderTurn({
+        if (toolsNeed) {
+          yield {
+            type: 'error',
+            timestamp: new Date().toISOString(),
             sessionId,
             taskId,
-            provider,
-            modelId: route.modelId,
-            messages,
-            signal,
-          })) {
-            if (ev.type === 'message.delta') {
-              const p = (ev.payload || {}) as Record<string, unknown>;
-              const piece =
-                (typeof p.delta === 'string' && p.delta) ||
-                (typeof p.text === 'string' && p.text) ||
-                '';
-              if (piece) assistantText += piece;
-            }
-            if (ev.type === 'message.completed') {
-              const p = (ev.payload || {}) as Record<string, unknown>;
-              const finalText =
-                (typeof p.text === 'string' && p.text.trim()) ||
-                assistantText.trim();
-              if (finalText) {
-                this.appendHistory(sessionId, 'assistant', finalText);
-                const hist = this.historyFor(sessionId);
-                const lastUser = [...hist].reverse().find((m) => m.role === 'user');
-                if (lastUser) {
-                  this.rememberFromTurn(sessionId, lastUser.content, finalText);
-                }
-              }
-              completedOk = true;
-            }
-            yield ev;
-          }
-          void completedOk;
-        } finally {
-          this.aborts.clearOllama();
+            payload: {
+              message: CHAT_ONLY_NO_WRITE_TIP,
+              code: 'CHAT_ONLY_NO_WRITE',
+              soft: true,
+            },
+          };
         }
+        yield* this.streamCustomProviderTurn({
+          sessionId,
+          taskId,
+          provider,
+          modelId: route.modelId,
+          userText: trimmed,
+          honestyNoWrite: toolsNeed,
+        });
         return;
       }
       if (route.kind === 'ollama') {
+        if (toolsNeed) {
+          yield {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            taskId,
+            payload: {
+              message: CHAT_ONLY_NO_WRITE_TIP,
+              code: 'CHAT_ONLY_NO_WRITE',
+              soft: true,
+            },
+          };
+        }
         yield* this.streamLocalOllamaTurn({
           sessionId,
           taskId,
           model: route.model,
           userText: trimmed,
+          honestyNoWrite: toolsNeed,
         });
         return;
       }
 
-      // Codex / Codex-OSS harness path (default for ollama:* when localModelViaHarness).
+      // Codex / Codex-OSS / custom-via-Codex (model is brain, harness is hands).
       if (route.oss) {
         const ensured = await ensureOllamaRunning({ timeoutMs: 15000 });
         if (!ensured.running) {
@@ -698,8 +746,23 @@ export class CodexHost {
           };
           return;
         }
-        if (this.adapter.isMock && !this.settings.forceMock) {
-          // Qualification line: keep real local streaming when harness binary is missing.
+      }
+
+      if (this.adapter.isMock && !this.settings.forceMock) {
+        if (toolsNeed || route.customProviderId) {
+          yield {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            taskId,
+            payload: {
+              message: HARNESS_PACKAGING_MESSAGE,
+              code: 'HARNESS_PACKAGING',
+            },
+          };
+          return;
+        }
+        if (route.oss) {
           yield {
             type: 'error',
             timestamp: new Date().toISOString(),
@@ -720,41 +783,71 @@ export class CodexHost {
         }
       }
 
+      let extraEnv: Record<string, string> | undefined;
+      let configOverrides: string[] | undefined;
+      if (route.customProviderId) {
+        const provider = findCustomProvider(
+          this.settings.customProviders || [],
+          route.customProviderId,
+        );
+        if (!provider) {
+          yield {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            payload: { message: `未找到自定义供应商：${route.customProviderId}` },
+          };
+          return;
+        }
+        if (provider.protocol === 'anthropic-messages') {
+          yield {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            taskId,
+            payload: {
+              message:
+                '该云端协议尚不能带工具在本机写文件。请改用 Chat Completions（如 DeepSeek）后再创建/安装。',
+            },
+          };
+          return;
+        }
+        const inj = customProviderCodexInjection(provider, route.modelId);
+        extraEnv = inj.extraEnv;
+        configOverrides = inj.configOverrides;
+      }
+
+      const prompt = toolsNeed
+        ? `${workspaceToolPreamble(plan.cwd)}\n\n${trimmed}`
+        : trimmed;
+
       await this.adapter.start({
         sessionId,
         harnessId: 'codex',
         modelId: route.modelId,
         oss: route.oss === true,
         localProvider: route.localProvider,
+        cwd: plan.cwd,
+        sandbox: plan.sandbox.sandbox,
+        approval: plan.sandbox.approval,
+        addDirs: plan.addDirs,
+        extraEnv,
+        configOverrides,
       });
-
-      // Persist user turn + pack prior context into the single Codex argv prompt.
       this.appendHistory(sessionId, 'user', trimmed);
-      const ws = this.workspacePaths();
-      const prior = this.historyFor(sessionId).slice(0, -1);
-      const harnessContent = buildHarnessPrompt({
-        userText: trimmed,
-        priorMessages: prior,
-        paths: {
-          workspaceDir: ws.workspaceDir,
-          pluginsDir: ws.pluginsDir,
-          personalizeRoot: getPersonalizeRoot(),
-          personalizeInstalledPluginDir: `${getPersonalizeRoot()}/installed/plugin`,
-        },
-      });
-
       let sawUseful = false;
       let fallback = false;
       let assistantText = '';
       for await (const ev of this.adapter.send({
         sessionId,
         taskId,
-        content: harnessContent,
+        content: prompt,
         modelId: route.modelId,
       })) {
         if (
           ev.type === 'error' &&
           route.oss &&
+          !toolsNeed &&
           !sawUseful &&
           isHarnessUnavailablePayload(ev.payload)
         ) {
@@ -762,25 +855,38 @@ export class CodexHost {
           fallback = true;
           break;
         }
+        if (ev.type === 'error' && toolsNeed && isHarnessUnavailablePayload(ev.payload)) {
+          yield {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            taskId,
+            payload: {
+              message: HARNESS_PACKAGING_MESSAGE,
+              code: 'HARNESS_PACKAGING',
+            },
+          };
+          return;
+        }
         if (ev.type === 'message.delta') {
-          const payload = (ev.payload || {}) as Record<string, unknown>;
+          sawUseful = true;
+          const p = (ev.payload || {}) as Record<string, unknown>;
           const piece =
-            (typeof payload.delta === 'string' && payload.delta) ||
-            (typeof payload.text === 'string' && payload.text) ||
+            (typeof p.delta === 'string' && p.delta) ||
+            (typeof p.text === 'string' && p.text) ||
             '';
           if (piece) assistantText += piece;
-          sawUseful = true;
         }
         if (ev.type === 'message.completed') {
-          const payload = (ev.payload || {}) as Record<string, unknown>;
+          sawUseful = true;
+          const p = (ev.payload || {}) as Record<string, unknown>;
           const finalText =
-            (typeof payload.text === 'string' && payload.text.trim()) ||
+            (typeof p.text === 'string' && p.text.trim()) ||
             assistantText.trim();
-          if (finalText) assistantText = finalText;
-          sawUseful = true;
-        }
-        if (ev.type === 'tool.call') {
-          sawUseful = true;
+          if (finalText) {
+            this.appendHistory(sessionId, 'assistant', finalText);
+            this.rememberFromTurn(sessionId, trimmed, finalText);
+          }
         }
         yield ev;
       }
@@ -790,50 +896,15 @@ export class CodexHost {
           taskId,
           model: route.modelId,
           userText: trimmed,
-          skipUserAppend: true,
+          omitUserAppend: true,
         });
-      } else {
-        if (assistantText.trim()) {
-          this.appendHistory(sessionId, 'assistant', assistantText.trim());
-          this.rememberFromTurn(sessionId, trimmed, assistantText.trim());
-        }
-        // Post-turn: install any plugin packages written under workspace/plugins.
-        const installed = installPluginsFromWorkspaceDir(ws.pluginsDir);
-        if (installed.installed.length) {
-          const names = installed.installed.map((a) => a.name).join('、');
-          const paths = installed.installed
-            .map((a) => a.pathOrRef)
-            .join('\n');
-          yield {
-            type: 'message.delta',
-            timestamp: new Date().toISOString(),
-            sessionId,
-            taskId,
-            payload: {
-              delta:
-                `\n\n✅ 已安装到个性化插件列表：${names}\n${paths}`,
-            },
-          };
-          yield {
-            type: 'message.completed',
-            timestamp: new Date().toISOString(),
-            sessionId,
-            taskId,
-            payload: {
-              text: `已安装到个性化：${names}`,
-            },
-          };
-        } else if (installed.errors.length) {
-          yield {
-            type: 'error',
-            timestamp: new Date().toISOString(),
-            sessionId,
-            taskId,
-            payload: {
-              message: `个性化安装未完全成功：${installed.errors.join('；')}`,
-              soft: true,
-            },
-          };
+        return;
+      }
+      if (toolsNeed && sawUseful) {
+        try {
+          installWorkspacePlugins(plan.cwd);
+        } catch {
+          /* ignore: catalog copy failed; workspace files still exist */
         }
       }
     } finally {

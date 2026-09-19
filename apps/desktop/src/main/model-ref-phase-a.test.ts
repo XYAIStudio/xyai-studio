@@ -201,6 +201,17 @@ describe('Phase A turn route', () => {
       oss: true,
       localProvider: 'ollama',
     });
+    expect(
+      resolveTurnRoute('ollama:qwen', {
+        engineMode: 'auto',
+        capabilityNeed: 'tools',
+      }),
+    ).toEqual({
+      kind: 'codex',
+      modelId: 'qwen',
+      oss: true,
+      localProvider: 'ollama',
+    });
   });
 });
 

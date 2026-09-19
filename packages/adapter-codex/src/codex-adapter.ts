@@ -32,8 +32,6 @@ import {
   mapCodexUserError,
 } from './codex-user-error.js';
 
-export type CodexAskForApproval = 'never' | 'on-request';
-
 export interface CodexAdapterOptions {
   /** Force mock even if binary exists */
   forceMock?: boolean;
@@ -43,13 +41,6 @@ export interface CodexAdapterOptions {
   cwd?: string;
   /** Sandbox mode for -s, default 'read-only' */
   sandbox?: string;
-  /**
-   * Approval policy for `-a` (non-interactive Studio must use `never`
-   * or writable turns hang waiting for an approval UI that never appears).
-   */
-  askForApproval?: CodexAskForApproval;
-  /** Extra writable roots via repeated `--add-dir`. */
-  addDirs?: string[];
 }
 
 export type CodexLocalProvider = 'ollama' | 'lmstudio';
@@ -59,6 +50,11 @@ interface SessionState {
   modelId?: string;
   oss?: boolean;
   localProvider?: CodexLocalProvider;
+  sandbox?: string;
+  approval?: string;
+  addDirs?: string[];
+  extraEnv?: Record<string, string>;
+  configOverrides?: string[];
 }
 
 /** Pure argv builder for `codex exec` (testable without spawn). */
@@ -69,8 +65,9 @@ export function buildCodexExecArgs(opts: {
   modelId?: string;
   oss?: boolean;
   localProvider?: CodexLocalProvider;
-  askForApproval?: CodexAskForApproval;
+  approval?: string;
   addDirs?: string[];
+  configOverrides?: string[];
 }): string[] {
   const args = [
     'exec',
@@ -82,14 +79,16 @@ export function buildCodexExecArgs(opts: {
     '-C',
     opts.cwd,
   ];
-  if (opts.askForApproval) {
-    args.push('-a', opts.askForApproval);
+  if (opts.approval) {
+    args.push('-a', opts.approval);
   }
-  if (opts.addDirs?.length) {
-    for (const dir of opts.addDirs) {
-      const trimmed = dir.trim();
-      if (trimmed) args.push('--add-dir', trimmed);
-    }
+  for (const dir of opts.addDirs ?? []) {
+    const t = dir.trim();
+    if (t) args.push('--add-dir', t);
+  }
+  for (const cfg of opts.configOverrides ?? []) {
+    const t = cfg.trim();
+    if (t) args.push('--config', t);
   }
   if (opts.oss) {
     args.push('--oss');
@@ -155,6 +154,11 @@ export class CodexAdapter implements AgentRuntime {
       modelId: options.modelId,
       oss: options.oss === true,
       localProvider: options.localProvider,
+      sandbox: options.sandbox,
+      approval: options.approval,
+      addDirs: options.addDirs,
+      extraEnv: options.extraEnv,
+      configOverrides: options.configOverrides,
     });
   }
 
@@ -268,7 +272,7 @@ export class CodexAdapter implements AgentRuntime {
 
     const session = this.active.get(sessionId);
     const cwd = session?.cwd || this.options.cwd || process.cwd();
-    const sandbox = this.options.sandbox ?? 'read-only';
+    const sandbox = session?.sandbox || this.options.sandbox || 'read-only';
     const modelId = options.modelId || session?.modelId;
 
     // IMPORTANT: prompt is ONE argv token; do not join args into a single string.
@@ -279,8 +283,9 @@ export class CodexAdapter implements AgentRuntime {
       modelId,
       oss: session?.oss === true,
       localProvider: session?.localProvider,
-      askForApproval: this.options.askForApproval,
-      addDirs: this.options.addDirs,
+      approval: session?.approval,
+      addDirs: session?.addDirs,
+      configOverrides: session?.configOverrides,
     });
 
     const ctx: ParseCodexJsonlContext = {
@@ -294,7 +299,7 @@ export class CodexAdapter implements AgentRuntime {
 
     const child = spawn(bin, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env },
+      env: { ...process.env, ...(session?.extraEnv || {}) },
       windowsHide: true,
     });
     this.children.set(sessionId, child);

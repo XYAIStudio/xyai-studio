@@ -92,6 +92,43 @@ describe('buildCodexExecArgs', () => {
     ]);
   });
 
+  it('adds -a never, --add-dir, and --config for writable custom providers', () => {
+    expect(
+      buildCodexExecArgs({
+        sandbox: 'workspace-write',
+        cwd: '/tmp/ws',
+        content: 'create plugin',
+        modelId: 'deepseek-chat',
+        approval: 'never',
+        addDirs: ['/tmp/personalize'],
+        configOverrides: [
+          'model_provider="xyai"',
+          'model_providers.xyai.base_url="https://api.deepseek.com/v1"',
+        ],
+      }),
+    ).toEqual([
+      'exec',
+      '--json',
+      '--ephemeral',
+      '--skip-git-repo-check',
+      '-s',
+      'workspace-write',
+      '-C',
+      '/tmp/ws',
+      '-a',
+      'never',
+      '--add-dir',
+      '/tmp/personalize',
+      '--config',
+      'model_provider="xyai"',
+      '--config',
+      'model_providers.xyai.base_url="https://api.deepseek.com/v1"',
+      '-m',
+      'deepseek-chat',
+      'create plugin',
+    ]);
+  });
+
   it('keeps --oss --local-provider ollama -m <bare> when session.oss', () => {
     const args = buildCodexExecArgs({
       sandbox: 'read-only',

@@ -68,6 +68,19 @@ describe('custom turn route', () => {
       modelId: 'model-a',
     });
   });
+
+  it('lifts custom create/write turns onto Codex', () => {
+    expect(
+      resolveTurnRoute('custom:prov/model-a', {
+        engineMode: 'auto',
+        capabilityNeed: 'tools',
+      }),
+    ).toEqual({
+      kind: 'codex',
+      modelId: 'model-a',
+      customProviderId: 'prov',
+    });
+  });
 });
 
 describe('settings customProviders', () => {

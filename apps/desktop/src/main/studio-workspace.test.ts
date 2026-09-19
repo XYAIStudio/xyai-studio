@@ -1,46 +1,52 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, existsSync } from 'node:fs';
-import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
+import path from 'node:path';
 import {
   accessModeToCodexSandbox,
   ensureStudioWorkspace,
-  setStudioWorkspaceUserDataDir,
+  setWorkspaceUserDataDir,
+  studioPersonalizeDir,
+  studioWorkspaceDir,
 } from './studio-workspace.js';
 
 describe('accessModeToCodexSandbox', () => {
-  it('maps default and auto to workspace-write', () => {
-    expect(accessModeToCodexSandbox('default')).toBe('workspace-write');
-    expect(accessModeToCodexSandbox('auto')).toBe('workspace-write');
+  it('maps default and auto to workspace-write + never', () => {
+    expect(accessModeToCodexSandbox('default')).toEqual({
+      sandbox: 'workspace-write',
+      approval: 'never',
+    });
+    expect(accessModeToCodexSandbox('auto')).toEqual({
+      sandbox: 'workspace-write',
+      approval: 'never',
+    });
   });
 
-  it('maps full to danger-full-access', () => {
-    expect(accessModeToCodexSandbox('full')).toBe('danger-full-access');
-  });
-
-  it('treats missing as default → workspace-write', () => {
-    expect(accessModeToCodexSandbox(undefined)).toBe('workspace-write');
-    expect(accessModeToCodexSandbox(null)).toBe('workspace-write');
+  it('maps full to danger-full-access + never', () => {
+    expect(accessModeToCodexSandbox('full')).toEqual({
+      sandbox: 'danger-full-access',
+      approval: 'never',
+    });
   });
 });
 
 describe('ensureStudioWorkspace', () => {
+  const prev = process.cwd();
   let tmp: string;
 
-  beforeEach(() => {
-    tmp = mkdtempSync(path.join(os.tmpdir(), 'xyai-ws-'));
-    setStudioWorkspaceUserDataDir(tmp);
-  });
-
   afterEach(() => {
-    rmSync(tmp, { recursive: true, force: true });
+    setWorkspaceUserDataDir(prev);
+    if (tmp) rmSync(tmp, { recursive: true, force: true });
   });
 
-  it('creates workspace and plugins dirs under userData', () => {
-    const paths = ensureStudioWorkspace();
-    expect(paths.workspaceDir).toBe(path.join(tmp, 'workspace'));
-    expect(paths.pluginsDir).toBe(path.join(tmp, 'workspace', 'plugins'));
-    expect(existsSync(paths.workspaceDir)).toBe(true);
-    expect(existsSync(paths.pluginsDir)).toBe(true);
+  it('creates workspace + personalize under userData', () => {
+    tmp = mkdtempSync(path.join(os.tmpdir(), 'xyai-ws-'));
+    setWorkspaceUserDataDir(tmp);
+    const cwd = ensureStudioWorkspace(tmp);
+    expect(cwd).toBe(studioWorkspaceDir(tmp));
+    expect(existsSync(path.join(cwd, 'plugins'))).toBe(true);
+    expect(existsSync(path.join(cwd, 'skills'))).toBe(true);
+    expect(existsSync(path.join(cwd, 'README.md'))).toBe(true);
+    expect(existsSync(studioPersonalizeDir(tmp))).toBe(true);
   });
 });

@@ -25,8 +25,8 @@ export interface HarnessHealth {
 }
 
 /**
- * Prefer local stream for chat. Harness is an enhancement:
- * auto + tools/planning may use Codex when healthy; never block chat.
+ * Prefer local stream for chat. Tool/create work uses the advanced engine
+ * (Codex) when healthy. Auto never blocks chitchat on a missing binary.
  */
 export function chooseHarness(
   need: CapabilityNeed,
@@ -36,25 +36,41 @@ export function chooseHarness(
   if (engineMode === 'local-stream') {
     return { harness: 'local-stream', reason: 'explicit local stream' };
   }
+
+  const wantsTools = need === 'tools' || need === 'planning';
+
   if (engineMode === 'codex-oss') {
     if (health.codexReady) {
       return { harness: 'codex', reason: 'explicit local engine' };
     }
     return {
       harness: 'local-stream',
-      reason: 'explicit local engine missing, soft fallback',
+      reason: wantsTools
+        ? 'explicit local engine missing'
+        : 'explicit local engine missing, soft fallback',
     };
   }
+
   if (engineMode === 'dsh') {
     if (health.dshReady) return { harness: 'dsh', reason: 'explicit dsh' };
+    if (wantsTools && health.codexReady) {
+      return { harness: 'codex', reason: 'dsh stub, tools via advanced engine' };
+    }
     return { harness: 'local-stream', reason: 'dsh stub, soft fallback' };
   }
+
   if (engineMode === 'claude') {
+    if (wantsTools && health.codexReady) {
+      return {
+        harness: 'codex',
+        reason: 'claude stub, tools via advanced engine',
+      };
+    }
     return { harness: 'local-stream', reason: 'claude stub, soft fallback' };
   }
 
   // auto
-  if (need === 'chat') {
+  if (!wantsTools) {
     return { harness: 'local-stream', reason: 'auto: stream qualification' };
   }
   if (health.codexReady) {
@@ -67,10 +83,11 @@ export function chooseHarness(
 }
 
 /**
- * Whether an ollama:* chat turn should use Codex --oss.
- * Auto + chat stays on direct stream; tools/planning may lift to harness.
+ * Whether this turn should spawn the Codex harness (local OSS or cloud brain).
+ * Assumes Codex is packaged; host treats a missing binary as a packaging defect
+ * on tool turns instead of silently staying on bare chat.
  */
-export function ollamaTurnUsesHarness(
+export function turnUsesHarness(
   engineMode: EngineMode,
   need: CapabilityNeed = 'chat',
 ): boolean {
@@ -80,4 +97,15 @@ export function ollamaTurnUsesHarness(
     engineMode,
   );
   return decision.harness === 'codex';
+}
+
+/**
+ * Whether an ollama:* turn should use Codex --oss.
+ * Auto + chat stays on direct stream; tools/planning lift to harness.
+ */
+export function ollamaTurnUsesHarness(
+  engineMode: EngineMode,
+  need: CapabilityNeed = 'chat',
+): boolean {
+  return turnUsesHarness(engineMode, need);
 }
