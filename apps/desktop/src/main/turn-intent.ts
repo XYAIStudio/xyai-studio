@@ -4,38 +4,11 @@
  * and must never force tools (chitchat + 完全访问 stays on stream).
  */
 
+import { inferTurnCapability } from '@xyai/core-runtime';
 import type { AccessMode } from './settings.js';
 import type { CapabilityNeed } from './harness/router.js';
 
-/**
- * Chinese + English markers for file / plugin / skill / MCP / workspace work.
- * Bare chitchat must not match.
- */
-const TOOLS_RE = new RegExp(
-  [
-    '创建.{0,16}(文件|插件|技能|智能体|工作流|连接器|文档|目录|页面|html)',
-    '新建.{0,16}(文件|插件|技能|智能体|工作流|连接器|文档|目录)',
-    '生成.{0,16}(文件|插件|技能|智能体|工作流|连接器|文档|目录|页面|html)',
-    '写(入|一个|一份|些)?(文件|插件|技能|代码|脚本|文档|到)',
-    '保存到',
-    '安装.{0,12}(插件|技能|mcp|连接器|智能体)',
-    '装到.{0,8}(个性化|工作目录)',
-    '插件',
-    '技能',
-    '个性化',
-    '工作目录',
-    'mcp服务器',
-    '\\bmcp\\b',
-    '\\b(create|write|install|save|generate)\\b.{0,24}\\b(file|plugin|skill|agent|mcp|connector|document|workspace|html)\\b',
-    '\\b(plugin|skill|mcp|connector)\\b',
-    '\\bworkspace\\b',
-    'personalize',
-  ].join('|'),
-  'i',
-);
-
-const PLANNING_RE =
-  /制定.{0,8}(计划|方案)|长任务|分步|step[- ]by[- ]step|make a plan|规划任务/i;
+export { isToolCapability } from '@xyai/core-runtime';
 
 /**
  * @param userText Latest user message
@@ -47,15 +20,7 @@ export function inferCapabilityNeed(
   _accessMode?: AccessMode,
 ): CapabilityNeed {
   void _accessMode;
-  const text = (userText || '').trim();
-  if (!text) return 'chat';
-  if (TOOLS_RE.test(text)) return 'tools';
-  if (PLANNING_RE.test(text)) return 'planning';
-  return 'chat';
-}
-
-export function isToolCapability(need: CapabilityNeed): boolean {
-  return need === 'tools' || need === 'planning';
+  return inferTurnCapability(userText);
 }
 
 /** System line for stream-only turns that looked like create/write work. */

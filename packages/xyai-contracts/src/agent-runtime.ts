@@ -58,4 +58,6 @@ export interface AgentRuntime {
   start(options: StartSessionOptions): Promise<void>;
   stop(sessionId: SessionId): Promise<void>;
   send(options: SendMessageOptions): AsyncIterable<AgentEvent>;
+  /** Abort the in-flight turn without disposing the session. */
+  abort(sessionId?: SessionId): void;
 }

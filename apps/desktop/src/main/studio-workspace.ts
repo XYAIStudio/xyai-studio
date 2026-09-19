@@ -1,11 +1,16 @@
 /**
  * Studio writable sandbox: userData/workspace as cwd, personalize as --add-dir.
- * accessMode default|auto → workspace-write + approval never.
+ * accessMode default|auto → PermissionMode default|auto → workspace-write + approval never.
+ * accessMode full → bypass → danger-full-access.
  */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import type { AccessMode } from './settings.js';
+import {
+  accessModeToPermissionMode,
+  type AccessMode,
+  type PermissionMode,
+} from '@xyai/contracts';
 
 export type CodexSandboxMode =
   | 'read-only'
@@ -71,14 +76,28 @@ export function ensureStudioWorkspace(
 }
 
 /**
- * Map composer accessMode to Codex `-s` / `-a` only.
+ * Map Core PermissionMode to Codex `-s` / `-a` only.
+ * Never used to infer chat vs tools. default/auto = workspace-write;
+ * bypass = danger-full-access; ask = workspace-write + on-request.
+ */
+export function permissionModeToCodexSandbox(
+  mode: PermissionMode,
+): CodexSandboxSpec {
+  if (mode === 'bypass') {
+    return { sandbox: 'danger-full-access', approval: 'never' };
+  }
+  if (mode === 'ask') {
+    return { sandbox: 'workspace-write', approval: 'on-request' };
+  }
+  return { sandbox: 'workspace-write', approval: 'never' };
+}
+
+/**
+ * Map composer accessMode to Codex `-s` / `-a` via PermissionMode.
  * Never used to infer chat vs tools. default/auto = workspace-write.
  */
 export function accessModeToCodexSandbox(mode: AccessMode): CodexSandboxSpec {
-  if (mode === 'full') {
-    return { sandbox: 'danger-full-access', approval: 'never' };
-  }
-  return { sandbox: 'workspace-write', approval: 'never' };
+  return permissionModeToCodexSandbox(accessModeToPermissionMode(mode));
 }
 
 /** Preamble so the model writes into cwd layout the install hook can see. */

@@ -37,7 +37,7 @@ Electron 薄宿主（窗口 / IPC / 组件安装）
 
 ## 3. 契约优先
 
-包：`@xyai/contracts` — `session`、`agent-runtime`、`model-catalog`、`tool-mcp`、`approval`、`skill`、`asset`、`xyos-bridge`、`assembly`。
+包：`@xyai/contracts` — `session`、`session-facade`、`permission`、`agent-kind`、`turn-capability`、`agent-runtime`、`model-catalog`、`tool-mcp`、`approval`、`skill`、`asset`、`xyos-bridge`、`assembly`。薄实现：`@xyai/core-runtime`（见 [../docs/XYAI-CORE.md](../docs/XYAI-CORE.md)）。
 
 原则：状态机、校验、权限写在代码里；不把确定性甩给 prompt。禁止 DOM 注入 / `executeJavaScript` 硬捅上游 UI。
 

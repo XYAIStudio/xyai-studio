@@ -4,12 +4,11 @@
  * Respects settings.engineMode; auto never blocks chat on a missing harness.
  */
 
+import type { TurnCapability } from '@xyai/contracts';
 import type { EngineMode } from '../engine-mode.js';
 
-export type CapabilityNeed =
-  | 'chat' // 真流式对话资格线
-  | 'tools' // 工具 / 改文件
-  | 'planning'; // 长任务规划
+/** Text-inferred turn need. Alias of Core `TurnCapability`. */
+export type CapabilityNeed = TurnCapability;
 
 export type HarnessCandidate = 'codex' | 'dsh' | 'claude' | 'local-stream';
 

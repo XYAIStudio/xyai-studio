@@ -21,6 +21,7 @@ import {
 import type { EngineMode } from './engine-mode.js';
 import type { AgentEvent } from '@xyai/contracts';
 import { normalizeModelRef } from '@xyai/contracts';
+import { watchStall } from '@xyai/core-runtime';
 import {
   loadUnifiedModelCatalog,
   toStatusModelLists,
@@ -643,6 +644,17 @@ export class CodexHost {
     this.sending = false;
   }
 
+  /** Pulse Core stall watchdog around a turn stream; onStall aborts the host turn. */
+  private watched(
+    timeoutMs: number,
+    iter: AsyncIterable<AgentEvent>,
+  ): AsyncIterable<AgentEvent> {
+    return watchStall(iter, {
+      timeoutMs,
+      onStall: () => this.stopTurn(),
+    });
+  }
+
   async *sendMessage(content: string): AsyncIterable<AgentEvent> {
     const trimmed = content.trim();
     const sessionId = this.activeSessionId;
@@ -772,14 +784,17 @@ export class CodexHost {
             },
           };
         }
-        yield* this.streamCustomProviderTurn({
-          sessionId,
-          taskId,
-          provider,
-          modelId: route.modelId,
-          userText: trimmed,
-          honestyNoWrite: toolsNeed,
-        });
+        yield* this.watched(
+          plan.stallTimeoutMs,
+          this.streamCustomProviderTurn({
+            sessionId,
+            taskId,
+            provider,
+            modelId: route.modelId,
+            userText: trimmed,
+            honestyNoWrite: toolsNeed,
+          }),
+        );
         return;
       }
       if (route.kind === 'ollama') {
@@ -796,13 +811,16 @@ export class CodexHost {
             },
           };
         }
-        yield* this.streamLocalOllamaTurn({
-          sessionId,
-          taskId,
-          model: route.model,
-          userText: trimmed,
-          honestyNoWrite: toolsNeed,
-        });
+        yield* this.watched(
+          plan.stallTimeoutMs,
+          this.streamLocalOllamaTurn({
+            sessionId,
+            taskId,
+            model: route.model,
+            userText: trimmed,
+            honestyNoWrite: toolsNeed,
+          }),
+        );
         return;
       }
 
@@ -838,14 +856,17 @@ export class CodexHost {
             taskId,
             payload: toolsFallbackPayload(reason ?? 'packaging'),
           };
-          yield* this.fallbackBrainStream({
-            sessionId,
-            taskId,
-            userText: trimmed,
-            route,
-            honestyNoWrite: true,
-            omitUserAppend: false,
-          });
+          yield* this.watched(
+            plan.stallTimeoutMs,
+            this.fallbackBrainStream({
+              sessionId,
+              taskId,
+              userText: trimmed,
+              route,
+              honestyNoWrite: true,
+              omitUserAppend: false,
+            }),
+          );
           return;
         }
         if (route.oss) {
@@ -859,12 +880,15 @@ export class CodexHost {
               code: 'HARNESS_SOFT_FALLBACK',
             },
           };
-          yield* this.streamLocalOllamaTurn({
-            sessionId,
-            taskId,
-            model: route.modelId,
-            userText: trimmed,
-          });
+          yield* this.watched(
+            plan.stallTimeoutMs,
+            this.streamLocalOllamaTurn({
+              sessionId,
+              taskId,
+              model: route.modelId,
+              userText: trimmed,
+            }),
+          );
           return;
         }
       }
@@ -924,12 +948,15 @@ export class CodexHost {
       let sawUseful = false;
       let fallback = false;
       let assistantText = '';
-      for await (const ev of this.adapter.send({
-        sessionId,
-        taskId,
-        content: prompt,
-        modelId: route.modelId,
-      })) {
+      for await (const ev of this.watched(
+        plan.stallTimeoutMs,
+        this.adapter.send({
+          sessionId,
+          taskId,
+          content: prompt,
+          modelId: route.modelId,
+        }),
+      )) {
         if (ev.type === 'error' && !sawUseful) {
           const payload = (ev.payload || {}) as Record<string, unknown>;
           const timedOut = payload.code === 'TIMEOUT';
@@ -997,14 +1024,17 @@ export class CodexHost {
         } catch {
           /* abort is best-effort before stream fallback */
         }
-        yield* this.fallbackBrainStream({
-          sessionId,
-          taskId,
-          userText: trimmed,
-          route,
-          honestyNoWrite: toolsNeed,
-          omitUserAppend: true,
-        });
+        yield* this.watched(
+          plan.stallTimeoutMs,
+          this.fallbackBrainStream({
+            sessionId,
+            taskId,
+            userText: trimmed,
+            route,
+            honestyNoWrite: toolsNeed,
+            omitUserAppend: true,
+          }),
+        );
         return;
       }
       if (toolsNeed && sawUseful) {

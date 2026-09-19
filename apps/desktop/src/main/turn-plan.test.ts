@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { STALL_TIMEOUT_CHAT_MS, STALL_TIMEOUT_TOOLS_MS } from '@xyai/core-runtime';
 import { planTurn, resolveTurnRoute } from './turn-controller.js';
 
 describe('resolveTurnRoute tools lift', () => {
@@ -73,6 +74,8 @@ describe('planTurn', () => {
       userDataDir: tmp,
     });
     expect(plan.capabilityNeed).toBe('tools');
+    expect(plan.permissionMode).toBe('default');
+    expect(plan.stallTimeoutMs).toBe(STALL_TIMEOUT_TOOLS_MS);
     expect(plan.route).toEqual({
       kind: 'codex',
       modelId: 'deepseek-chat',
@@ -96,6 +99,8 @@ describe('planTurn', () => {
       userDataDir: tmp,
     });
     expect(plan.capabilityNeed).toBe('chat');
+    expect(plan.permissionMode).toBe('bypass');
+    expect(plan.stallTimeoutMs).toBe(STALL_TIMEOUT_CHAT_MS);
     expect(plan.route).toEqual({
       kind: 'custom',
       providerId: 'ds',
