@@ -41,7 +41,8 @@
 
 - 关键词 / embedding 均未命中、但索引中已有 chunks 时，自动 **overview 兜底**：注入该库前 N 个片段，避免「已 @ 知识库却空检索」。
 - 中文查询：除空白分词外，对连续汉字做整段 + bigram 打分，并提升「整句子串命中」权重。
-- 对话侧一旦选中 kbIds：始终附带「已挂载知识库」系统块；若库无索引，则显式写入 `【知识库「…」尚未有可用索引…】`，并 `transcript.appendError`，**绝不静默丢弃**。
+- 对话侧一旦选中 kbIds：始终附带「已挂载知识库」系统块；若库无索引，则写入 `formatEmptyIndexNote`（从未解析 → 「请先完成解析」；已解析但 `chunks.jsonl` 为空 → 「解析未产生可检索正文，请重新解析或换可读文件」），并 `transcript.appendError`，**绝不静默丢弃**。
+- `.docx` 抽取走 ZIP 中央目录 + method 8 raw DEFLATE（Office OOXML）；抽不到可检索正文时文件记失败、顶栏「完成」不计该文件，不把警告当成已索引。
 
 ## UX（0.5 深化）
 

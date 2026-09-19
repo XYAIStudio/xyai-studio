@@ -4,12 +4,14 @@
  *
  * PDFs: prefer unpdf/pdf.js page text (Chinese policy docs); fall back to
  * capped rough scrape with XMP/metadata stripped. Chat/KB get meaningful body.
+ * DOCX: ZIP central directory + raw DEFLATE (method 8); zlib inflate() fails
+ * on real Office files.
  */
 
 import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { inflateSync } from 'node:zlib';
+import { inflateRawSync, inflateSync } from 'node:zlib';
 
 export type ExtractResult = {
   text: string;
@@ -39,51 +41,168 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-/** Minimal ZIP local-file scan for docx word/document.xml */
+const ZIP_LOCAL_SIG = 0x04034b50;
+const ZIP_CENTRAL_SIG = 0x02014b50;
+const ZIP_EOCD_SIG = 0x06054b50;
+
+type ZipCentralEntry = {
+  name: string;
+  method: number;
+  flags: number;
+  localOff: number;
+  compSize: number;
+};
+
+/** ZIP method 8 is raw DEFLATE (no zlib wrapper). Method 0 is stored. */
+function inflateZipPayload(method: number, raw: Buffer): Buffer | null {
+  if (method === 0) return Buffer.from(raw);
+  if (method === 8) {
+    try {
+      return inflateRawSync(raw);
+    } catch {
+      try {
+        return inflateSync(raw);
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+function xmlToDocxText(xml: string): string {
+  return xml
+    .replace(/<w:tab\/>/g, '\t')
+    .replace(/<w:br\/>/g, '\n')
+    .replace(/<\/w:p>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** Body / header / footer parts that can hold indexable OOXML text. */
+function isDocxTextPart(name: string): boolean {
+  const n = name.replace(/\\/g, '/');
+  return (
+    n === 'word/document.xml' ||
+    n.endsWith('/word/document.xml') ||
+    /^word\/header\d+\.xml$/.test(n) ||
+    /^word\/footer\d+\.xml$/.test(n)
+  );
+}
+
+function readZipCentralEntries(buf: Buffer): ZipCentralEntry[] {
+  let eocd = -1;
+  const min = Math.max(0, buf.length - 22 - 0xffff);
+  for (let i = buf.length - 22; i >= min; i -= 1) {
+    if (buf.readUInt32LE(i) === ZIP_EOCD_SIG) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) return [];
+  const ntotal = buf.readUInt16LE(eocd + 10);
+  let off = buf.readUInt32LE(eocd + 16);
+  const out: ZipCentralEntry[] = [];
+  for (let i = 0; i < ntotal; i += 1) {
+    if (off + 46 > buf.length || buf.readUInt32LE(off) !== ZIP_CENTRAL_SIG) {
+      break;
+    }
+    const flags = buf.readUInt16LE(off + 8);
+    const method = buf.readUInt16LE(off + 10);
+    const compSize = buf.readUInt32LE(off + 20);
+    const nameLen = buf.readUInt16LE(off + 28);
+    const extraLen = buf.readUInt16LE(off + 30);
+    const commentLen = buf.readUInt16LE(off + 32);
+    const localOff = buf.readUInt32LE(off + 42);
+    const name = buf.subarray(off + 46, off + 46 + nameLen).toString('utf8');
+    out.push({ name, method, flags, localOff, compSize });
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  return out;
+}
+
+function readZipLocalPayload(
+  buf: Buffer,
+  localOff: number,
+  fallbackCompSize: number,
+): { method: number; raw: Buffer } | null {
+  if (localOff + 30 > buf.length) return null;
+  if (buf.readUInt32LE(localOff) !== ZIP_LOCAL_SIG) return null;
+  const flags = buf.readUInt16LE(localOff + 6);
+  const method = buf.readUInt16LE(localOff + 8);
+  let compSize = buf.readUInt32LE(localOff + 18);
+  const nameLen = buf.readUInt16LE(localOff + 26);
+  const extraLen = buf.readUInt16LE(localOff + 28);
+  const dataStart = localOff + 30 + nameLen + extraLen;
+  if ((flags & 0x0008) !== 0 && fallbackCompSize > 0) {
+    compSize = fallbackCompSize;
+  }
+  const dataEnd = dataStart + compSize;
+  if (compSize <= 0 || dataEnd > buf.length) return null;
+  return { method, raw: buf.subarray(dataStart, dataEnd) };
+}
+
+/**
+ * Read OOXML word/document.xml (and headers/footers) via the ZIP central
+ * directory. Falls back to a local-file scan when EOCD is missing.
+ * ZIP method 8 uses inflateRaw — zlib inflate() fails on real Office files.
+ */
 function extractDocxText(buf: Buffer): string | null {
+  const parts: string[] = [];
+  const seen = new Set<string>();
+
+  const take = (name: string, method: number, raw: Buffer): void => {
+    const key = name.replace(/\\/g, '/');
+    if (seen.has(key) || !isDocxTextPart(key)) return;
+    const xml = inflateZipPayload(method, raw);
+    if (!xml) return;
+    const text = xmlToDocxText(xml.toString('utf8'));
+    if (!text) return;
+    seen.add(key);
+    // Prefer document.xml first in the joined result.
+    if (key.endsWith('word/document.xml')) {
+      parts.unshift(text);
+    } else {
+      parts.push(text);
+    }
+  };
+
+  for (const entry of readZipCentralEntries(buf)) {
+    const payload = readZipLocalPayload(buf, entry.localOff, entry.compSize);
+    if (!payload) continue;
+    take(entry.name, entry.method || payload.method, payload.raw);
+  }
+  if (parts.length) return parts.join('\n\n');
+
   let offset = 0;
   while (offset < buf.length - 30) {
-    if (buf[offset] !== 0x50 || buf[offset + 1] !== 0x4b) {
+    if (buf.readUInt32LE(offset) !== ZIP_LOCAL_SIG) {
       offset += 1;
       continue;
     }
-    // local file header
-    if (buf[offset + 2] !== 0x03 || buf[offset + 3] !== 0x04) {
-      offset += 1;
-      continue;
-    }
+    const flags = buf.readUInt16LE(offset + 6);
     const method = buf.readUInt16LE(offset + 8);
     const compSize = buf.readUInt32LE(offset + 18);
     const nameLen = buf.readUInt16LE(offset + 26);
     const extraLen = buf.readUInt16LE(offset + 28);
     const nameStart = offset + 30;
+    if (nameStart + nameLen > buf.length) break;
     const name = buf.subarray(nameStart, nameStart + nameLen).toString('utf8');
     const dataStart = nameStart + nameLen + extraLen;
+    if ((flags & 0x0008) !== 0 && compSize === 0) {
+      offset = dataStart + 1;
+      continue;
+    }
     const dataEnd = dataStart + compSize;
     if (dataEnd > buf.length) break;
-    if (name === 'word/document.xml' || name.endsWith('/word/document.xml')) {
-      const raw = buf.subarray(dataStart, dataEnd);
-      let xml: Buffer;
-      try {
-        xml = method === 0 ? Buffer.from(raw) : inflateSync(raw);
-      } catch {
-        return null;
-      }
-      const s = xml.toString('utf8');
-      return s
-        .replace(/<w:tab\/>/g, '\t')
-        .replace(/<w:br\/>/g, '\n')
-        .replace(/<\/w:p>/g, '\n')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&amp;/g, '&')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-    }
-    offset = dataEnd;
+    take(name, method, buf.subarray(dataStart, dataEnd));
+    offset = dataEnd > offset ? dataEnd : offset + 1;
   }
-  return null;
+  return parts.length ? parts.join('\n\n') : null;
 }
 
 /**
@@ -367,6 +486,12 @@ function extractFromBufferSync(filePath: string, buf: Buffer): ExtractResult {
       return {
         text: '',
         warn: 'docx extract failed (unsupported compression or structure)',
+      };
+    }
+    if (countMeaningfulChars(text) < PDF_MIN_MEANINGFUL_CHARS) {
+      return {
+        text,
+        warn: 'docx extract produced little meaningful text (may be scanned or image-only)',
       };
     }
     return { text };

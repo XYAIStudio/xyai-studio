@@ -1,13 +1,87 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { crc32, deflateRawSync } from 'node:zlib';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   countMeaningfulChars,
   isJunkIndexText,
   extractPdfAsync,
   extractPdfRough,
+  extractTextFromFile,
   preferMeaningfulSlice,
   stripPdfMetadataJunk,
   PDF_MIN_MEANINGFUL_CHARS,
 } from './extract.js';
+
+const temps: string[] = [];
+
+afterEach(() => {
+  for (const t of temps.splice(0)) {
+    try {
+      rmSync(t, { recursive: true, force: true });
+    } catch {
+      /* ignore leftover tmp */
+    }
+  }
+});
+
+/** Minimal OOXML zip (method 8 = raw DEFLATE) — same path as Office .docx. */
+function zipEntries(
+  entries: { name: string; data: Buffer; method?: 0 | 8 }[],
+): Buffer {
+  const locals: Buffer[] = [];
+  const centrals: Buffer[] = [];
+  let offset = 0;
+  for (const e of entries) {
+    const method = e.method ?? 8;
+    const comp = method === 8 ? deflateRawSync(e.data) : e.data;
+    const nameBuf = Buffer.from(e.name, 'utf8');
+    const crc = crc32(e.data) >>> 0;
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(method, 8);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(comp.length, 18);
+    local.writeUInt32LE(e.data.length, 22);
+    local.writeUInt16LE(nameBuf.length, 26);
+    const localFull = Buffer.concat([local, nameBuf, comp]);
+    locals.push(localFull);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(method, 10);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(comp.length, 20);
+    central.writeUInt32LE(e.data.length, 24);
+    central.writeUInt16LE(nameBuf.length, 28);
+    central.writeUInt32LE(offset, 42);
+    centrals.push(Buffer.concat([central, nameBuf]));
+    offset += localFull.length;
+  }
+  const localBuf = Buffer.concat(locals);
+  const centralBuf = Buffer.concat(centrals);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(entries.length, 8);
+  eocd.writeUInt16LE(entries.length, 10);
+  eocd.writeUInt32LE(centralBuf.length, 12);
+  eocd.writeUInt32LE(localBuf.length, 16);
+  return Buffer.concat([localBuf, centralBuf, eocd]);
+}
+
+function minimalDocx(paragraph: string): Buffer {
+  const xml = Buffer.from(
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+      `<w:body><w:p><w:r><w:t>${paragraph}</w:t></w:r></w:p></w:body></w:document>`,
+    'utf8',
+  );
+  return zipEntries([{ name: 'word/document.xml', data: xml, method: 8 }]);
+}
 
 /** Tiny synthetic PDF with a visible text operator. */
 function makeHelloPdf(text = 'HelloPDF'): Buffer {
@@ -82,6 +156,34 @@ describe('extractPdfAsync (unpdf)', () => {
     expect(countMeaningfulChars(res.text)).toBeGreaterThanOrEqual(8);
     expect(res.warn || '').toMatch(/pdf\.js|rough|unpdf|pdf/i);
   }, 15_000);
+});
+
+describe('docx extract (ZIP method 8 / Office OOXML)', () => {
+  it('inflates raw DEFLATE document.xml (zlib inflate() cannot)', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'xyai-docx-'));
+    temps.push(dir);
+    const file = path.join(dir, 'sample.docx');
+    writeFileSync(
+      file,
+      minimalDocx('授权管理制度第一条 为规范集团公司治理结构'),
+    );
+    const res = extractTextFromFile(file);
+    expect(res.text).toContain('授权管理制度');
+    expect(res.text).toContain('集团公司');
+    expect(res.warn).toBeUndefined();
+  });
+
+  it('extracts indexable body from the real 授权管理制度 Office fixture', () => {
+    const fixture = fileURLToPath(
+      new URL('../fixtures/shouquan-authorization.docx', import.meta.url),
+    );
+    const res = extractTextFromFile(fixture);
+    expect(res.warn).toBeUndefined();
+    expect(res.text).toContain('授权管理制度');
+    expect(res.text).toMatch(/基本授权|特别授权/);
+    expect(countMeaningfulChars(res.text)).toBeGreaterThan(200);
+    expect(isJunkIndexText(res.text)).toBe(false);
+  });
 });
 
 describe('isJunkIndexText', () => {

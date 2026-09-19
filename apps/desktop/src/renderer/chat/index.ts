@@ -778,6 +778,13 @@ export function mountChat(): ChatMount {
         }
         lastTurnCitations = (res.citations || []) as ChatCitation[];
         const emptyNames = res.emptyIndexNames || [];
+        const emptyNotes =
+          res.emptyIndexNotes && res.emptyIndexNotes.length
+            ? res.emptyIndexNotes
+            : emptyNames.map(
+                (name) =>
+                  `【知识库「${name}」尚未有可用索引，请先在知识库页完成解析】`,
+              );
         if (emptyNames.length) {
           const hasAttach = attachments.length > 0;
           const hasHits = hits.length > 0;
@@ -785,15 +792,13 @@ export function mountChat(): ChatMount {
           // chat already extracted attachment body above for the local LLM.
           // Hard block only when @KB with empty index, no attachments, no hits.
           if (!hasAttach && !hasHits) {
-            for (const name of emptyNames) {
-              transcript.appendError(
-                `【知识库「${name}」尚未有可用索引，请先在知识库页完成解析】`,
-              );
+            for (const note of emptyNotes) {
+              transcript.appendError(note);
             }
             return;
           }
           // Soft note: continue turn (attachments / hits already in outbound).
-          const tip = `【提示：知识库「${emptyNames.join('、')}」尚未完成解析；已改用附件正文或已有检索结果继续】`;
+          const tip = `【提示：知识库「${emptyNames.join('、')}」尚无可用检索正文；已改用附件正文或已有检索结果继续】`;
           outbound = `${tip}\n${outbound}`;
           rightSidebar.appendTerminal(tip);
         }
