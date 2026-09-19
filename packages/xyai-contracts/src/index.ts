@@ -13,5 +13,6 @@ export * from './tool-mcp.js';
 export * from './approval.js';
 export * from './skill.js';
 export * from './asset.js';
+export * from './asset-registry.js';
 export * from './xyos-bridge.js';
 export * from './assembly.js';

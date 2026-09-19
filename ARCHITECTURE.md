@@ -29,7 +29,7 @@
 Electron 薄宿主（窗口 / IPC / 组件安装）
         │
    XYAI Core（SessionFacade · PermissionMode · Assembly · Approval · …）
-        ├── @xyai/core-runtime（RuntimeSession、模型目录/网关、知识检索计划、Forge 计划；审批≠路由）
+        ├── @xyai/core-runtime（RuntimeSession、模型目录/网关、知识检索计划、Forge 计划、资产登记处；审批≠路由）
         ├── Harness Adapters（Codex → DSH → Claude …）
         └── OpenXYOS Bridge（健康探针 / 资产；组件可缺省降级）
         │
@@ -38,7 +38,7 @@ Electron 薄宿主（窗口 / IPC / 组件安装）
 
 ## 3. 契约优先
 
-包：`@xyai/contracts` — `session`、`session-facade`、`permission`、`agent-kind`、`turn-capability`、`agent-runtime`、`model-catalog`、`model-gateway`、`knowledge-gateway`、`forge`、`tool-mcp`、`approval`、`skill`、`asset`、`xyos-bridge`、`assembly`。薄实现：`@xyai/core-runtime`（见 [docs/XYAI-CORE.md](docs/XYAI-CORE.md)）。
+包：`@xyai/contracts` — `session`、`session-facade`、`permission`、`agent-kind`、`turn-capability`、`agent-runtime`、`model-catalog`、`model-gateway`、`knowledge-gateway`、`forge`、`asset-registry`、`tool-mcp`、`approval`、`skill`、`asset`、`xyos-bridge`、`assembly`。薄实现：`@xyai/core-runtime`（见 [docs/XYAI-CORE.md](docs/XYAI-CORE.md)）。
 
 原则：状态机、校验、权限写在代码里；不把确定性甩给 prompt。禁止 DOM 注入 / `executeJavaScript` 硬捅上游 UI。
 

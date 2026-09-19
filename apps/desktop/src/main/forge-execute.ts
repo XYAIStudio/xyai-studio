@@ -14,6 +14,7 @@ import {
   type InteropAssetKind,
 } from '@xyai/contracts';
 import { forgePlan } from '@xyai/core-runtime';
+import { refreshAssetRegistry } from './asset-registry-host.js';
 import { installAsset } from './personalize/actions.js';
 import { discoveryId } from './personalize/paths.js';
 import { upsertAsset } from './personalize/store.js';
@@ -148,6 +149,7 @@ export async function executeForge(
   }
 
   await notifyForgeBiz(inst.asset);
+  void refreshAssetRegistry();
   return {
     ok: true,
     stage: 'install',
