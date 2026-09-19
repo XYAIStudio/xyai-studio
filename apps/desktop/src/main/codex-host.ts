@@ -267,7 +267,8 @@ export class CodexHost {
 
   private persistSession(sessionId: string): void {
     const sess = this.registry.get(sessionId);
-    const messages = this.packForModel(sessionId);
+    // Persist FULL transcript — never call packForModel here (that would recurse).
+    const messages = this.historyFor(sessionId).slice();
     const memory = this.memoryFor(sessionId);
     saveSession({
       id: sessionId,

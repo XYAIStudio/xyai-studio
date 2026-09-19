@@ -36,9 +36,11 @@ import {
   resolveOpenXyosSpawnCommand,
   tailText,
 } from './openxyos-runtime-utils.js';
+import { buildOpenXyosChatCatalog } from './openxyos-chat-catalog.js';
 import {
   demoLoginCurlExample,
   ensureOpenXyosDemoUsers,
+  loginOpenXyosDemoAccessToken,
 } from './openxyos-demo-bootstrap.js';
 
 export type OpenXyosResolveResult = {
@@ -439,6 +441,7 @@ export async function resolveOpenXyos(): Promise<OpenXyosResolveResult> {
   if (full) {
     // Stop static server if we are handing the webview to the full stack
     await stopStaticHandle();
+    void syncOpenXyosChatModels(full.url);
     return full;
   }
 
@@ -448,6 +451,7 @@ export async function resolveOpenXyos(): Promise<OpenXyosResolveResult> {
     const url = `http://127.0.0.1:${serverPort}/`;
     if (await waitUntilServerHealthy(serverPort, 55_000)) {
       await stopStaticHandle();
+      void syncOpenXyosChatModels(`http://127.0.0.1:${serverPort}/`);
       return {
         ok: true,
         root,
@@ -540,9 +544,31 @@ export async function resolveOpenXyos(): Promise<OpenXyosResolveResult> {
   });
 }
 
-/** Running full-stack base URL when Studio-spawned server is up. */
+/** Push local registered models and keyed cloud models into OpenXYOS chat picker. */
+export async function syncOpenXyosChatModels(baseUrl?: string | null): Promise<void> {
+  const base = (baseUrl || getOpenXyosServerBaseUrl() || '').replace(/\/+$/, '');
+  if (!base) return;
+  try {
+    const token = await loginOpenXyosDemoAccessToken(base);
+    if (!token) return;
+    const models = await buildOpenXyosChatCatalog();
+    await fetch(`${base}/api/xyai/chat-models/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-XYAI-Interop': 'studio',
+      },
+      body: JSON.stringify({ models }),
+    });
+  } catch {
+    /* best-effort; chat still falls back to tenant ai_config */
+  }
+}
+
+/** Full-stack base URL when a managed child is up, or after attaching to a healthy port. */
 export function getOpenXyosServerBaseUrl(): string | null {
-  if (serverProc && serverPort && !serverProc.killed) {
+  if (serverPort && (!serverProc || !serverProc.killed)) {
     return `http://127.0.0.1:${serverPort}`;
   }
   return null;
@@ -628,6 +654,7 @@ async function startOpenXyosFullStack(
         const boot = await ensureOpenXyosDemoUsers(url);
         if (boot.loginOk) {
           demoNote = '；演示账号已就绪（demo@demo.com）';
+          void syncOpenXyosChatModels(url);
         } else {
           demoNote =
             '；演示账号自动注册未完全成功，可手动注册或检查 seed。验证：' +
