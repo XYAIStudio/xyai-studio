@@ -525,6 +525,21 @@ const api = {
   }): Promise<{ ok: boolean; asset?: unknown; message?: string }> =>
     ipcRenderer.invoke('xyai:personalize-set-enabled', input),
 
+  assetRegistryList: (input?: {
+    space?: 'dev' | 'biz';
+    kind?: string;
+    origin?: 'personalize' | 'workspace' | 'openxyos';
+  }): Promise<{ ok: boolean; items: unknown[] }> =>
+    ipcRenderer.invoke('xyai:asset-registry-list', input || {}),
+  assetRegistryGet: (
+    id: string,
+  ): Promise<{ ok: boolean; item?: unknown }> =>
+    ipcRenderer.invoke('xyai:asset-registry-get', { id }),
+  assetRegistryPromote: (
+    id: string,
+  ): Promise<{ ok: boolean; noop?: boolean; item?: unknown; message?: string }> =>
+    ipcRenderer.invoke('xyai:asset-registry-promote', { id }),
+
     openXyosResolve: (): Promise<{
     ok: boolean;
     root: string;
