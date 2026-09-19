@@ -25,6 +25,8 @@ const KINDS: PersonalizeKind[] = [
   'mcp',
   'connector',
   'agent',
+  'doc',
+  'system',
 ];
 
 function asKind(v: unknown): PersonalizeKind {

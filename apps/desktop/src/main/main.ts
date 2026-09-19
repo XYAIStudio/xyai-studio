@@ -61,6 +61,7 @@ import {
   configureKnowledgeTurn,
   knowledgeTurnFromHost,
 } from './knowledge-turn.js';
+import { configureForgeBiz } from './forge-execute.js';
 import {
   registerPersonalizeIpc,
   setPersonalizeUserDataDir,
@@ -747,7 +748,8 @@ ipcMain.handle('xyai:status', () => {
     if (
       kind === 'agent' ||
       kind === 'knowledge-mount' ||
-      kind === 'model-provider'
+      kind === 'model-provider' ||
+      kind === 'system'
     ) {
       return kind;
     }
@@ -918,6 +920,10 @@ ipcMain.handle('xyai:status', () => {
 
   registerKnowledgeIpc(getKnowledgeHost, () => mainWindow);
   configureKnowledgeTurn(() => knowledgeTurnFromHost(getKnowledgeHost()));
+  configureForgeBiz(async (input) => {
+    if (!findOpenXyosRuntimeRoot()) return;
+    await getInteropHost().pushToBiz(input);
+  });
   registerPersonalizeIpc();
 }
 

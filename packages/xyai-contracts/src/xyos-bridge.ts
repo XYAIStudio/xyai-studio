@@ -19,7 +19,8 @@ export type InteropAssetKind =
   | 'skill'
   | 'plugin'
   | 'mcp'
-  | 'connector';
+  | 'connector'
+  | 'system';
 
 export type InteropDirection = 'dev-to-biz' | 'biz-to-dev';
 

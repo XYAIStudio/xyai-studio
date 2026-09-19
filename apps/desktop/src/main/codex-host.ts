@@ -1077,6 +1077,7 @@ export class CodexHost {
       }
       if (toolsNeed && sawUseful) {
         try {
+          // C3 Forge: workspace plugins|skills|mcp|agents|docs|systems → installAsset
           installWorkspacePlugins(plan.cwd);
         } catch {
           /* ignore: catalog copy failed; workspace files still exist */

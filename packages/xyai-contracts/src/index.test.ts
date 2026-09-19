@@ -7,11 +7,17 @@ import {
   normalizeAgentKind,
   isToolCapability,
   protocolDrivesCodexTools,
+  normalizeForgeAssetKind,
+  interopKindForForge,
+  workspaceFolderForKind,
+  inferForgeKindFromWorkspaceRel,
   type AssemblyProfile,
   type AgentEvent,
   type Session,
   type KnowledgeGateway,
   type KnowledgeHit,
+  type ForgeRequest,
+  type ForgeResult,
 } from './index.js';
 
 describe('@xyai/contracts', () => {
@@ -105,5 +111,22 @@ describe('@xyai/contracts', () => {
     expect((await gateway.search({ text: 'note' }))[0]?.sourceKind).toBe(
       'local',
     );
+  });
+
+  it('normalizes ForgeAssetKind aliases and maps install folders', () => {
+    expect(normalizeForgeAssetKind('插件')).toBe('plugin');
+    expect(normalizeForgeAssetKind('skills')).toBe('skill');
+    expect(normalizeForgeAssetKind('管理系统')).toBe('system');
+    expect(normalizeForgeAssetKind('文档')).toBe('doc');
+    expect(normalizeForgeAssetKind('nope')).toBeUndefined();
+    expect(workspaceFolderForKind('plugin')).toBe('plugins');
+    expect(workspaceFolderForKind('system')).toBe('systems');
+    expect(inferForgeKindFromWorkspaceRel('docs/手册')).toBe('doc');
+    expect(interopKindForForge('doc')).toBe('knowledge-mount');
+    expect(interopKindForForge('system')).toBe('system');
+    const req: ForgeRequest = {};
+    const res: ForgeResult = { ok: true, noop: true, stage: 'noop' };
+    expect(req.kind).toBeUndefined();
+    expect(res.noop).toBe(true);
   });
 });
