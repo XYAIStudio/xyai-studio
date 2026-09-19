@@ -43,11 +43,12 @@ Cindy 明确行为（首期必须对齐）：
 - Composer 内 **选模型**（不是只在设置页藏着）
 - 生成中 **Send → Stop**；Stop 干净中断
 - Enter 发送 / Shift+Enter 换行 / **IME composition 不误发送**
-- 流式：`message.delta` 累加到稳定 in-progress 气泡，完成再定稿
+- 流式：`message.delta` 累加到稳定 in-progress 气泡，完成再定稿；助手/用户气泡按 Markdown 渲染为 HTML（标题/加粗/列表/代码/链接），不是原文符号
+- 助手气泡操作：复制、引用、转发（本条或整段对话 → 其它会话草稿）、保存至本机知识库、发给智能体（写入目标对话草稿；无独立多智能体运行时）
 
 首期明确后置（写进路线，避免假对标）：
 
-- 消息队列重排、斜杠 `/`、`@` 引用、附件托盘、工具调用折叠卡、Thinking/Plan、跨端续聊
+- 消息队列重排、斜杠 `/`、附件托盘、工具调用折叠卡、Thinking/Plan、跨端/跨窗口续聊
 
 ## 3. XYAI 对话子系统分层
 
@@ -58,7 +59,7 @@ Cindy 明确行为（首期必须对齐）：
 └──────────────────────────────────────────────────────────┘
 ┌──────────────┬───────────────────────────────────────────┐
 │ AgentRail /  │  TranscriptView                           │
-│ SessionRail  │  气泡 / 流式 / 错误                         │
+│ SessionRail  │  气泡 Markdown / 流式 / 消息操作            │
 │ 智能体|会话  ├───────────────────────────────────────────┤
 │ + 新对话     │                                           │
 │              │  Composer                                 │
@@ -113,7 +114,7 @@ Cindy 明确行为（首期必须对齐）：
 | `ModelCatalogFacade` | main：`normalizeGatewayCatalog`（Ollama + 自定义/云 + 内置） | 给 Picker 的统一列表（`source: local\|cloud`） |
 | `Composer` | `apps/desktop/src/renderer/chat/composer.ts` | 输入、发送/停止、IME、焦点 |
 | `ModelPicker` | `apps/desktop/src/renderer/chat/model-picker.ts` | 对标 Cindy：分组（本地 / Codex）、搜索、当前 chip |
-| `TranscriptView` | `apps/desktop/src/renderer/chat/transcript.ts` | delta 批处理、气泡 |
+| `TranscriptView` | `apps/desktop/src/renderer/chat/transcript.ts` | delta 批处理、气泡 Markdown→HTML、复制/引用/转发/保存/派活 |
 | `SessionRail` | `apps/desktop/src/renderer/chat/session-rail.ts` | 会话列表（icon+标题+预览） |
 | `AgentRail` | `apps/desktop/src/renderer/chat/agent-rail.ts` + `agents.ts` + `agent-bind.ts` | 开发空间智能体列表 + session↔agent 内存绑定；见 `apps/desktop/AGENT-RAIL.md` |
 

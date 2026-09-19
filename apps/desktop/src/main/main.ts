@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   Menu,
@@ -73,6 +74,7 @@ import {
 } from './asset-registry-host.js';
 import { discoverWorkspaceAssets } from './install-workspace-plugins.js';
 import { listStored } from './personalize/store.js';
+import { listByKindAndSource } from './personalize/actions.js';
 import { studioWorkspaceDir } from './studio-workspace.js';
 import {
   registerPersonalizeIpc,
@@ -346,6 +348,34 @@ function registerIpc(): void {
   );
 
   ipcMain.handle('xyai:sessions-list', () => getHost().listSessions());
+
+  ipcMain.handle('xyai:chat-list-targets', () => {
+    const sessions = getHost().listSessions();
+    const personalizeAgents = listByKindAndSource('agent', 'studio').map((a) => ({
+      id: a.id,
+      name: a.name,
+      hint: a.description || a.status,
+    }));
+    return {
+      ok: true as const,
+      sessions,
+      personalizeAgents,
+      /** Same-window session list only; no second BrowserWindow yet. */
+      multiWindow: false,
+    };
+  });
+
+  ipcMain.handle(
+    'xyai:clipboard-write',
+    (_event, payload: { text?: unknown; html?: unknown }) => {
+      const text = typeof payload?.text === 'string' ? payload.text : '';
+      const html = typeof payload?.html === 'string' ? payload.html : '';
+      if (!text && !html) return { ok: false as const, message: 'empty' };
+      if (html) clipboard.write({ text: text || html, html });
+      else clipboard.writeText(text);
+      return { ok: true as const };
+    },
+  );
 
   ipcMain.handle(
     'xyai:session-create',

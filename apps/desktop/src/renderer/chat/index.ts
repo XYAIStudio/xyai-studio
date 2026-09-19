@@ -7,7 +7,7 @@ import {
   getSelectedAgentId,
   setSelectedAgentId,
 } from './agent-bind.js';
-import { DEFAULT_AGENT, getAgentById } from './agents.js';
+import { DEFAULT_AGENT, DEV_AGENTS, getAgentById } from './agents.js';
 import {
   DEFAULT_PROJECT_ID,
   DEFAULT_TASK_ID,
@@ -17,6 +17,7 @@ import {
 } from './collab-types.js';
 import {
   promptAssignWork,
+  promptChoice,
   promptProject,
   promptTask,
 } from './collab-modals.js';
@@ -32,6 +33,17 @@ import { createSessionRail } from './session-rail.js';
 import { createTranscript } from './transcript.js';
 import type { AgentEvent, XyaiStatus, ChatCitation } from './types.js';
 import type { KbMount } from '../xyai-api.js';
+import { markdownToSafeHtml } from './markdown-safe.js';
+import {
+  AGENT_HANDOFF_GAP,
+  chatNoteFilename,
+  chatNoteMarkdown,
+  formatAgentHandoff,
+  formatForwardDraft,
+  formatQuoteBlock,
+  pickActionText,
+  type ForwardScope,
+} from './message-actions.js';
 
 export type ChatMount = {
   refreshFromStatus: (st?: XyaiStatus) => Promise<void>;
@@ -895,6 +907,218 @@ export function mountChat(): ChatMount {
       /* ignore */
     }
   }
+
+  function currentSessionTitle(): string {
+    const sid = transcript.getActiveId();
+    const hit = (lastStatus?.sessions || []).find((s) => s.id === sid);
+    return hit?.title || '';
+  }
+
+  async function copyPlain(text: string): Promise<void> {
+    const html = markdownToSafeHtml(text);
+    if (window.xyai.clipboardWrite) {
+      const res = await window.xyai.clipboardWrite({ text, html });
+      if (!res.ok) transcript.appendSystem(res.message || '复制失败');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      transcript.appendSystem('复制失败');
+    }
+  }
+
+  async function forwardToSession(messageText: string): Promise<void> {
+    const targets = window.xyai.chatListTargets
+      ? await window.xyai.chatListTargets()
+      : {
+          ok: true,
+          sessions: lastStatus?.sessions || [],
+          personalizeAgents: [],
+          multiWindow: false,
+        };
+    const currentId = transcript.getActiveId();
+    const items = (targets.sessions || [])
+      .filter((s) => s.id !== currentId)
+      .map((s) => ({
+        id: s.id,
+        label: s.title || s.id,
+      }));
+    items.push({
+      id: '__new__',
+      label: '新对话',
+    });
+    const picked = await promptChoice({
+      title: '转发到会话',
+      hint: '在当前窗口打开目标会话并填入草稿；发送后才会进入该对话。跨窗口转发尚未接入。',
+      items,
+      confirmLabel: '转入草稿',
+      radios: {
+        legend: '范围',
+        options: [
+          { value: 'message', label: '本条消息', checked: true },
+          { value: 'history', label: '整段对话', checked: false },
+        ],
+      },
+    });
+    if (!picked) return;
+    const scope: ForwardScope =
+      picked.radio === 'history' ? 'history' : 'message';
+    const draft = formatForwardDraft({
+      scope,
+      text: messageText,
+      messages: transcript.getMessages(),
+      fromTitle: currentSessionTitle(),
+    });
+    let sid = picked.id;
+    if (sid === '__new__') {
+      const created = await createBoundSession({
+        title: '转发',
+        kind: 'dm',
+        projectId: selectedProjectId || DEFAULT_PROJECT_ID,
+        taskId: selectedTaskId || DEFAULT_TASK_ID,
+        agentIds: [getSelectedAgentId() || DEFAULT_AGENT.id],
+      });
+      if (!created) {
+        transcript.appendSystem('无法创建会话');
+        return;
+      }
+      sid = created;
+      if (lastStatus) await refreshFromStatus(lastStatus);
+    }
+    await switchSession(sid);
+    composer.insertDraft(draft);
+    transcript.appendSystem('已填入转发草稿，发送后才会进入该对话');
+    composer.focus();
+  }
+
+  async function saveToKnowledge(body: string): Promise<void> {
+    const state = await window.xyai.kbGetState?.();
+    const local = (state?.mounts || []).filter((m) => m.kind === 'local');
+    const items = local.map((m) => ({
+      id: m.id,
+      label: m.name,
+      hint: m.sourceRoot || '本机',
+    }));
+    items.push({ id: '__pick__', label: '选择其他文件夹…', hint: '' });
+    const picked = await promptChoice({
+      title: '保存至知识库',
+      hint: '写入本机知识库「对话摘录」文件夹；下次解析后可检索。云端知识库请改选本地文件夹。',
+      items,
+      confirmLabel: '保存',
+    });
+    if (!picked) return;
+    const title =
+      body.trim().split('\n')[0]?.replace(/^#+\s*/, '').slice(0, 40) ||
+      '对话摘录';
+    const markdown = chatNoteMarkdown({
+      title,
+      body,
+      fromTitle: currentSessionTitle(),
+    });
+    const filename = chatNoteFilename(title);
+    let kbId: string | undefined;
+    let destDir: string | undefined;
+    if (picked.id === '__pick__') {
+      const dir = await window.xyai.kbPickDirectory?.('选择保存文件夹');
+      if (!dir?.ok || !dir.path) return;
+      destDir = dir.path;
+    } else {
+      kbId = picked.id;
+    }
+    if (!window.xyai.kbSaveNote) {
+      transcript.appendSystem('保存接口不可用，请重装最新安装包');
+      return;
+    }
+    const res = await window.xyai.kbSaveNote({
+      kbId,
+      destDir,
+      filename,
+      markdown,
+    });
+    if (!res.ok) {
+      transcript.appendSystem(res.message || '保存失败');
+      return;
+    }
+    transcript.appendSystem(`已保存到知识库：${res.path || filename}`);
+  }
+
+  async function notifyAgent(payload: string): Promise<void> {
+    const targets = window.xyai.chatListTargets
+      ? await window.xyai.chatListTargets()
+      : {
+          ok: true,
+          sessions: [],
+          personalizeAgents: [],
+          multiWindow: false,
+        };
+    const items = [
+      ...DEV_AGENTS.map((a) => ({
+        id: a.id,
+        label: a.name,
+        hint: a.subtitle,
+      })),
+      ...(targets.personalizeAgents || []).map((a) => ({
+        id: a.id,
+        label: a.name,
+        hint: a.hint || '个性化',
+      })),
+    ];
+    const seen = new Set<string>();
+    const unique = items.filter((it) => {
+      if (seen.has(it.id)) return false;
+      seen.add(it.id);
+      return true;
+    });
+    const picked = await promptChoice({
+      title: '发给智能体',
+      hint: AGENT_HANDOFF_GAP,
+      items: unique,
+      confirmLabel: '写入草稿',
+      emptyText: '暂无可用智能体',
+    });
+    if (!picked) return;
+    const name =
+      unique.find((a) => a.id === picked.id)?.label || picked.id;
+    const fromTitle = currentSessionTitle();
+    await selectAgent(picked.id);
+    composer.insertDraft(
+      formatAgentHandoff({
+        payload,
+        fromTitle,
+        agentName: name,
+      }),
+    );
+    transcript.appendSystem(AGENT_HANDOFF_GAP);
+    composer.focus();
+  }
+
+  transcript.onBubbleAction((ev) => {
+    const text = pickActionText(ev.selection, ev.message.text);
+    if (!text.trim() && ev.kind !== 'forward') return;
+    void (async () => {
+      if (ev.kind === 'copy') {
+        await copyPlain(text);
+        return;
+      }
+      if (ev.kind === 'quote') {
+        composer.insertDraft(formatQuoteBlock(text));
+        composer.focus();
+        return;
+      }
+      if (ev.kind === 'forward') {
+        await forwardToSession(text);
+        return;
+      }
+      if (ev.kind === 'save-kb') {
+        await saveToKnowledge(text);
+        return;
+      }
+      if (ev.kind === 'notify-agent') {
+        await notifyAgent(text);
+      }
+    })();
+  });
 
   function handleEvent(ev: AgentEvent): void {
     transcript.handleEvent(ev);

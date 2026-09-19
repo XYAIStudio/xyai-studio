@@ -31,6 +31,13 @@
 - 「+」：IPC `xyai:pick-files` → `dialog.showOpenDialog`（多选）
 - 附件 chips 在 textarea 上方；发送时把 markdown 附件列表前置到 message content，并写入「打开文件」pane
 
+### 4. 气泡 Markdown 与消息操作
+- `transcript.ts` 将助手/用户气泡 Markdown 渲染为消毒 HTML（标题、加粗、列表、代码、链接）；流式只补丁最后一条气泡并保持滚动
+- 助手工具条：复制、引用、转发、保存至知识库、发给智能体…；用户气泡：复制、引用
+- 转发：同窗口会话列表 +「新对话」，范围为本条或整段对话，写入目标 Composer 草稿（`xyai:chat-list-targets` 标明 `multiWindow: false`）
+- 保存：`xyai:kb-save-note` 写入本机挂接源目录 `对话摘录/`，或用户自选文件夹
+- 发给智能体：开发空间默认智能体 + 个性化已装智能体；打开其对话并写入【派活】草稿。无独立多智能体运行时，不冒充自动协同
+
 ## Deferred
 - 真实文件上传到 harness / 多模态
 - 真实 pending review / diff 管道
@@ -38,9 +45,11 @@
 - 真实 PTY 终端
 - accessMode 对 tool permission 的主进程强制执行（当前仅 UI + 落盘）
 - Windows pack / installer（明确不做）
+- 跨窗口转发 / 智能体自动协同运行时
 
 ## 主要改动文件
 - `src/renderer/index.html`, `styles.css`
-- `src/renderer/chat/{history-nav-rail,right-sidebar,access-mode,index,transcript,composer}.ts`
+- `src/renderer/chat/{history-nav-rail,right-sidebar,access-mode,index,transcript,composer,markdown-safe,message-actions}.ts`
 - `src/main/{main,settings,codex-host}.ts`
+- `src/main/knowledge/{kb-save-note,knowledge-host,register-ipc}.ts`
 - `src/preload/preload.ts`, `src/renderer/xyai-api.d.ts`

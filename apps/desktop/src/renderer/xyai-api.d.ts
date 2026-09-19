@@ -375,6 +375,22 @@ export interface XyaiApi {
     mode?: string;
     model?: string | null;
   }>;
+  kbSaveNote?: (input: {
+    kbId?: string;
+    destDir?: string;
+    filename: string;
+    markdown: string;
+  }) => Promise<{ ok: boolean; path?: string; message?: string }>;
+  clipboardWrite?: (input: {
+    text: string;
+    html?: string;
+  }) => Promise<{ ok: boolean; message?: string }>;
+  chatListTargets?: () => Promise<{
+    ok: boolean;
+    sessions: NonNullable<XyaiStatus['sessions']>;
+    personalizeAgents: { id: string; name: string; hint?: string }[];
+    multiWindow: boolean;
+  }>;
   kbPreviewFile?: (input: {
     kbId: string;
     path: string;
