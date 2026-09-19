@@ -714,11 +714,21 @@ ipcMain.handle('xyai:status', () => {
       const content =
         typeof payload?.content === 'string' ? payload.content : '';
       const sender = event.sender;
-      for await (const ev of getHost().sendMessage(content)) {
-        if (sender.isDestroyed()) break;
-        sender.send('xyai:chat-event', ev as AgentEvent);
+      try {
+        for await (const ev of getHost().sendMessage(content)) {
+          if (sender.isDestroyed()) break;
+          sender.send('xyai:chat-event', ev as AgentEvent);
+        }
+        return { ok: true as const };
+      } catch (err) {
+        // Ensure host busy flag cannot stick across a crashed turn.
+        try {
+          getHost().stopTurn();
+        } catch {
+          /* ignore */
+        }
+        throw err;
       }
-      return { ok: true as const };
     },
   );
 

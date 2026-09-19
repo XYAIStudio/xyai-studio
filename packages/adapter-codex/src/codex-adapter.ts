@@ -32,6 +32,8 @@ import {
   mapCodexUserError,
 } from './codex-user-error.js';
 
+export type CodexAskForApproval = 'never' | 'on-request';
+
 export interface CodexAdapterOptions {
   /** Force mock even if binary exists */
   forceMock?: boolean;
@@ -41,6 +43,13 @@ export interface CodexAdapterOptions {
   cwd?: string;
   /** Sandbox mode for -s, default 'read-only' */
   sandbox?: string;
+  /**
+   * Approval policy for `-a` (non-interactive Studio must use `never`
+   * or writable turns hang waiting for an approval UI that never appears).
+   */
+  askForApproval?: CodexAskForApproval;
+  /** Extra writable roots via repeated `--add-dir`. */
+  addDirs?: string[];
 }
 
 export type CodexLocalProvider = 'ollama' | 'lmstudio';
@@ -60,6 +69,8 @@ export function buildCodexExecArgs(opts: {
   modelId?: string;
   oss?: boolean;
   localProvider?: CodexLocalProvider;
+  askForApproval?: CodexAskForApproval;
+  addDirs?: string[];
 }): string[] {
   const args = [
     'exec',
@@ -71,6 +82,15 @@ export function buildCodexExecArgs(opts: {
     '-C',
     opts.cwd,
   ];
+  if (opts.askForApproval) {
+    args.push('-a', opts.askForApproval);
+  }
+  if (opts.addDirs?.length) {
+    for (const dir of opts.addDirs) {
+      const trimmed = dir.trim();
+      if (trimmed) args.push('--add-dir', trimmed);
+    }
+  }
   if (opts.oss) {
     args.push('--oss');
     if (opts.localProvider) {
@@ -259,6 +279,8 @@ export class CodexAdapter implements AgentRuntime {
       modelId,
       oss: session?.oss === true,
       localProvider: session?.localProvider,
+      askForApproval: this.options.askForApproval,
+      addDirs: this.options.addDirs,
     });
 
     const ctx: ParseCodexJsonlContext = {

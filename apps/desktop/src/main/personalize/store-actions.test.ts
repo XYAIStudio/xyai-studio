@@ -16,7 +16,7 @@ import {
   loadIndex,
   getExtraScanRoots,
 } from './store.js';
-import { importAsset, installAsset, setEnabled } from './actions.js';
+import { importAsset, installAsset, installFromDirectory, setEnabled } from './actions.js';
 
 describe('personalize scan + import (fixture)', () => {
   let tmp: string;
@@ -144,5 +144,45 @@ describe('discoveryId used by scan', () => {
   it('matches path helper', () => {
     expect(discoveryId('a|b')).toMatch(/^disc-/);
     expect(getExtraScanRoots()).toEqual([]);
+  });
+});
+
+describe('installFromDirectory', () => {
+  let tmp: string;
+  let ud: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(path.join(os.tmpdir(), 'pz-fromdir-'));
+    ud = path.join(tmp, 'userdata');
+    setPersonalizeUserDataDir(ud);
+    const pkg = path.join(tmp, 'weather-plugin');
+    mkdirSync(pkg, { recursive: true });
+    writeFileSync(
+      path.join(pkg, 'plugin.json'),
+      JSON.stringify({ name: '天气插件', id: 'weather-plugin' }),
+    );
+    writeFileSync(path.join(pkg, 'README.md'), '# weather');
+  });
+
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('copies into installed/plugin/<id> and lists as installed', () => {
+    const pkg = path.join(tmp, 'weather-plugin');
+    const res = installFromDirectory({
+      kind: 'plugin',
+      id: 'weather-plugin',
+      name: '天气插件',
+      srcPath: pkg,
+    });
+    expect(res.ok).toBe(true);
+    expect(res.asset?.status).toBe('installed');
+    expect(res.asset?.pathOrRef).toContain(
+      path.join('personalize', 'installed', 'plugin', 'weather-plugin'),
+    );
+    expect(existsSync(res.asset!.pathOrRef)).toBe(true);
+    const idx = loadIndex();
+    expect(idx.assets.some((a) => a.id === 'weather-plugin')).toBe(true);
   });
 });

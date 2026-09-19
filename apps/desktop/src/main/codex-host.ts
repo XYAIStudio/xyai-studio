@@ -32,12 +32,21 @@ import {
   TurnAbortBag,
 } from './turn-controller.js';
 import {
+  buildHarnessPrompt,
   emptySessionMemory,
   harvestFactsFromTurn,
   packMessagesForTurn,
   type ChatMessage,
   type SessionMemoryState,
 } from './context-pack.js';
+import {
+  accessModeToCodexSandbox,
+  ensureStudioWorkspace,
+  setStudioWorkspaceUserDataDir,
+  type StudioWorkspacePaths,
+} from './studio-workspace.js';
+import { installPluginsFromWorkspaceDir } from './personalize/install-workspace-plugins.js';
+import { getPersonalizeRoot } from './personalize/store.js';
 import {
   loadDurableFacts,
   mergeDurableFacts,
@@ -100,6 +109,7 @@ export interface CodexHostStatus {
 export function configureChatPersistence(userDataDir: string): void {
   setMemoryUserDataDir(userDataDir);
   setSessionUserDataDir(userDataDir);
+  setStudioWorkspaceUserDataDir(userDataDir);
 }
 
 export class CodexHost {
@@ -139,11 +149,27 @@ export class CodexHost {
     return normalizeModelRef(this.settings.modelId);
   }
 
+  private workspacePaths(): StudioWorkspacePaths {
+    return ensureStudioWorkspace();
+  }
+
   private buildAdapter(): CodexAdapter {
+    const ws = this.workspacePaths();
+    const sandbox = accessModeToCodexSandbox(this.settings.accessMode);
+    const personalizeRoot = getPersonalizeRoot();
+    // Writable sandboxes must not wait on an interactive approval UI.
+    const askForApproval =
+      sandbox === 'read-only' ? undefined : ('never' as const);
     return createCodexHostAdapter({
       forceMock: this.settings.forceMock,
       binaryPath: this.settings.codexBin.trim() || undefined,
       profile: this.profile,
+      cwd: ws.workspaceDir,
+      sandbox,
+      askForApproval,
+      // Allow installing into personalize store even under workspace-write.
+      addDirs:
+        sandbox === 'workspace-write' ? [personalizeRoot] : undefined,
     });
   }
 
@@ -176,10 +202,11 @@ export class CodexHost {
     };
   }
 
-  /** Rebuild adapter when forceMock / codexBin change. */
+  /** Rebuild adapter when forceMock / codexBin / accessMode change. */
   async applySettings(partial: Partial<XyaiSettings>): Promise<XyaiSettings> {
     const prevBin = this.settings.codexBin;
     const prevMock = this.settings.forceMock;
+    const prevAccess = this.settings.accessMode;
     const patched =
       partial.modelId !== undefined
         ? { ...partial, modelId: normalizeModelRef(partial.modelId) }
@@ -194,7 +221,8 @@ export class CodexHost {
     };
     if (
       this.settings.codexBin !== prevBin ||
-      this.settings.forceMock !== prevMock
+      this.settings.forceMock !== prevMock ||
+      this.settings.accessMode !== prevAccess
     ) {
       void this.adapter.abort();
       this.adapter = this.buildAdapter();
@@ -284,8 +312,12 @@ export class CodexHost {
     taskId: string;
     model: string;
     userText: string;
+    /** When true, user turn was already appended (Codex soft-fallback path). */
+    skipUserAppend?: boolean;
   }): AsyncIterable<AgentEvent> {
-    this.appendHistory(opts.sessionId, 'user', opts.userText);
+    if (!opts.skipUserAppend) {
+      this.appendHistory(opts.sessionId, 'user', opts.userText);
+    }
     const messages = this.packForModel(opts.sessionId);
     const signal = this.aborts.beginOllama();
     let assistantText = '';
@@ -482,8 +514,12 @@ export class CodexHost {
   }
 
   stopTurn(): void {
-    this.aborts.stop(this.adapter, this.activeSessionId);
-    this.sending = false;
+    try {
+      this.aborts.stop(this.adapter, this.activeSessionId);
+    } finally {
+      // Always clear busy so follow-up turns are not stuck after abort/hang.
+      this.sending = false;
+    }
   }
 
   async *sendMessage(content: string): AsyncIterable<AgentEvent> {
@@ -691,12 +727,29 @@ export class CodexHost {
         oss: route.oss === true,
         localProvider: route.localProvider,
       });
+
+      // Persist user turn + pack prior context into the single Codex argv prompt.
+      this.appendHistory(sessionId, 'user', trimmed);
+      const ws = this.workspacePaths();
+      const prior = this.historyFor(sessionId).slice(0, -1);
+      const harnessContent = buildHarnessPrompt({
+        userText: trimmed,
+        priorMessages: prior,
+        paths: {
+          workspaceDir: ws.workspaceDir,
+          pluginsDir: ws.pluginsDir,
+          personalizeRoot: getPersonalizeRoot(),
+          personalizeInstalledPluginDir: `${getPersonalizeRoot()}/installed/plugin`,
+        },
+      });
+
       let sawUseful = false;
       let fallback = false;
+      let assistantText = '';
       for await (const ev of this.adapter.send({
         sessionId,
         taskId,
-        content: trimmed,
+        content: harnessContent,
         modelId: route.modelId,
       })) {
         if (
@@ -709,7 +762,24 @@ export class CodexHost {
           fallback = true;
           break;
         }
-        if (ev.type === 'message.delta' || ev.type === 'message.completed') {
+        if (ev.type === 'message.delta') {
+          const payload = (ev.payload || {}) as Record<string, unknown>;
+          const piece =
+            (typeof payload.delta === 'string' && payload.delta) ||
+            (typeof payload.text === 'string' && payload.text) ||
+            '';
+          if (piece) assistantText += piece;
+          sawUseful = true;
+        }
+        if (ev.type === 'message.completed') {
+          const payload = (ev.payload || {}) as Record<string, unknown>;
+          const finalText =
+            (typeof payload.text === 'string' && payload.text.trim()) ||
+            assistantText.trim();
+          if (finalText) assistantText = finalText;
+          sawUseful = true;
+        }
+        if (ev.type === 'tool.call') {
           sawUseful = true;
         }
         yield ev;
@@ -720,7 +790,51 @@ export class CodexHost {
           taskId,
           model: route.modelId,
           userText: trimmed,
+          skipUserAppend: true,
         });
+      } else {
+        if (assistantText.trim()) {
+          this.appendHistory(sessionId, 'assistant', assistantText.trim());
+          this.rememberFromTurn(sessionId, trimmed, assistantText.trim());
+        }
+        // Post-turn: install any plugin packages written under workspace/plugins.
+        const installed = installPluginsFromWorkspaceDir(ws.pluginsDir);
+        if (installed.installed.length) {
+          const names = installed.installed.map((a) => a.name).join('、');
+          const paths = installed.installed
+            .map((a) => a.pathOrRef)
+            .join('\n');
+          yield {
+            type: 'message.delta',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            taskId,
+            payload: {
+              delta:
+                `\n\n✅ 已安装到个性化插件列表：${names}\n${paths}`,
+            },
+          };
+          yield {
+            type: 'message.completed',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            taskId,
+            payload: {
+              text: `已安装到个性化：${names}`,
+            },
+          };
+        } else if (installed.errors.length) {
+          yield {
+            type: 'error',
+            timestamp: new Date().toISOString(),
+            sessionId,
+            taskId,
+            payload: {
+              message: `个性化安装未完全成功：${installed.errors.join('；')}`,
+              soft: true,
+            },
+          };
+        }
       }
     } finally {
       this.sending = false;

@@ -110,6 +110,32 @@ describe('buildCodexExecArgs', () => {
     expect(args[mAt + 1]).not.toMatch(/^ollama:/);
     expect(ossAt).toBeLessThan(mAt);
   });
+
+  it('includes -a never and --add-dir when provided', () => {
+    expect(
+      buildCodexExecArgs({
+        sandbox: 'workspace-write',
+        cwd: '/ws',
+        content: 'write plugin',
+        askForApproval: 'never',
+        addDirs: ['/personalize'],
+      }),
+    ).toEqual([
+      'exec',
+      '--json',
+      '--ephemeral',
+      '--skip-git-repo-check',
+      '-s',
+      'workspace-write',
+      '-C',
+      '/ws',
+      '-a',
+      'never',
+      '--add-dir',
+      '/personalize',
+      'write plugin',
+    ]);
+  });
 });
 
 describe('CodexAdapter missing binary', () => {

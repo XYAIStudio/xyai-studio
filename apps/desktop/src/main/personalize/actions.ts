@@ -180,6 +180,59 @@ export function setEnabled(
   return { ok: true, asset: next };
 }
 
+
+/**
+ * Install a local directory/file package into Studio personalize store.
+ * Layout: userData/personalize/installed/<kind>/<id>/…
+ * Registers the asset so 「个性化」studio list picks it up immediately.
+ */
+export function installFromDirectory(input: {
+  kind: PersonalizeKind;
+  /** Stable id; defaults to slug of name / basename */
+  id?: string;
+  name?: string;
+  srcPath: string;
+  description?: string;
+}): { ok: boolean; asset?: PersonalAsset; message?: string } {
+  try {
+    const src = input.srcPath;
+    if (!src || !existsSync(src)) {
+      return { ok: false, message: `安装源不存在: ${src || '(空)'}` };
+    }
+    const baseName = path.basename(src);
+    const name = (input.name && input.name.trim()) || baseName;
+    const rawId =
+      (input.id && input.id.trim()) ||
+      `user-${input.kind}-${name}`.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
+    const id = rawId.replace(/^-+|-+$/g, '') || `user-${input.kind}`;
+
+    const destRoot = path.join(installedDir(input.kind), id);
+    const pathOrRef = copyPathInto(src, destRoot);
+
+    const asset: PersonalAsset = {
+      id,
+      kind: input.kind,
+      name,
+      source: 'user',
+      originApp: 'xyai',
+      status: 'installed',
+      pathOrRef,
+      description: input.description,
+      manifest: {
+        installedAt: new Date().toISOString(),
+        installPath: pathOrRef,
+        originalPath: src,
+        createdBy: 'studio-harness',
+      },
+    };
+    upsertAsset(asset);
+    return { ok: true, asset };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, message };
+  }
+}
+
 export function listByKindAndSource(
   kind: PersonalizeKind,
   source: 'studio' | 'local' | 'openxyos',

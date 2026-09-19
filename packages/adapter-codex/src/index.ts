@@ -13,6 +13,7 @@ export {
 } from './codex-adapter.js';
 export type {
   CodexAdapterOptions,
+  CodexAskForApproval,
   CodexLocalProvider,
   ResolveCodexBinaryResult,
   CodexBinarySource,

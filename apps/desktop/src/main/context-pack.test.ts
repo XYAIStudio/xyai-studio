@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceRollingSummary,
+  behaviorSystemPrompt,
+  buildHarnessPrompt,
   emptySessionMemory,
   estimateChars,
   harvestFactsFromTurn,
@@ -42,5 +44,29 @@ describe('context-pack handoff', () => {
       '好的，已记住：你希望被称作 Anna',
     );
     expect(facts.length).toBeGreaterThan(0);
+  });
+});
+
+describe('buildHarnessPrompt', () => {
+  const paths = {
+    workspaceDir: '/ud/workspace',
+    pluginsDir: '/ud/workspace/plugins',
+    personalizeRoot: '/ud/personalize',
+    personalizeInstalledPluginDir: '/ud/personalize/installed/plugin',
+  };
+
+  it('forbids HTML-only delivery and names personalize install paths', () => {
+    const prompt = buildHarnessPrompt({
+      userText: '做一个天气插件并安装到个性化',
+      paths,
+    });
+    expect(prompt).toMatch(/禁止仅输出 HTML/);
+    expect(prompt).toContain(paths.pluginsDir);
+    expect(prompt).toContain('/ud/personalize/installed/plugin');
+    expect(prompt).toContain('做一个天气插件并安装到个性化');
+  });
+
+  it('behaviorSystemPrompt mentions multi-turn completion', () => {
+    expect(behaviorSystemPrompt(paths)).toMatch(/多回合/);
   });
 });
