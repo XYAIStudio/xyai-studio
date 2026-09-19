@@ -86,16 +86,37 @@ describe('planTurn', () => {
     expect(plan.addDirs).toEqual([path.join(tmp, 'personalize')]);
   });
 
-  it('accessMode auto forces tools even for chitchat', () => {
+  it('你好 + full access stays custom stream; sandbox still full', () => {
     tmp = mkdtempSync(path.join(os.tmpdir(), 'xyai-plan-'));
     const plan = planTurn({
       modelRef: 'custom:ds/deepseek-chat',
       userText: '你好',
       engineMode: 'auto',
-      accessMode: 'auto',
+      accessMode: 'full',
       userDataDir: tmp,
     });
-    expect(plan.capabilityNeed).toBe('tools');
-    expect(plan.route.kind).toBe('codex');
+    expect(plan.capabilityNeed).toBe('chat');
+    expect(plan.route).toEqual({
+      kind: 'custom',
+      providerId: 'ds',
+      modelId: 'deepseek-chat',
+    });
+    expect(plan.sandbox).toEqual({
+      sandbox: 'danger-full-access',
+      approval: 'never',
+    });
+  });
+
+  it('你好 + full on ollama stays local stream', () => {
+    tmp = mkdtempSync(path.join(os.tmpdir(), 'xyai-plan-'));
+    const plan = planTurn({
+      modelRef: 'ollama:qwen',
+      userText: '你好',
+      engineMode: 'auto',
+      accessMode: 'full',
+      userDataDir: tmp,
+    });
+    expect(plan.capabilityNeed).toBe('chat');
+    expect(plan.route).toEqual({ kind: 'ollama', model: 'qwen' });
   });
 });

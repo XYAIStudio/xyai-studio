@@ -15,6 +15,7 @@ describe('mapCodexUserError', () => {
       expect(mapped.message).toMatch(/[\u4e00-\u9fff]/);
       expect(mapped.message).not.toMatch(/Error:|at |stack/i);
       expect(mapped.message).not.toMatch(/ENOENT|spawn /);
+      expect(mapped.message).not.toMatch(/高级引擎|Codex|harness/i);
     }
   });
 

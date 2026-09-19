@@ -318,7 +318,9 @@ export class CodexAdapter implements AgentRuntime {
     });
 
     const limitMs = timeoutMs();
+    let timedOut = false;
     const killer = setTimeout(() => {
+      timedOut = true;
       try {
         child.kill('SIGTERM');
       } catch {
@@ -369,6 +371,17 @@ export class CodexAdapter implements AgentRuntime {
       return;
     }
 
+    if (timedOut && !sawAgentMessage) {
+      yield {
+        type: 'error',
+        timestamp: now(),
+        sessionId,
+        taskId,
+        payload: mapCodexUserError(CODEX_ERROR_CODE.TIMEOUT),
+      };
+      return;
+    }
+
     if ((exitCode ?? 0) !== 0 && !sawAgentMessage) {
       yield {
         type: 'error',
@@ -376,7 +389,9 @@ export class CodexAdapter implements AgentRuntime {
         sessionId,
         taskId,
         payload: {
-          message: `Codex exited with code ${exitCode ?? 'unknown'} and no agent_message`,
+          message: '这次没能完成写入。已改用文字说明继续，请稍后再试。',
+          code: 'EMPTY_TURN',
+          soft: true,
           exitCode,
         },
       };

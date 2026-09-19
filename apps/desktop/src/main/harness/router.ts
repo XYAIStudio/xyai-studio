@@ -25,8 +25,8 @@ export interface HarnessHealth {
 }
 
 /**
- * Prefer local stream for chat. Tool/create work uses the advanced engine
- * (Codex) when healthy. Auto never blocks chitchat on a missing binary.
+ * Prefer local stream for chat. Tool/create/planning uses Codex when healthy.
+ * Auto never blocks chitchat on a missing binary. accessMode is not an input.
  */
 export function chooseHarness(
   need: CapabilityNeed,
@@ -54,7 +54,7 @@ export function chooseHarness(
   if (engineMode === 'dsh') {
     if (health.dshReady) return { harness: 'dsh', reason: 'explicit dsh' };
     if (wantsTools && health.codexReady) {
-      return { harness: 'codex', reason: 'dsh stub, tools via advanced engine' };
+      return { harness: 'codex', reason: 'dsh stub, tools via write path' };
     }
     return { harness: 'local-stream', reason: 'dsh stub, soft fallback' };
   }
