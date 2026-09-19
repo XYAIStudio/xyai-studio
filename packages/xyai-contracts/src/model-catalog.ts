@@ -81,6 +81,26 @@ export interface HardwareProfile {
   collectedAt: string;
 }
 
+/**
+ * C1 picker/gateway row: one list for local Ollama and cloud/custom brains.
+ * Distinct from `ModelEntry` (hardware / install metadata).
+ */
+export type CatalogSource = 'local' | 'cloud';
+
+export type CatalogProtocol =
+  | 'ollama'
+  | 'chat-completions'
+  | 'openai-responses'
+  | 'anthropic-messages'
+  | 'codex';
+
+export interface NormalizedModelEntry {
+  id: string;
+  displayName: string;
+  source: CatalogSource;
+  protocol: CatalogProtocol;
+}
+
 export interface ModelRecommendation {
   id: string;
   displayName: string;

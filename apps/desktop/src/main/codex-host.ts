@@ -1,6 +1,6 @@
 /**
  * Main-process Codex host — multi-session registry + harness factory.
- * Turn routing (Codex / Ollama) via turn-controller + modelRef.
+ * Turn routing via Core model gateway (stream vs Codex) + turn-controller.
  * Renderer never imports adapters; all turns go through IPC.
  */
 
@@ -34,7 +34,10 @@ import {
   TurnAbortBag,
   type TurnRoute,
 } from './turn-controller.js';
-import { customProviderCodexInjection } from './custom-provider-codex.js';
+import {
+  customProviderCodexInjection,
+  openaiCompatDrivesCodexTools,
+} from './custom-provider-codex.js';
 import { installWorkspacePlugins } from './install-workspace-plugins.js';
 import {
   ensureStudioWorkspace,
@@ -235,7 +238,10 @@ export class CodexHost {
 
     async refreshLocalModels(): Promise<void> {
     try {
-      const catalog = await loadUnifiedModelCatalog();
+      const catalog = await loadUnifiedModelCatalog(
+        undefined,
+        this.settings.customProviders || [],
+      );
       const lists = toStatusModelLists(catalog);
       this.localModels = lists.localModels;
       this.catalogModels = lists.models;
@@ -245,10 +251,7 @@ export class CodexHost {
         id: normalizeModelRef(m.id),
         label: m.label,
       }));
-    }
-    const custom = customModelsForStatus(this.settings.customProviders || []);
-    if (custom.length) {
-      // Append custom models (dedupe by id)
+      const custom = customModelsForStatus(this.settings.customProviders || []);
       const seen = new Set(this.catalogModels.map((m) => m.id));
       for (const m of custom) {
         if (seen.has(m.id)) continue;
@@ -736,14 +739,15 @@ export class CodexHost {
         localModelViaHarness: this.settings.localModelViaHarness === true,
         accessMode: this.settings.accessMode,
         userDataDir: getWorkspaceUserDataDir(),
+        customProviders: this.settings.customProviders || [],
       });
-      const { route, capabilityNeed } = plan;
+      const { route, capabilityNeed, gateway } = plan;
       const toolsNeed = isToolCapability(capabilityNeed);
 
       if (
         (this.settings.engineMode === 'dsh' ||
           this.settings.engineMode === 'claude') &&
-        route.kind !== 'codex'
+        gateway.mode !== 'agent'
       ) {
         yield {
           type: 'error',
@@ -757,47 +761,63 @@ export class CodexHost {
           },
         };
       }
-      if (route.kind === 'custom') {
-        const provider = findCustomProvider(
-          this.settings.customProviders || [],
-          route.providerId,
-        );
-        if (!provider) {
-          yield {
-            type: 'error',
-            timestamp: new Date().toISOString(),
-            sessionId,
-            payload: { message: `未找到自定义供应商：${route.providerId}` },
-          };
-          return;
-        }
-        if (toolsNeed) {
-          yield {
-            type: 'error',
-            timestamp: new Date().toISOString(),
-            sessionId,
-            taskId,
-            payload: {
-              message: CHAT_ONLY_NO_WRITE_TIP,
-              code: 'CHAT_ONLY_NO_WRITE',
-              soft: true,
-            },
-          };
-        }
-        yield* this.watched(
-          plan.stallTimeoutMs,
-          this.streamCustomProviderTurn({
-            sessionId,
-            taskId,
-            provider,
-            modelId: route.modelId,
-            userText: trimmed,
-            honestyNoWrite: toolsNeed,
-          }),
-        );
+      if (gateway.gap === 'anthropic-messages' && toolsNeed) {
+        yield {
+          type: 'error',
+          timestamp: new Date().toISOString(),
+          sessionId,
+          taskId,
+          payload: {
+            message:
+              '该云端协议尚不能带工具在本机写文件。请改用 Chat Completions（如 DeepSeek）后再创建/安装。',
+          },
+        };
         return;
       }
-      if (route.kind === 'ollama') {
+      if (gateway.mode === 'stream') {
+        if (gateway.stream?.kind === 'openai-compat') {
+          const providerId =
+            gateway.stream.providerId ??
+            (route.kind === 'custom' ? route.providerId : '');
+          const provider = findCustomProvider(
+            this.settings.customProviders || [],
+            providerId,
+          );
+          if (!provider) {
+            yield {
+              type: 'error',
+              timestamp: new Date().toISOString(),
+              sessionId,
+              payload: { message: `未找到自定义供应商：${providerId}` },
+            };
+            return;
+          }
+          if (toolsNeed) {
+            yield {
+              type: 'error',
+              timestamp: new Date().toISOString(),
+              sessionId,
+              taskId,
+              payload: {
+                message: CHAT_ONLY_NO_WRITE_TIP,
+                code: 'CHAT_ONLY_NO_WRITE',
+                soft: true,
+              },
+            };
+          }
+          yield* this.watched(
+            plan.stallTimeoutMs,
+            this.streamCustomProviderTurn({
+              sessionId,
+              taskId,
+              provider,
+              modelId: gateway.stream.modelId,
+              userText: trimmed,
+              honestyNoWrite: toolsNeed,
+            }),
+          );
+          return;
+        }
         if (toolsNeed) {
           yield {
             type: 'error',
@@ -816,7 +836,7 @@ export class CodexHost {
           this.streamLocalOllamaTurn({
             sessionId,
             taskId,
-            model: route.model,
+            model: gateway.stream?.modelId ?? (route.kind === 'ollama' ? route.model : ''),
             userText: trimmed,
             honestyNoWrite: toolsNeed,
           }),
@@ -824,8 +844,20 @@ export class CodexHost {
         return;
       }
 
-      // Codex / Codex-OSS / custom-via-Codex (model is brain, harness is hands).
-      if (route.oss) {
+      // AgentRuntime (Codex): local OSS or cloud brain + injection.
+      const agent = gateway.agent;
+      if (!agent) return;
+      const agentRoute: TurnRoute = {
+        kind: 'codex',
+        modelId: agent.modelId,
+        ...(agent.oss
+          ? { oss: true, localProvider: agent.localProvider ?? 'ollama' }
+          : {}),
+        ...(agent.injectProviderId
+          ? { customProviderId: agent.injectProviderId }
+          : {}),
+      };
+      if (agent.oss) {
         const ensured = await ensureOllamaRunning({ timeoutMs: 15000 });
         if (!ensured.running) {
           yield {
@@ -843,7 +875,7 @@ export class CodexHost {
       }
 
       if (this.adapter.isMock && !this.settings.forceMock) {
-        if (toolsNeed || route.customProviderId) {
+        if (toolsNeed || agent.injectProviderId) {
           const reason = classifyToolsFallback({
             toolsNeed: true,
             sawUseful: false,
@@ -862,14 +894,14 @@ export class CodexHost {
               sessionId,
               taskId,
               userText: trimmed,
-              route,
+              route: agentRoute,
               honestyNoWrite: true,
               omitUserAppend: false,
             }),
           );
           return;
         }
-        if (route.oss) {
+        if (agent.oss) {
           yield {
             type: 'error',
             timestamp: new Date().toISOString(),
@@ -885,7 +917,7 @@ export class CodexHost {
             this.streamLocalOllamaTurn({
               sessionId,
               taskId,
-              model: route.modelId,
+              model: agent.modelId,
               userText: trimmed,
             }),
           );
@@ -895,21 +927,22 @@ export class CodexHost {
 
       let extraEnv: Record<string, string> | undefined;
       let configOverrides: string[] | undefined;
-      if (route.customProviderId) {
+      const injectId = agent.injectProviderId;
+      if (injectId) {
         const provider = findCustomProvider(
           this.settings.customProviders || [],
-          route.customProviderId,
+          injectId,
         );
         if (!provider) {
           yield {
             type: 'error',
             timestamp: new Date().toISOString(),
             sessionId,
-            payload: { message: `未找到自定义供应商：${route.customProviderId}` },
+            payload: { message: `未找到自定义供应商：${injectId}` },
           };
           return;
         }
-        if (provider.protocol === 'anthropic-messages') {
+        if (!openaiCompatDrivesCodexTools(provider.protocol)) {
           yield {
             type: 'error',
             timestamp: new Date().toISOString(),
@@ -922,7 +955,10 @@ export class CodexHost {
           };
           return;
         }
-        const inj = customProviderCodexInjection(provider, route.modelId);
+        const inj = customProviderCodexInjection(
+          provider,
+          agent.modelId,
+        );
         extraEnv = inj.extraEnv;
         configOverrides = inj.configOverrides;
       }
@@ -934,9 +970,9 @@ export class CodexHost {
       await this.adapter.start({
         sessionId,
         harnessId: 'codex',
-        modelId: route.modelId,
-        oss: route.oss === true,
-        localProvider: route.localProvider,
+        modelId: agent.modelId,
+        oss: agent.oss === true,
+        localProvider: agent.localProvider,
         cwd: plan.cwd,
         sandbox: plan.sandbox.sandbox,
         approval: plan.sandbox.approval,
@@ -954,7 +990,7 @@ export class CodexHost {
           sessionId,
           taskId,
           content: prompt,
-          modelId: route.modelId,
+          modelId: agent.modelId,
         }),
       )) {
         if (ev.type === 'error' && !sawUseful) {
@@ -978,7 +1014,7 @@ export class CodexHost {
             fallback = true;
             break;
           }
-          if (route.oss && (unavailable || timedOut)) {
+          if (agent.oss && (unavailable || timedOut)) {
             yield ev;
             fallback = true;
             break;
@@ -1030,7 +1066,7 @@ export class CodexHost {
             sessionId,
             taskId,
             userText: trimmed,
-            route,
+            route: agentRoute,
             honestyNoWrite: toolsNeed,
             omitUserAppend: true,
           }),

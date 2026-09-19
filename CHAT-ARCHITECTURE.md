@@ -109,8 +109,8 @@ Cindy 明确行为（首期必须对齐）：
 | 模块 | 位置（目标） | 职责 |
 |---|---|---|
 | `SessionStore` | `packages/xyai-core` 或 `apps/desktop/src/main/session-store.ts` | 会话 CRUD、当前会话、标题 |
-| `TurnController` | `apps/desktop/src/main/turn-controller.ts`（由 CodexHost 演进） | 按 modelRef 路由 Codex / Codex-OSS / Ollama 直连 / custom；abort |
-| `ModelCatalogFacade` | main：聚合 DEFAULT_MODELS + model-hub.installed + 已启用 cloud | 给 Picker 的统一列表 |
+| `TurnController` | `apps/desktop/src/main/turn-controller.ts`（由 CodexHost 演进） | 执行 Core `planModelGateway`：stream / Codex（含自定义脑注入）；abort |
+| `ModelCatalogFacade` | main：`normalizeGatewayCatalog`（Ollama + 自定义/云 + 内置） | 给 Picker 的统一列表（`source: local\|cloud`） |
 | `Composer` | `apps/desktop/src/renderer/chat/composer.ts` | 输入、发送/停止、IME、焦点 |
 | `ModelPicker` | `apps/desktop/src/renderer/chat/model-picker.ts` | 对标 Cindy：分组（本地 / Codex）、搜索、当前 chip |
 | `TranscriptView` | `apps/desktop/src/renderer/chat/transcript.ts` | delta 批处理、气泡 |
@@ -164,7 +164,7 @@ Renderer 入口只做装配，不再堆业务。
 
 ### 阶段 E — 后置（不挡第一阶段可用）
 
-- 队列、`/`、`@`、附件、工具折叠、cloud 路由进对话、持久化 SQLite
+- 队列、`/`、`@`、附件、工具折叠、持久化 SQLite（云端模型已走 C1 网关，不再后置）
 
 ## 6. 与现有包的关系
 
