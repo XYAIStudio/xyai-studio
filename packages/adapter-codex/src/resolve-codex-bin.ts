@@ -181,6 +181,33 @@ function requireFromRoot(root: string): NodeJS.Require | null {
   }
 }
 
+
+/** npm global @openai/codex vendor layout (Windows often only has codex.cmd on PATH). */
+function findNpmGlobalVendor(targetTriple: string, platformPackage: string): string | null {
+  const home = process.env.APPDATA || process.env.HOME || process.env.USERPROFILE;
+  if (!home) return null;
+  const candidates = [
+    path.join(home, 'npm', 'node_modules', '@openai', 'codex'),
+    path.join(home, 'npm', 'node_modules', '@openai', 'codex', 'node_modules', ...platformPackage.split('/')),
+  ];
+  // Linux/mac: ~/.npm-global or prefix — also try dirname of `npm root -g` style paths via PATH
+  for (const dir of (process.env.PATH ?? process.env.Path ?? '').split(path.delimiter)) {
+    if (!dir) continue;
+    const near = path.join(dir, 'node_modules', '@openai', 'codex');
+    candidates.push(near);
+    candidates.push(path.join(near, 'node_modules', ...platformPackage.split('/')));
+  }
+  for (const root of candidates) {
+    const hit = existingVendor(root, targetTriple);
+    if (hit) return hit;
+    // when root is meta package, look nested platform package
+    const nested = path.join(root, 'node_modules', ...platformPackage.split('/'));
+    const nestedHit = existingVendor(nested, targetTriple);
+    if (nestedHit) return nestedHit;
+  }
+  return null;
+}
+
 function findOnPath(): string | null {
   const pathEnv = process.env.PATH ?? process.env.Path ?? '';
   if (!pathEnv) return null;
@@ -263,6 +290,11 @@ export function resolveCodexBinary(
     }
   } catch {
     /* ignore */
+  }
+
+  const npmGlobal = findNpmGlobalVendor(targetTriple, platformPackage);
+  if (npmGlobal) {
+    return { path: npmGlobal, source: 'package' };
   }
 
   const onPath = findOnPath();
