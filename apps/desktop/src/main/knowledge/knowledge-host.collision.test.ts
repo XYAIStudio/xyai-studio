@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { KnowledgeHost } from './knowledge-host.js';
@@ -52,6 +52,27 @@ describe('KnowledgeHost index/source collision', () => {
       expect(tip).toContain('索引目录不能设在知识库源文件夹内');
       const fixed = host.getMount(m.id)!;
       expect(fixed.indexRoot).toBe(path.join(ud, 'knowledge-index'));
+    } finally {
+      rmSync(ud, { recursive: true, force: true });
+    }
+  });
+
+  it('saveChatNote writes markdown under the local mount 对话摘录 folder', () => {
+    const ud = mkdtempSync(path.join(tmpdir(), 'kb-host-note-'));
+    try {
+      const host = new KnowledgeHost(ud);
+      const source = path.join(ud, '手册');
+      mkdirSync(source, { recursive: true });
+      host.mountLocal({ sourceRoot: source, name: '手册' });
+      const id = host.getState().mounts[0]!.id;
+      const res = host.saveChatNote({
+        kbId: id,
+        filename: '摘录.md',
+        markdown: '# 制度\n\n**正文**\n',
+      });
+      expect(res.ok).toBe(true);
+      expect(res.path).toBe(path.join(source, '对话摘录', '摘录.md'));
+      expect(readFileSync(res.path!, 'utf8')).toContain('**正文**');
     } finally {
       rmSync(ud, { recursive: true, force: true });
     }

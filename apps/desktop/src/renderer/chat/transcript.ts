@@ -5,6 +5,8 @@
  */
 
 import type { AgentEvent, ChatMsg, ChatMsgAction } from './types.js';
+import { markdownToSafeHtml } from './markdown-safe.js';
+import type { BubbleActionKind } from './message-actions.js';
 
 const OLLAMA_NOT_RUNNING_CODE = 'OLLAMA_NOT_RUNNING';
 const START_OLLAMA_ACTION: ChatMsgAction = {
@@ -33,6 +35,15 @@ export type TranscriptApi = {
   getMessages: () => ChatMsg[];
   /** Called after each render of the active session. */
   onAfterRender: (cb: (msgs: ChatMsg[]) => void) => void;
+  /** Toolbar on bubbles: copy / quote / forward / save / notify. */
+  onBubbleAction: (
+    cb: (ev: {
+      kind: BubbleActionKind;
+      message: ChatMsg;
+      selection: string;
+    }) => void,
+  ) => void;
+  getMessagesFor: (sessionId: string) => ChatMsg[];
   /** Attach citations to the latest assistant message (or create a note row). */
   setLastAssistantCitations: (citations: ChatMsg['citations']) => void;
 };
@@ -59,6 +70,37 @@ function isAbortPayload(payload: unknown): boolean {
   return code === 'ABORTED' || message === 'cancelled' || message === '已停止';
 }
 
+function nearBottom(el: HTMLElement): boolean {
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 96;
+}
+
+function selectionInside(el: HTMLElement): string {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return '';
+  const node = sel.anchorNode;
+  if (!node || !el.contains(node)) return '';
+  return sel.toString();
+}
+
+function fillMarkdown(el: HTMLElement, text: string): void {
+  el.innerHTML = markdownToSafeHtml(text || '');
+}
+
+function addActionBtn(
+  bar: HTMLElement,
+  kind: BubbleActionKind,
+  label: string,
+  msgId: string,
+): void {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'bubble-action';
+  btn.dataset.msgAction = kind;
+  btn.dataset.msgId = msgId;
+  btn.textContent = label;
+  bar.appendChild(btn);
+}
+
 export function createTranscript(root: HTMLElement): TranscriptApi {
   const transcripts = new Map<string, ChatMsg[]>();
   let activeSessionId = '';
@@ -66,13 +108,52 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
   let afterRender: ((msgs: ChatMsg[]) => void) | null = null;
   let disposeEmpty: (() => void) | null = null;
   let actionHandler: ((action: ChatMsgAction) => void) | null = null;
+  let bubbleActionHandler:
+    | ((ev: {
+        kind: BubbleActionKind;
+        message: ChatMsg;
+        selection: string;
+      }) => void)
+    | null = null;
+  let wiredActions = false;
 
   function ensure(sessionId: string): ChatMsg[] {
     if (!transcripts.has(sessionId)) transcripts.set(sessionId, []);
     return transcripts.get(sessionId)!;
   }
 
+  function restoreScroll(stick: boolean, prevTop: number): void {
+    if (stick) root.scrollTop = root.scrollHeight;
+    else root.scrollTop = prevTop;
+  }
+
+  function mountBubbleBody(bubble: HTMLElement, m: ChatMsg): HTMLElement {
+    const body = document.createElement('div');
+    body.className = 'bubble-body chat-md';
+    const raw = m.text || (m.streaming ? '…' : '');
+    fillMarkdown(body, raw);
+    bubble.appendChild(body);
+    return body;
+  }
+
+  function mountActions(bubble: HTMLElement, m: ChatMsg): void {
+    if (m.streaming) return;
+    if (m.role !== 'assistant' && m.role !== 'user') return;
+    const bar = document.createElement('div');
+    bar.className = 'bubble-actions';
+    addActionBtn(bar, 'copy', '复制', m.id);
+    addActionBtn(bar, 'quote', '引用', m.id);
+    if (m.role === 'assistant') {
+      addActionBtn(bar, 'forward', '转发', m.id);
+      addActionBtn(bar, 'save-kb', '保存至知识库', m.id);
+      addActionBtn(bar, 'notify-agent', '发给智能体…', m.id);
+    }
+    bubble.appendChild(bar);
+  }
+
   function render(): void {
+    const stick = nearBottom(root);
+    const prevTop = root.scrollTop;
     disposeEmpty?.();
     disposeEmpty = null;
     root.innerHTML = '';
@@ -99,9 +180,14 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
         meta.textContent =
           m.role === 'user' ? '你' : m.role === 'error' ? '错误' : '助手';
         bubble.appendChild(meta);
-        bubble.appendChild(
-          document.createTextNode(m.text || (m.streaming ? '…' : '')),
-        );
+        if (m.role === 'error') {
+          const body = document.createElement('div');
+          body.className = 'bubble-body';
+          body.textContent = m.text || '';
+          bubble.appendChild(body);
+        } else {
+          mountBubbleBody(bubble, m);
+        }
         if (m.role === 'assistant' && m.citations && m.citations.length) {
           const label = document.createElement('div');
           label.className = 'citation-label';
@@ -133,6 +219,7 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
           }
           bubble.appendChild(row);
         }
+        mountActions(bubble, m);
         if (m.role === 'error' && m.action) {
           const btn = document.createElement('button');
           btn.type = 'button';
@@ -148,7 +235,33 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
       col.appendChild(bubble);
     }
     root.appendChild(col);
-    root.scrollTop = root.scrollHeight;
+    restoreScroll(stick, prevTop);
+    afterRender?.(msgs.slice());
+  }
+
+  function patchStreaming(): void {
+    if (!streamingId) {
+      render();
+      return;
+    }
+    const bubble = root.querySelector(
+      `.bubble[data-id="${CSS.escape(streamingId)}"]`,
+    ) as HTMLElement | null;
+    const msgs = ensure(activeSessionId);
+    const cur = msgs.find((m) => m.id === streamingId);
+    if (!bubble || !cur) {
+      render();
+      return;
+    }
+    const stick = nearBottom(root);
+    const prevTop = root.scrollTop;
+    let body = bubble.querySelector('.bubble-body') as HTMLElement | null;
+    if (!body) {
+      body = mountBubbleBody(bubble, cur);
+    } else {
+      fillMarkdown(body, cur.text || '…');
+    }
+    restoreScroll(stick, prevTop);
     afterRender?.(msgs.slice());
   }
 
@@ -181,7 +294,15 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
         const cur = msgs.find((m) => m.id === streamingId);
         if (cur) cur.text += delta;
       }
-      if (sid === activeSessionId) render();
+      if (sid === activeSessionId) {
+        const existing = streamingId
+          ? root.querySelector(
+              `.bubble[data-id="${CSS.escape(streamingId)}"]`,
+            )
+          : null;
+        if (existing) patchStreaming();
+        else render();
+      }
       return;
     }
 
@@ -248,6 +369,23 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
     }
   }
 
+  if (!wiredActions) {
+    wiredActions = true;
+    root.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement | null;
+      const btn = t?.closest('[data-msg-action]') as HTMLElement | null;
+      if (!btn) return;
+      const kind = btn.dataset.msgAction as BubbleActionKind | undefined;
+      const id = btn.dataset.msgId;
+      if (!kind || !id) return;
+      const bubble = btn.closest('.bubble') as HTMLElement | null;
+      const msg = ensure(activeSessionId).find((m) => m.id === id);
+      if (!msg) return;
+      const selection = bubble ? selectionInside(bubble) : '';
+      bubbleActionHandler?.({ kind, message: msg, selection });
+    });
+  }
+
   return {
     ensure,
     getActiveId: () => activeSessionId,
@@ -282,6 +420,9 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
     onAction: (cb) => {
       actionHandler = cb;
     },
+    onBubbleAction: (cb) => {
+      bubbleActionHandler = cb;
+    },
     handleEvent,
     flushStreaming,
     render,
@@ -290,6 +431,7 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
       streamingId = null;
     },
     getMessages: () => ensure(activeSessionId).slice(),
+    getMessagesFor: (sessionId) => ensure(sessionId).slice(),
     onAfterRender: (cb) => {
       afterRender = cb;
     },

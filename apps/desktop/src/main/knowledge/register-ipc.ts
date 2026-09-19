@@ -1,7 +1,7 @@
 /**
  * IPC: mountLocal, listFiles, startParse, stopParse, setIndexDir,
  * listCloud, mountCloud, mountIma, listImaBases, search, getCitations, openCitation,
- * previewFile.
+ * previewFile, saveChatNote.
  */
 
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
@@ -228,6 +228,33 @@ export function registerKnowledgeIpc(
         return { ok: false, message: 'missing kbId or outDir' };
       }
       return getHost().saveDistill(kbId, outDir);
+    },
+  );
+
+  ipcMain.handle(
+    'xyai:kb-save-note',
+    (
+      _e,
+      payload: {
+        kbId?: unknown;
+        destDir?: unknown;
+        filename?: unknown;
+        markdown?: unknown;
+      },
+    ) => {
+      const markdown =
+        typeof payload?.markdown === 'string' ? payload.markdown : '';
+      const filename =
+        typeof payload?.filename === 'string' ? payload.filename : 'note.md';
+      const kbId = typeof payload?.kbId === 'string' ? payload.kbId : '';
+      const destDir =
+        typeof payload?.destDir === 'string' ? payload.destDir : '';
+      return getHost().saveChatNote({
+        kbId: kbId || undefined,
+        destDir: destDir || undefined,
+        filename,
+        markdown,
+      });
     },
   );
 
