@@ -3,6 +3,7 @@
  */
 
 import { ipcMain } from 'electron';
+import { refreshAssetRegistry } from '../asset-registry-host.js';
 import {
   importAsset,
   installAsset,
@@ -107,7 +108,9 @@ export function registerPersonalizeIpc(): void {
     (_e, payload?: { id?: unknown }) => {
       const id = typeof payload?.id === 'string' ? payload.id : '';
       if (!id) return { ok: false as const, message: '缺少资产 id' };
-      return importAsset(id);
+      const imported = importAsset(id);
+      if (imported.ok) void refreshAssetRegistry();
+      return imported;
     },
   );
 
@@ -116,7 +119,9 @@ export function registerPersonalizeIpc(): void {
     (_e, payload?: { id?: unknown }) => {
       const id = typeof payload?.id === 'string' ? payload.id : '';
       if (!id) return { ok: false as const, message: '缺少资产 id' };
-      return installAsset(id);
+      const installed = installAsset(id);
+      if (installed.ok) void refreshAssetRegistry();
+      return installed;
     },
   );
 
@@ -126,7 +131,9 @@ export function registerPersonalizeIpc(): void {
       const id = typeof payload?.id === 'string' ? payload.id : '';
       if (!id) return { ok: false as const, message: '缺少资产 id' };
       const enabled = Boolean(payload?.enabled);
-      return setEnabled(id, enabled);
+      const toggled = setEnabled(id, enabled);
+      if (toggled.ok) void refreshAssetRegistry();
+      return toggled;
     },
   );
 

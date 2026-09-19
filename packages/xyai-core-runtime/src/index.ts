@@ -54,6 +54,15 @@ export {
   type ForgePlan,
   type ForgePlanReason,
 } from './forge.js';
+export {
+  indexAssetRegistry,
+  createAssetRegistry,
+  type AssetRegistrySnapshot,
+  type AssetRegistrySourceRow,
+  type AssetPromoteFn,
+  type CreateAssetRegistryInput,
+  type ThinAssetRegistry,
+} from './registry.js';
 
 export type {
   SessionFacade,
@@ -74,6 +83,14 @@ export type {
   ForgeResult,
   ForgeStage,
   ForgeFile,
+  AssetSpace,
+  AssetRegistryOrigin,
+  AssetRegistryKind,
+  AssetRegistryEntry,
+  AssetRegistry,
+  AssetRegistryListFilter,
+  AssetLinkResult,
+  AssetPromoteResult,
 } from '@xyai/contracts';
 
 export {
@@ -93,4 +110,10 @@ export {
   workspaceFolderForKind,
   inferForgeKindFromWorkspaceRel,
   interopKindForForge,
+  assetRegistryId,
+  normalizeAssetRegistryKind,
+  isAssetSpace,
+  isAssetRegistryOrigin,
+  ASSET_SPACES,
+  ASSET_REGISTRY_ORIGINS,
 } from '@xyai/contracts';

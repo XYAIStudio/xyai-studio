@@ -5,6 +5,7 @@
 
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { refreshAssetRegistry } from './asset-registry-host.js';
 import { installAsset } from './personalize/actions.js';
 import { notifyForgeBiz, packForgeAsset } from './forge-execute.js';
 import { discoveryId } from './personalize/paths.js';
@@ -145,5 +146,6 @@ export function installWorkspacePlugins(
       void notifyForgeBiz(inst.asset);
     }
   }
+  void refreshAssetRegistry();
   return { installed };
 }

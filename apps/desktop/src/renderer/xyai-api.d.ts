@@ -477,6 +477,18 @@ export interface XyaiApi {
     enabled: boolean;
   }) => Promise<{ ok: boolean; asset?: unknown; message?: string }>;
 
+  assetRegistryList?: (input?: {
+    space?: 'dev' | 'biz';
+    kind?: string;
+    origin?: 'personalize' | 'workspace' | 'openxyos';
+  }) => Promise<{ ok: boolean; items: unknown[] }>;
+  assetRegistryGet?: (
+    id: string,
+  ) => Promise<{ ok: boolean; item?: unknown }>;
+  assetRegistryPromote?: (
+    id: string,
+  ) => Promise<{ ok: boolean; noop?: boolean; item?: unknown; message?: string }>;
+
     openXyosResolve?: () => Promise<{
     ok: boolean;
     root: string;

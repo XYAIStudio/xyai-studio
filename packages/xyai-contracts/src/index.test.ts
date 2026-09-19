@@ -18,6 +18,11 @@ import {
   type KnowledgeHit,
   type ForgeRequest,
   type ForgeResult,
+  type AssetRegistry,
+  type AssetRegistryEntry,
+  assetRegistryId,
+  isAssetSpace,
+  normalizeAssetRegistryKind,
 } from './index.js';
 
 describe('@xyai/contracts', () => {
@@ -128,5 +133,31 @@ describe('@xyai/contracts', () => {
     const res: ForgeResult = { ok: true, noop: true, stage: 'noop' };
     expect(req.kind).toBeUndefined();
     expect(res.noop).toBe(true);
+  });
+
+  it('composes AssetRegistry list/get/link/promote for dual-space rows', async () => {
+    expect(isAssetSpace('dev')).toBe(true);
+    expect(isAssetSpace('cloud')).toBe(false);
+    expect(normalizeAssetRegistryKind('知识挂接')).toBe('knowledge-mount');
+    expect(normalizeAssetRegistryKind('connector')).toBe('connector');
+    expect(assetRegistryId('dev', 'personalize', 'p1')).toBe(
+      'dev:personalize:p1',
+    );
+    const entry: AssetRegistryEntry = {
+      id: 'dev:personalize:p1',
+      space: 'dev',
+      kind: 'plugin',
+      name: 'demo',
+      origin: 'personalize',
+      sourceId: 'p1',
+    };
+    const registry: AssetRegistry = {
+      list: () => [entry],
+      get: (id) => (id === entry.id ? entry : undefined),
+      link: () => ({ ok: true, noop: true, message: 'stub' }),
+      promote: async () => ({ ok: true, noop: true, message: 'no-biz-root' }),
+    };
+    expect(registry.list()[0]?.space).toBe('dev');
+    expect((await registry.promote('missing')).noop).toBe(true);
   });
 });

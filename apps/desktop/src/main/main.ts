@@ -62,6 +62,18 @@ import {
   knowledgeTurnFromHost,
 } from './knowledge-turn.js';
 import { configureForgeBiz } from './forge-execute.js';
+import { registerAssetRegistryIpc } from './asset-registry-ipc.js';
+import {
+  configureAssetRegistry,
+  interopKindForRegistry,
+  refreshAssetRegistry,
+  rowsFromInterop,
+  rowsFromPersonalize,
+  rowsFromWorkspace,
+} from './asset-registry-host.js';
+import { discoverWorkspaceAssets } from './install-workspace-plugins.js';
+import { listStored } from './personalize/store.js';
+import { studioWorkspaceDir } from './studio-workspace.js';
 import {
   registerPersonalizeIpc,
   setPersonalizeUserDataDir,
@@ -810,6 +822,7 @@ ipcMain.handle('xyai:status', () => {
               : {},
         });
         const pub = host.lastPublishResult;
+        void refreshAssetRegistry();
         return {
           ok: true as const,
           asset,
@@ -831,6 +844,7 @@ ipcMain.handle('xyai:status', () => {
         const host = getInteropHost();
         const asset = await host.installIncoming(assetId);
         const pub = host.lastPublishResult;
+        void refreshAssetRegistry();
         return {
           ok: true as const,
           asset,
@@ -850,6 +864,7 @@ ipcMain.handle('xyai:status', () => {
       if (!assetId) return { ok: false as const, message: 'missing assetId' };
       try {
         const asset = await getInteropHost().registerInDev(assetId);
+        void refreshAssetRegistry();
         return { ok: true as const, asset };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -910,6 +925,7 @@ ipcMain.handle('xyai:status', () => {
               ? (payload.payload as Record<string, unknown>)
               : {},
         });
+        void refreshAssetRegistry();
         return { ok: true as const, asset };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -924,7 +940,48 @@ ipcMain.handle('xyai:status', () => {
     if (!findOpenXyosRuntimeRoot()) return;
     await getInteropHost().pushToBiz(input);
   });
+  configureAssetRegistry({
+    loadSnapshot: async () => {
+      const ud = app.getPath('userData');
+      const bizRoot = findOpenXyosRuntimeRoot();
+      let openxyos = [] as Awaited<
+        ReturnType<InteropHost['listOutgoingAssets']>
+      >;
+      if (bizRoot) {
+        const host = getInteropHost();
+        const [out, inn] = await Promise.all([
+          host.listOutgoingAssets(),
+          host.listIncomingAssets(),
+        ]);
+        const byId = new Map(out.map((a) => [a.id, a]));
+        for (const a of inn) byId.set(a.id, a);
+        openxyos = [...byId.values()];
+      }
+      return {
+        personalize: rowsFromPersonalize(listStored()),
+        workspace: rowsFromWorkspace(
+          discoverWorkspaceAssets(studioWorkspaceDir(ud)),
+        ),
+        openxyos: rowsFromInterop(openxyos),
+        bizRootPresent: Boolean(bizRoot),
+      };
+    },
+    promote: async (entry) => {
+      if (!findOpenXyosRuntimeRoot()) return;
+      await getInteropHost().pushToBiz({
+        id: entry.sourceId,
+        kind: interopKindForRegistry(entry.kind),
+        name: entry.name,
+        description: entry.description,
+        payload: {
+          pathOrRef: entry.ref,
+          registryId: entry.id,
+        },
+      });
+    },
+  });
   registerPersonalizeIpc();
+  registerAssetRegistryIpc();
 }
 
 registerKbPreviewSchemePrivileged();

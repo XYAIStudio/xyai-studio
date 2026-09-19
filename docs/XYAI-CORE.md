@@ -9,13 +9,13 @@ XYAI 自有 Core：连接层，不是自研 Agent Loop。形态借鉴 Cindy（Se
 1. **本地 + 云端模型** — 本机 Ollama / 自定义云端脑与写文件运行时正交；同一目录、同一网关。
 2. **本地 + 云端知识库** — Core 只保留检索契约；具体后端是薄适配器（本机索引 / ima·HTTP / OpenXYOS 导入）。
 3. **流式长记忆对话** — 对话过程中沉淀文档 / 技能 / 插件 / MCP / 智能体 / 管理系统。
-4. **开发资产 ↔ 业务资产** — 工作目录与 OpenXYOS 资产互通；登记处在后续里程碑。
+4. **开发资产 ↔ 业务资产** — 工作目录 / 个性化与 OpenXYOS 资产共用登记处；跨空间发现，promote 无需手拷。
 
 ## 原则
 
 | 原则 | 含义 |
 |---|---|
-| Core 是连接层 | 不重写 Agent Loop。`AgentRuntime` 由 Adapter 实现；Core 负责会话、审批政策、事件订阅、停滞看门狗、模型目录与网关、知识检索计划、Forge 计划。 |
+| Core 是连接层 | 不重写 Agent Loop。`AgentRuntime` 由 Adapter 实现；Core 负责会话、审批政策、事件订阅、停滞看门狗、模型目录与网关、知识检索计划、Forge 计划、资产登记处。 |
 | Core 保持瘦 | 工作流进 Skill；富 UI 进后续插件。本阶段不把编排或卡片堆进 Core。 |
 | 审批 ≠ 路由 | `PermissionMode` 只映射沙箱 / 审批强度。闲聊不会因为「完全访问」被抬到写文件路径。 |
 | 一种产品 | 不按权限或设置拆成「仅聊天」与「高级引擎」两套产品。回合能力只由用户文本判定。 |
@@ -37,6 +37,9 @@ XYAI 自有 Core：连接层，不是自研 Agent Loop。形态借鉴 Cindy（Se
 | `KnowledgeGateway` | `search` + 可选 `ingest` | 检索契约。`ingest` 在 Core 为 stub；解析仍在宿主索引器。 |
 | `ForgeAssetKind` | `skill \| plugin \| mcp \| agent \| doc \| system` | 对话可沉淀的资产种类。`doc` = 文档，`system` = 管理系统。 |
 | `ForgeRequest` / `ForgeResult` | — | 空请求与 `capability: chat` 为空操作。`PermissionMode` 不是输入。 |
+| `AssetSpace` | `dev \| biz` | 开发空间或业务空间。与互通清单 `sourceSpace` 对齐。 |
+| `AssetRegistryEntry` | — | 登记行：id / space / kind / name / origin (`personalize\|workspace\|openxyos`) / sourceId / 可选 ref、linkedId。 |
+| `AssetRegistry` | `list` / `get` / `link` / `promote` | 内存索引。空快照为空列表；无业务根时 `promote` 为空操作。 |
 | `Session` | 持久化记录 | id / title / harnessId / 可选 `agentKind` / `permissionMode`。 |
 | `SessionFacade` | 运行时门面 | `start` / `send` / `abort` / `dispose` + `on` / `events()`。`RuntimeSession` 包住 `AgentRuntime`。 |
 
@@ -85,6 +88,19 @@ Composer `@` 已注入的横幅不再二次附加。无挂接、无云配置时�
 
 `PermissionMode` 只进沙箱。`你好` 保持流式，不写盘。创建插件无需用户手贴 HTML 或 PowerShell。
 
+## 资产登记处（C4）
+
+开发空间资产与 OpenXYOS 业务资产进入**同一份**登记处，不另起资产库。Core 只索引宿主已有的 personalize、工作目录 Forge 产出、以及在场的 OpenXYOS 互通挂接。
+
+| 步骤 | 行为 |
+|---|---|
+| 索引 | `indexAssetRegistry` / `createAssetRegistry` 合并三路快照。personalize + workspace → `dev`；OpenXYOS 互通 → `biz`。同一 `sourceId` 自动 `linkedId`。 |
+| 发现 | `list` / `get` 可按 space / kind / origin 过滤。空快照为空列表。 |
+| 互通 | `link` 在内存记下跨空间对。`promote` 调用宿主已有 `pushToBiz`；无业务根或已是 biz 时为成功空操作。 |
+| 刷新 | 桌面在 Forge 安装与个性化变更后 `refreshAssetRegistry`。IPC：`xyai:asset-registry-list`（及 get / promote）。 |
+
+`PermissionMode` 不参与。无 OpenXYOS 根时与未接线相同。产品 UI 选型面板仍可后做；本切片只提供统一发现。
+
 ## 停滞看门狗
 
 Cindy Session 用 45 分钟无事件判定会话挂死。XYAI 用更短的**回合级**沉默超时：流式对话应持续出事件。
@@ -103,18 +119,19 @@ Cindy Session 用 45 分钟无事件判定会话挂死。XYAI 用更短的**回�
 - `planTurn` 的 `capabilityNeed` 仍只看文本；`accessMode` / `PermissionMode` 只进沙箱与看门狗超时。网关 `lift` 来自 `engineMode`（`local-stream` → never，`codex-oss` → always，其余 auto）。
 - 知识附加：`CodexHost.sendMessage` 用用户原文跑 `planTurn`；检索型查询把 `planKnowledgeContext` 前缀接到同一条 `send` 的模型输入。无本地/云挂接或寒暄时为空操作。
 - Forge：工具回合结束后 `installWorkspacePlugins` → `installAsset`。空 `forgePlan` 不写盘。`accessMode` / `PermissionMode` 不参与。
+- 登记处：Forge 安装 / 个性化变更后刷新；`assetRegistryList` 给后续 UI。无业务根时 `promote` 空操作。`accessMode` / `PermissionMode` 不参与。
 
-## 路线图（C4）
+## 路线图（C0–C4）
 
 | 阶段 | 范围 |
 |---|---|
 | **C0** | 权威类型、`RuntimeSession`、权限映射、文本能力推断、停滞看门狗、CORE 文档。 |
 | **C1** | 统一模型目录 + 网关计划；DeepSeek / OpenAI 兼容脑注入 Codex 工具路径；Anthropic Messages 缺口。 |
 | **C2** | 知识库网关：本地 + 云挂接到 Session `send`；Core 检索契约；ingest stub。 |
-| **C3**（本文件） | Forge：对话沉淀文档 / 技能 / 插件 / MCP / 智能体 / 管理系统 → 工作目录 → 个性化（`installAsset`）；OpenXYOS 在场时薄 biz 推送。 |
-| **C4** | 资产登记处：开发资产与 OpenXYOS 业务资产互通（完整登记、双向同步、选型）。 |
+| **C3** | Forge：对话沉淀文档 / 技能 / 插件 / MCP / 智能体 / 管理系统 → 工作目录 → 个性化（`installAsset`）；OpenXYOS 在场时薄 biz 推送。 |
+| **C4**（本文件） | 资产登记处：personalize + 工作目录 Forge 产出 + OpenXYOS 挂接同一索引；跨空间 list/get/link；无业务根时 promote 空操作。 |
 
-C4 不在本里程碑实现。
+C0–C4 Core 切片已齐（会话门面、模型网关、知识网关、Forge、双空间登记处）。余下是产品打磨（登记处 UI、双向同步交互、选型面板、ingest、Anthropic 工具路径），不是再改 Agent Loop。
 
 ## 相关
 
