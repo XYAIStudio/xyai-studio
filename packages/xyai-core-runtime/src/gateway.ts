@@ -38,12 +38,14 @@ export function planModelGateway(input: PlanModelGatewayInput): GatewayPlan {
   const capability = input.capability;
   const modelRef = normalizeModelRef(input.modelRef);
   const lift: GatewayLift = input.lift ?? 'auto';
-  const wantsAgent =
-    lift === 'always' ? true : lift === 'never' ? false : isToolCapability(capability);
+  const toolsWanted = isToolCapability(capability);
   const protocol = input.protocol ?? inferProtocolFromRef(modelRef);
 
   const custom = parseCustomModelRef(modelRef);
   if (custom) {
+    // Chat / knowledge Q&A always stream for OpenAI-compat (DeepSeek etc.) —
+    // never Codex tools-first then write-fallback tip. Tools turns may still lift.
+    const wantsAgent = lift !== 'never' && toolsWanted;
     const stream = {
       kind: 'openai-compat' as const,
       modelId: custom.modelId,
@@ -75,6 +77,8 @@ export function planModelGateway(input: PlanModelGatewayInput): GatewayPlan {
 
   const ollama = toOllamaModelName(modelRef);
   if (ollama) {
+    const wantsAgent =
+      lift === 'always' ? true : lift === 'never' ? false : toolsWanted;
     if (wantsAgent || input.ollamaViaHarness === true) {
       return {
         mode: 'agent',

@@ -3,7 +3,14 @@
  * §8.2 busy ≡ isStreaming; Stop optimistic leave then IPC.
  * §8.3 busy Enter = ignore send (no queue).
  * Phase C: tall frosted card + toolbar (0.4 InputBar IA).
+ * Quote: WeChat-style chip above the input (full text in state, not textarea).
  */
+
+import {
+  buildQuoteChip,
+  prependQuoteForSend,
+  type QuoteChipModel,
+} from './message-actions.js';
 
 export type ComposerBusyApi = {
   isBusy: () => boolean;
@@ -25,6 +32,10 @@ export type ComposerApi = ComposerBusyApi & {
   getValue: () => string;
   /** Insert text at the caret (or append) and focus. */
   insertDraft: (text: string) => void;
+  /** Set WeChat-style quote chip (does not paste into textarea). */
+  setQuote: (input: { text: string; role?: string | null }) => void;
+  clearQuote: () => void;
+  getQuoteText: () => string;
 };
 
 const ICON_SEND =
@@ -36,10 +47,16 @@ export function createComposer(opts: {
   root: HTMLElement;
   input: HTMLTextAreaElement;
   primaryBtn: HTMLButtonElement;
+  /** Optional; falls back to #composer-quote inside root. */
+  quoteBar?: HTMLElement | null;
 }): ComposerApi {
   const { root, input, primaryBtn } = opts;
+  const quoteBar =
+    opts.quoteBar ||
+    (root.querySelector('#composer-quote') as HTMLElement | null);
   let busy = false;
   let wired = false;
+  let quote: QuoteChipModel | null = null;
 
   function applyNoDrag(): void {
     const mark = (el: Element | null) => {
@@ -49,6 +66,7 @@ export function createComposer(opts: {
     mark(root);
     mark(input);
     mark(primaryBtn);
+    mark(quoteBar);
     root.querySelectorAll('*').forEach(mark);
   }
 
@@ -73,6 +91,59 @@ export function createComposer(opts: {
     primaryBtn.disabled = false;
   }
 
+  function renderQuote(): void {
+    if (!quoteBar) return;
+    if (!quote) {
+      quoteBar.hidden = true;
+      quoteBar.innerHTML = '';
+      return;
+    }
+    quoteBar.hidden = false;
+    quoteBar.innerHTML = '';
+    quoteBar.className = 'composer-quote';
+    quoteBar.setAttribute('role', 'status');
+    quoteBar.setAttribute('aria-label', '引用');
+
+    const bar = document.createElement('div');
+    bar.className = 'composer-quote-bar';
+
+    const role = document.createElement('span');
+    role.className = 'composer-quote-role';
+    role.textContent = quote.roleLabel;
+
+    const preview = document.createElement('span');
+    preview.className = 'composer-quote-preview';
+    preview.textContent = quote.preview;
+    preview.title = quote.text;
+
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'composer-quote-clear';
+    clearBtn.title = '取消引用';
+    clearBtn.setAttribute('aria-label', '取消引用');
+    clearBtn.textContent = '×';
+    clearBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearQuote();
+      focus();
+    });
+
+    bar.append(role, preview, clearBtn);
+    quoteBar.appendChild(bar);
+    applyNoDrag();
+  }
+
+  function clearQuote(): void {
+    quote = null;
+    renderQuote();
+  }
+
+  function setQuote(input: { text: string; role?: string | null }): void {
+    quote = buildQuoteChip(input);
+    renderQuote();
+  }
+
   function setBusy(next: boolean): void {
     busy = next;
     syncPrimary();
@@ -80,11 +151,33 @@ export function createComposer(opts: {
     unlockInput();
   }
 
+  function focus(): void {
+    unlockInput();
+    input.focus();
+  }
+
+  function emitSend(handlers: ComposerHandlers, typed: string): void {
+    const quoteText = quote?.text || '';
+    const outbound = quoteText
+      ? prependQuoteForSend(quoteText, typed)
+      : typed;
+    if (
+      !outbound.trim() &&
+      !(handlers.canSendEmpty?.() ?? false) &&
+      !quoteText
+    ) {
+      return;
+    }
+    clearQuote();
+    void handlers.onSend(outbound);
+  }
+
   function wire(handlers: ComposerHandlers): void {
     if (wired) return;
     wired = true;
     unlockInput();
     syncPrimary();
+    renderQuote();
 
     primaryBtn.addEventListener('click', () => {
       if (busy) {
@@ -92,8 +185,8 @@ export function createComposer(opts: {
         return;
       }
       const text = input.value.trim();
-      if (!text && !(handlers.canSendEmpty?.() ?? false)) return;
-      void handlers.onSend(text);
+      if (!text && !quote && !(handlers.canSendEmpty?.() ?? false)) return;
+      emitSend(handlers, text);
     });
 
     root.addEventListener('pointerdown', () => {
@@ -116,8 +209,8 @@ export function createComposer(opts: {
       }
       e.preventDefault();
       const text = input.value.trim();
-      if (!text && !(handlers.canSendEmpty?.() ?? false)) return;
-      void handlers.onSend(text);
+      if (!text && !quote && !(handlers.canSendEmpty?.() ?? false)) return;
+      emitSend(handlers, text);
     });
   }
 
@@ -126,10 +219,7 @@ export function createComposer(opts: {
     setBusy,
     wire,
     unlockInput,
-    focus: () => {
-      unlockInput();
-      input.focus();
-    },
+    focus,
     clear: () => {
       input.value = '';
     },
@@ -146,5 +236,8 @@ export function createComposer(opts: {
       input.selectionEnd = caret;
       input.focus();
     },
+    setQuote,
+    clearQuote,
+    getQuoteText: () => quote?.text || '',
   };
 }

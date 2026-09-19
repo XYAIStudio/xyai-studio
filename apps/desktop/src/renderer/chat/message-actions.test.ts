@@ -5,8 +5,12 @@ import {
   chatNoteMarkdown,
   formatAgentHandoff,
   formatForwardDraft,
+  buildQuoteChip,
   formatQuoteBlock,
   formatTranscriptTurns,
+  prependQuoteForSend,
+  quotePreview,
+  quoteRoleLabel,
   pickActionText,
 } from './message-actions.js';
 import type { ChatMsg } from './types.js';
@@ -110,5 +114,39 @@ describe('gap copy', () => {
   it('explains draft-only agent notify', () => {
     expect(AGENT_HANDOFF_GAP).toMatch(/草稿/);
     expect(AGENT_HANDOFF_GAP).not.toMatch(/高级引擎/);
+  });
+});
+
+describe('WeChat-style quote chip', () => {
+  it('labels roles in Chinese', () => {
+    expect(quoteRoleLabel('user')).toBe('你');
+    expect(quoteRoleLabel('assistant')).toBe('助手');
+    expect(quoteRoleLabel('system')).toBe('系统');
+    expect(quoteRoleLabel(undefined)).toBe('引用');
+  });
+
+  it('truncates preview around 60 chars', () => {
+    const long = '甲'.repeat(80);
+    const preview = quotePreview(long);
+    expect(preview.length).toBeLessThanOrEqual(60);
+    expect(preview.endsWith('…')).toBe(true);
+  });
+
+  it('keeps full text in chip state without > walls', () => {
+    const chip = buildQuoteChip({
+      text: '第一行\n第二行',
+      role: 'assistant',
+    });
+    expect(chip?.roleLabel).toBe('助手');
+    expect(chip?.text).toBe('第一行\n第二行');
+    expect(chip?.preview).not.toMatch(/^>/);
+    expect(chip?.preview).toContain('第一行');
+  });
+
+  it('prepends quote on send then leaves textarea body intact', () => {
+    const out = prependQuoteForSend('原话', '请继续');
+    expect(out).toContain('> 原话');
+    expect(out).toContain('请继续');
+    expect(out.startsWith('>')).toBe(true);
   });
 });

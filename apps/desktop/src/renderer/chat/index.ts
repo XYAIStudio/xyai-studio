@@ -40,7 +40,6 @@ import {
   chatNoteMarkdown,
   formatAgentHandoff,
   formatForwardDraft,
-  formatQuoteBlock,
   pickActionText,
   type ForwardScope,
 } from './message-actions.js';
@@ -1102,7 +1101,10 @@ export function mountChat(): ChatMount {
         return;
       }
       if (ev.kind === 'quote') {
-        composer.insertDraft(formatQuoteBlock(text));
+        composer.setQuote({
+          text,
+          role: ev.message.role,
+        });
         composer.focus();
         return;
       }

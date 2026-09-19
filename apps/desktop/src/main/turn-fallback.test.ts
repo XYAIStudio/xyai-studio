@@ -2,13 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyToolsFallback,
   isPlainUserCopy,
+  shouldShowWriteFallbackTip,
   TOOLS_FALLBACK_TIP,
   toolsFallbackPayload,
 } from './turn-fallback.js';
-import {
-  CHAT_ONLY_NO_WRITE_TIP,
-  HARNESS_PACKAGING_MESSAGE,
-} from './turn-intent.js';
 
 describe('classifyToolsFallback', () => {
   it('does not fallback chat turns', () => {
@@ -51,6 +48,21 @@ describe('classifyToolsFallback', () => {
   });
 });
 
+describe('shouldShowWriteFallbackTip', () => {
+  it('hides the write tip on chat / knowledge turns', () => {
+    expect(shouldShowWriteFallbackTip(false)).toBe(false);
+    expect(
+      classifyToolsFallback({ toolsNeed: false, sawUseful: false }),
+    ).toBeNull();
+  });
+
+  it('shows the write tip only when tools were intended', () => {
+    expect(shouldShowWriteFallbackTip(true)).toBe(true);
+    expect(isPlainUserCopy(TOOLS_FALLBACK_TIP.empty)).toBe(true);
+    expect(TOOLS_FALLBACK_TIP.empty).toContain('没能完成写入');
+  });
+});
+
 describe('tools fallback copy', () => {
   it('is plain Chinese without engine brand names', () => {
     for (const tip of Object.values(TOOLS_FALLBACK_TIP)) {
@@ -58,7 +70,5 @@ describe('tools fallback copy', () => {
       expect(isPlainUserCopy(tip)).toBe(true);
     }
     expect(isPlainUserCopy(toolsFallbackPayload('empty').message)).toBe(true);
-    expect(isPlainUserCopy(CHAT_ONLY_NO_WRITE_TIP)).toBe(true);
-    expect(isPlainUserCopy(HARNESS_PACKAGING_MESSAGE)).toBe(true);
   });
 });

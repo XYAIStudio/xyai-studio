@@ -22,6 +22,17 @@ export const TOOLS_FALLBACK_TIP: Record<ToolsFallbackReason, string> = {
 };
 
 /**
+ * Write-path soft tip is only for real tools / write turns.
+ * Chat and knowledge `@` Q&A must never show「没能完成写入」.
+ *
+ * @param toolsNeed True when turn capability needs tools
+ * @returns Whether the host may emit a write-fallback chip
+ */
+export function shouldShowWriteFallbackTip(toolsNeed: boolean): boolean {
+  return toolsNeed === true;
+}
+
+/**
  * Decide whether a tools turn must leave the write path and keep chatting.
  * Chat turns return null (their stream path is already the qualification line).
  *
@@ -35,7 +46,7 @@ export function classifyToolsFallback(input: {
   unavailable?: boolean;
   timedOut?: boolean;
 }): ToolsFallbackReason | null {
-  if (!input.toolsNeed) return null;
+  if (!shouldShowWriteFallbackTip(input.toolsNeed)) return null;
   if (input.packagingMissing) return 'packaging';
   if (input.timedOut) return 'timeout';
   if (input.unavailable) return 'unavailable';
