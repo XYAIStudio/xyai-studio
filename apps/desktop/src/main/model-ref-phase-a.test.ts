@@ -146,16 +146,20 @@ describe('Phase A model-catalog-facade', () => {
 });
 
 describe('Phase A turn route', () => {
-  it('routes ollama:* via Codex OSS harness by default', () => {
+  it('routes ollama:* to direct stream by default (qualification line)', () => {
     expect(resolveTurnRoute('ollama:qwen')).toEqual({
-      kind: 'codex',
-      modelId: 'qwen',
-      oss: true,
-      localProvider: 'ollama',
+      kind: 'ollama',
+      model: 'qwen',
     });
     expect(resolveTurnRoute('ollama:qwen3:8b')).toEqual({
+      kind: 'ollama',
+      model: 'qwen3:8b',
+    });
+    expect(
+      resolveTurnRoute('ollama:qwen', { localModelViaHarness: true }),
+    ).toEqual({
       kind: 'codex',
-      modelId: 'qwen3:8b',
+      modelId: 'qwen',
       oss: true,
       localProvider: 'ollama',
     });
@@ -180,8 +184,8 @@ describe('Phase A turn route', () => {
 });
 
 describe('localModelViaHarness setting', () => {
-  it('defaults to true and only explicit false opts out', () => {
-    expect(normalizeSettings({}).localModelViaHarness).toBe(true);
+  it('defaults to false (stream-first); only explicit true enables harness', () => {
+    expect(normalizeSettings({}).localModelViaHarness).toBe(false);
     expect(normalizeSettings({ localModelViaHarness: false }).localModelViaHarness).toBe(
       false,
     );

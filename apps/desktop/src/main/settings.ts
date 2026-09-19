@@ -53,8 +53,8 @@ export interface XyaiSettings {
   /** Tool / agent permission mode for composer 「使用权限」. */
   accessMode: AccessMode;
   /**
-   * When true (default), `ollama:*` runs via Codex harness (`codex exec --oss`).
-   * When false, use direct Ollama chat stream (advanced escape hatch).
+   * When true, `ollama:*` may run via Codex harness (`codex exec --oss`) for agent/tools.
+   * Default false: qualification line is direct Ollama NDJSON streaming (Grok-like UX).
    */
   localModelViaHarness: boolean;
 }
@@ -73,7 +73,7 @@ export function defaultSettings(): XyaiSettings {
     cloudProviders: emptyCloudProviders(),
     customProviders: [],
     accessMode: 'default',
-    localModelViaHarness: true,
+    localModelViaHarness: false,
   };
 }
 
@@ -104,8 +104,8 @@ export function normalizeSettings(partial: unknown): XyaiSettings {
     cloudProviders: normalizeCloudProviders(r.cloudProviders),
     customProviders: normalizeCustomProviders(r.customProviders),
     accessMode: normalizeAccessMode(r.accessMode),
-    // Default ON; only explicit false opts out to direct Ollama chat.
-    localModelViaHarness: r.localModelViaHarness !== false,
+    // Default OFF (true stream). Only explicit true opts into harness for local models.
+    localModelViaHarness: r.localModelViaHarness === true,
   };
 }
 

@@ -52,3 +52,6 @@ Ollama / Codex OSS 路径建议模型上下文 **≥ 64k**。上下文过小可�
 ## 与 Phase A 的关系
 
 Phase A 曾将 `ollama:*` 直接路由到 `runOllamaTurn`（dumb chat bypass）。该路径现仅作为 **`localModelViaHarness: false`** 的逃生舱；默认已被 Codex OSS harness 取代。详见 `CHAT-ARCHITECTURE.md` / `ROADMAP.md`。
+
+
+> 2026-09-19: Chat qualification line is **direct Ollama stream** by default. Set localModelViaHarness: true only when you want harness enhancement. See CONTEXT-HANDOFF.md.

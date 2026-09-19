@@ -1,0 +1,12 @@
+{
+  "name": "@xyai/adapter-dsh",
+  "version": "0.5.0-dev",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": { "build": "tsc -p tsconfig.json --pretty false", "typecheck": "tsc -p tsconfig.json --pretty false --noEmit" },
+  "dependencies": { "@xyai/contracts": "workspace:*" },
+  "devDependencies": { "typescript": "^5.7.3" }
+}

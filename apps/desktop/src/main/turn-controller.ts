@@ -40,8 +40,8 @@ export type TurnRoute =
 
 export interface ResolveTurnRouteOptions {
   /**
-   * When true (default), `ollama:*` routes through Codex OSS harness.
-   * When false, keep Phase A direct `runOllamaTurn` chat stream.
+   * When true, `ollama:*` routes through Codex OSS harness (agent enhancement).
+   * When false (product default), direct `runOllamaTurn` NDJSON stream.
    */
   localModelViaHarness?: boolean;
 }
@@ -62,7 +62,7 @@ export function resolveTurnRoute(
   }
   const ollama = toOllamaModelName(ref);
   if (ollama) {
-    const viaHarness = opts.localModelViaHarness !== false;
+    const viaHarness = opts.localModelViaHarness === true;
     if (viaHarness) {
       return {
         kind: 'codex',

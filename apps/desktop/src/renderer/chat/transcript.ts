@@ -214,6 +214,11 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
       const message =
         typeof p.message === 'string' ? p.message : 'unknown error';
       const code = typeof p.code === 'string' ? p.code : '';
+      if (p.soft === true || code === 'HARNESS_SOFT_FALLBACK') {
+        msgs.push({ id: uid(), role: 'system', text: message });
+        if (sid === activeSessionId) render();
+        return;
+      }
       const looksDown =
         code === OLLAMA_NOT_RUNNING_CODE ||
         /fetch failed|Ollama 服务未运行|Ollama 未运行/i.test(message);

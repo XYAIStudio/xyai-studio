@@ -24,7 +24,23 @@ import {
   runOllamaTurn,
   TurnAbortBag,
 } from './turn-controller.js';
-import type { OllamaChatMessage } from '@xyai/model-hub';
+import {
+  emptySessionMemory,
+  harvestFactsFromTurn,
+  packMessagesForTurn,
+  type ChatMessage,
+  type SessionMemoryState,
+} from './context-pack.js';
+import {
+  loadDurableFacts,
+  mergeDurableFacts,
+  setMemoryUserDataDir,
+} from './memory-store.js';
+import {
+  loadSession,
+  saveSession,
+  setSessionUserDataDir,
+} from './session-store.js';
 import {
   ensureOllamaRunning,
   OLLAMA_NOT_RUNNING_CODE,
@@ -70,15 +86,22 @@ export interface CodexHostStatus {
   accessMode: XyaiSettings['accessMode'];
 }
 
+export function configureChatPersistence(userDataDir: string): void {
+  setMemoryUserDataDir(userDataDir);
+  setSessionUserDataDir(userDataDir);
+}
+
 export class CodexHost {
   private readonly registry = new SessionRegistry();
   private adapter: CodexAdapter;
   private activeSessionId: string | null = null;
   private sending = false;
   private readonly aborts = new TurnAbortBag();
-  /** Per-session Ollama multi-turn history (user/assistant only). */
-  private readonly histories = new Map<string, OllamaChatMessage[]>();
-  private static readonly HISTORY_CAP = 40;
+  /** Full session transcripts (user/assistant). */
+  private readonly histories = new Map<string, ChatMessage[]>();
+  /** Per-session rolling handoff memory. */
+  private readonly sessionMem = new Map<string, SessionMemoryState>();
+  /** Full transcript kept on disk; model sees packed window only. */
   private localModels: { id: string; label: string; hint?: string }[] = [];
   private catalogModels: { id: string; label: string; hint?: string }[] =
     DEFAULT_MODELS.map((m) => ({
@@ -112,7 +135,7 @@ export class CodexHost {
   }
 
   private routeOpts() {
-    return { localModelViaHarness: this.settings.localModelViaHarness !== false };
+    return { localModelViaHarness: this.settings.localModelViaHarness === true };
   }
 
   private resolveRoute() {
@@ -196,13 +219,47 @@ export class CodexHost {
   }
 
 
-  private historyFor(sessionId: string): OllamaChatMessage[] {
+  private historyFor(sessionId: string): ChatMessage[] {
     let h = this.histories.get(sessionId);
     if (!h) {
-      h = [];
+      const loaded = loadSession(sessionId);
+      if (loaded?.messages?.length) {
+        h = loaded.messages.filter(
+          (m) => m.role === 'user' || m.role === 'assistant',
+        );
+        this.sessionMem.set(
+          sessionId,
+          loaded.memory || emptySessionMemory(),
+        );
+      } else {
+        h = [];
+      }
       this.histories.set(sessionId, h);
     }
     return h;
+  }
+
+  private memoryFor(sessionId: string): SessionMemoryState {
+    let m = this.sessionMem.get(sessionId);
+    if (!m) {
+      const loaded = loadSession(sessionId);
+      m = loaded?.memory || emptySessionMemory();
+      this.sessionMem.set(sessionId, m);
+    }
+    return m;
+  }
+
+  private persistSession(sessionId: string): void {
+    const sess = this.registry.get(sessionId);
+    const messages = this.packForModel(sessionId);
+    const memory = this.memoryFor(sessionId);
+    saveSession({
+      id: sessionId,
+      title: sess?.title || 'Chat',
+      updatedAt: new Date().toISOString(),
+      messages,
+      memory,
+    });
   }
 
   private appendHistory(
@@ -214,13 +271,41 @@ export class CodexHost {
     if (!trimmed) return;
     const h = this.historyFor(sessionId);
     h.push({ role, content: trimmed });
-    while (h.length > CodexHost.HISTORY_CAP) {
-      h.shift();
-    }
+    // No hard drop: full transcript persists; packing compresses for the model.
+    this.persistSession(sessionId);
   }
 
   private clearHistory(sessionId: string): void {
     this.histories.delete(sessionId);
+    this.sessionMem.delete(sessionId);
+  }
+
+  /** Pack full transcript → model messages (handoff + recent). */
+  private packForModel(sessionId: string): ChatMessage[] {
+    const full = this.historyFor(sessionId);
+    const mem = this.memoryFor(sessionId);
+    const { messages, mem: nextMem } = packMessagesForTurn(full, mem, {
+      durableFacts: loadDurableFacts(),
+      recentCount: 24,
+      charBudget: 24_000,
+    });
+    this.sessionMem.set(sessionId, nextMem);
+    this.persistSession(sessionId);
+    return messages;
+  }
+
+  private rememberFromTurn(
+    sessionId: string,
+    userText: string,
+    assistantText: string,
+  ): void {
+    const facts = harvestFactsFromTurn(userText, assistantText);
+    if (!facts.length) return;
+    const mem = this.memoryFor(sessionId);
+    mem.sessionFacts = [...(mem.sessionFacts || []), ...facts].slice(-50);
+    this.sessionMem.set(sessionId, mem);
+    mergeDurableFacts(facts);
+    this.persistSession(sessionId);
   }
 
   listSessions(): HostSessionSummary[] {
@@ -300,7 +385,7 @@ export class CodexHost {
       modelId: this.modelRef,
       forceMock: this.settings.forceMock,
       codexBin: this.settings.codexBin,
-      localModelViaHarness: this.settings.localModelViaHarness !== false,
+      localModelViaHarness: this.settings.localModelViaHarness === true,
       models: (() => {
         const custom = customModelsForStatus(this.settings.customProviders || []);
         if (!custom.length) return this.catalogModels;
@@ -422,7 +507,7 @@ export class CodexHost {
           return;
         }
         this.appendHistory(sessionId, 'user', trimmed);
-        const messages = this.historyFor(sessionId).slice();
+        const messages = this.packForModel(sessionId);
         const signal = this.aborts.beginCustom();
         let assistantText = '';
         let completedOk = false;
@@ -450,6 +535,11 @@ export class CodexHost {
                 assistantText.trim();
               if (finalText) {
                 this.appendHistory(sessionId, 'assistant', finalText);
+                const hist = this.historyFor(sessionId);
+                const lastUser = [...hist].reverse().find((m) => m.role === 'user');
+                if (lastUser) {
+                  this.rememberFromTurn(sessionId, lastUser.content, finalText);
+                }
               }
               completedOk = true;
             }
@@ -463,7 +553,7 @@ export class CodexHost {
       }
       if (route.kind === 'ollama') {
         this.appendHistory(sessionId, 'user', trimmed);
-        const messages = this.historyFor(sessionId).slice();
+        const messages = this.packForModel(sessionId);
         const signal = this.aborts.beginOllama();
         let assistantText = '';
         let completedOk = false;
@@ -490,6 +580,11 @@ export class CodexHost {
                 assistantText.trim();
               if (finalText) {
                 this.appendHistory(sessionId, 'assistant', finalText);
+                const hist = this.historyFor(sessionId);
+                const lastUser = [...hist].reverse().find((m) => m.role === 'user');
+                if (lastUser) {
+                  this.rememberFromTurn(sessionId, lastUser.content, finalText);
+                }
               }
               completedOk = true;
             }
@@ -520,6 +615,8 @@ export class CodexHost {
           return;
         }
         if (this.adapter.isMock && !this.settings.forceMock) {
+          // Qualification line: keep real local streaming when harness binary is missing.
+          // Soft tip only — no engineer jargon, do not hard-fail the turn.
           yield {
             type: 'error',
             timestamp: new Date().toISOString(),
@@ -527,10 +624,48 @@ export class CodexHost {
             taskId,
             payload: {
               message:
-                '未找到 Codex 二进制。本地 Ollama 默认经 Codex harness（codex exec --oss）运行；请安装 Codex CLI，或在设置中填写 Codex 路径 / 环境变量 XYAI_CODEX_BIN。若只需直连 Ollama 聊天，可在设置中关闭「本地模型走 Codex harness」。',
-              code: 'CODEX_BIN_MISSING',
+                '高级能力组件暂未就绪，已用本机模型继续流式回答。可稍后在设置中配置对话引擎路径以解锁更强能力。',
+              code: 'HARNESS_SOFT_FALLBACK',
+              soft: true,
             },
           };
+          this.appendHistory(sessionId, 'user', trimmed);
+          const messages = this.packForModel(sessionId);
+          const signal = this.aborts.beginOllama();
+          let assistantText = '';
+          let completedOk = false;
+          try {
+            for await (const ev of runOllamaTurn({
+              sessionId,
+              taskId,
+              model: route.modelId,
+              messages,
+              signal,
+            })) {
+              if (ev.type === 'message.delta') {
+                const p = (ev.payload || {}) as Record<string, unknown>;
+                const piece =
+                  (typeof p.delta === 'string' && p.delta) ||
+                  (typeof p.text === 'string' && p.text) ||
+                  '';
+                if (piece) assistantText += piece;
+              }
+              if (ev.type === 'message.completed') {
+                const p = (ev.payload || {}) as Record<string, unknown>;
+                const finalText =
+                  (typeof p.text === 'string' && p.text.trim()) ||
+                  assistantText.trim();
+                if (finalText) {
+                  this.appendHistory(sessionId, 'assistant', finalText);
+                }
+                completedOk = true;
+              }
+              yield ev;
+            }
+            void completedOk;
+          } finally {
+            this.aborts.clearOllama();
+          }
           return;
         }
       }

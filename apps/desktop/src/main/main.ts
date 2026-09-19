@@ -32,6 +32,7 @@ import {
 } from './openxyos-demo-bootstrap.js';
 import { createInteropHost, type InteropHost } from '@xyai/xyos-bridge';
 import { setSettingsUserDataDir } from './settings.js';
+import { configureChatPersistence } from './codex-host.js';
 import { ModelHubHost } from './model-hub-host.js';
 import { normalizeCloudProviders } from './cloud-providers.js';
 import { normalizeCustomProviders } from './custom-providers.js';
@@ -125,6 +126,7 @@ function getHost(): CodexHost {
   if (!host) {
     const ud = app.getPath('userData');
     setSettingsUserDataDir(ud);
+    configureChatPersistence(ud);
     setCollabUserDataDir(ud);
     host = new CodexHost();
   }
@@ -916,6 +918,7 @@ app.whenReady().then(async () => {
   registerKbPreviewProtocolHandler();
   const ud = app.getPath('userData');
   setSettingsUserDataDir(ud);
+    configureChatPersistence(ud);
   setCollabUserDataDir(ud);
   setPersonalizeUserDataDir(ud);
   setOpenXyosLogDir(ud);
