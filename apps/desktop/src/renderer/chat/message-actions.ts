@@ -54,6 +54,70 @@ export function formatQuoteBlock(text: string): string {
  * @param input.fromTitle - Source session title
  * @returns Markdown draft
  */
+
+export type QuoteChipModel = {
+  /** Full quoted text kept in state (not pasted into the textarea). */
+  text: string;
+  /** Short role label for the chip (Chinese). */
+  roleLabel: string;
+  /** ~60 char single-line preview. */
+  preview: string;
+};
+
+const QUOTE_PREVIEW_MAX = 60;
+
+/** Chinese role label for the quote chip. */
+export function quoteRoleLabel(role?: string | null): string {
+  switch ((role || '').trim()) {
+    case 'user':
+      return '你';
+    case 'assistant':
+      return '助手';
+    case 'system':
+      return '系统';
+    default:
+      return '引用';
+  }
+}
+
+/** Single-line preview for the composer quote chip (~60 chars). */
+export function quotePreview(text: string, max = QUOTE_PREVIEW_MAX): string {
+  const one = (text || '').replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim();
+  if (!one) return '';
+  if (one.length <= max) return one;
+  return `${one.slice(0, Math.max(1, max - 1))}…`;
+}
+
+/**
+ * Build WeChat-style quote chip model. Full text stays in state;
+ * only role + preview are shown above the input.
+ */
+export function buildQuoteChip(input: {
+  text: string;
+  role?: string | null;
+}): QuoteChipModel | null {
+  const body = (input.text || '').replace(/\r\n/g, '\n').replace(/\s+$/g, '');
+  if (!body.trim()) return null;
+  return {
+    text: body,
+    roleLabel: quoteRoleLabel(input.role),
+    preview: quotePreview(body),
+  };
+}
+
+/**
+ * Prepend a stored quote onto the outbound send payload, then clear the chip.
+ * Uses `>` lines so the model still sees the citation.
+ */
+export function prependQuoteForSend(quoteText: string, userText: string): string {
+  const q = formatQuoteBlock(quoteText);
+  const body = (userText || '').replace(/\r\n/g, '\n').trim();
+  if (!q) return body;
+  if (!body) return q.trimEnd() + '\n';
+  return `${q}${body}`;
+}
+
+
 export function formatForwardDraft(input: {
   scope: ForwardScope;
   text: string;

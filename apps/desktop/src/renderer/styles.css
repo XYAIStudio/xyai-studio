@@ -4054,3 +4054,57 @@ webview.browser-webview {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* WeChat-style quote chip above composer input */
+.composer-quote {
+  padding: 0 4px 6px;
+}
+.composer-quote[hidden] {
+  display: none !important;
+}
+.composer-quote-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 8px 6px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+  border-left: 3px solid rgba(59, 130, 246, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-left-width: 3px;
+  border-left-color: rgba(59, 130, 246, 0.75);
+  color: var(--sky-800, #0f172a);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.composer-quote-role {
+  flex: 0 0 auto;
+  font-weight: 700;
+  color: var(--sky-700, #1d4ed8);
+}
+.composer-quote-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted, #64748b);
+}
+.composer-quote-clear {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  line-height: 1;
+  font-size: 16px;
+}
+.composer-quote-clear:hover {
+  color: var(--error, #dc2626);
+  background: rgba(239, 68, 68, 0.12);
+}

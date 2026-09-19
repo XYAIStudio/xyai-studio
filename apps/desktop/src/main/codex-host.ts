@@ -48,6 +48,7 @@ import {
 } from './studio-workspace.js';
 import {
   classifyToolsFallback,
+  shouldShowWriteFallbackTip,
   toolsFallbackPayload,
 } from './turn-fallback.js';
 import {
@@ -878,18 +879,20 @@ export class CodexHost {
 
       if (this.adapter.isMock && !this.settings.forceMock) {
         if (toolsNeed || agent.injectProviderId) {
-          const reason = classifyToolsFallback({
-            toolsNeed: true,
-            sawUseful: false,
-            packagingMissing: true,
-          });
-          yield {
-            type: 'error',
-            timestamp: new Date().toISOString(),
-            sessionId,
-            taskId,
-            payload: toolsFallbackPayload(reason ?? 'packaging'),
-          };
+          if (shouldShowWriteFallbackTip(toolsNeed)) {
+            const reason = classifyToolsFallback({
+              toolsNeed: true,
+              sawUseful: false,
+              packagingMissing: true,
+            });
+            yield {
+              type: 'error',
+              timestamp: new Date().toISOString(),
+              sessionId,
+              taskId,
+              payload: toolsFallbackPayload(reason ?? 'packaging'),
+            };
+          }
           yield* this.watched(
             plan.stallTimeoutMs,
             this.fallbackBrainStream({
@@ -999,7 +1002,7 @@ export class CodexHost {
           const payload = (ev.payload || {}) as Record<string, unknown>;
           const timedOut = payload.code === 'TIMEOUT';
           const unavailable = isHarnessUnavailablePayload(ev.payload);
-          if (toolsNeed) {
+          if (shouldShowWriteFallbackTip(toolsNeed)) {
             const reason = classifyToolsFallback({
               toolsNeed: true,
               sawUseful: false,
@@ -1046,7 +1049,7 @@ export class CodexHost {
         }
         yield ev;
       }
-      if (!fallback && toolsNeed && !sawUseful) {
+      if (!fallback && shouldShowWriteFallbackTip(toolsNeed) && !sawUseful) {
         yield {
           type: 'error',
           timestamp: new Date().toISOString(),

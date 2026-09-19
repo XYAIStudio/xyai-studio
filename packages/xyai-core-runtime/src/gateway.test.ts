@@ -61,6 +61,17 @@ describe('planModelGateway', () => {
     });
   });
 
+  it('keeps DeepSeek chat on stream even when lift=always', () => {
+    expect(
+      planModelGateway({
+        modelRef: 'custom:ds/deepseek-chat',
+        capability: 'chat',
+        lift: 'always',
+        protocol: 'chat-completions',
+      }).mode,
+    ).toBe('stream');
+  });
+
   it('does not lift when lift=never (local-stream)', () => {
     expect(
       planModelGateway({
