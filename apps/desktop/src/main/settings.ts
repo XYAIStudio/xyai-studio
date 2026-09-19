@@ -16,6 +16,13 @@ import {
   normalizeCustomProviders,
   type CustomProvider,
 } from './custom-providers.js';
+import {
+  localModelViaHarnessFromEngineMode,
+  normalizeEngineMode,
+  type EngineMode,
+} from './engine-mode.js';
+
+export type { EngineMode } from './engine-mode.js';
 
 export interface ModelOption {
   id: string;
@@ -53,8 +60,13 @@ export interface XyaiSettings {
   /** Tool / agent permission mode for composer 「使用权限」. */
   accessMode: AccessMode;
   /**
-   * When true, `ollama:*` may run via Codex harness (`codex exec --oss`) for agent/tools.
-   * Default false: qualification line is direct Ollama NDJSON streaming (Grok-like UX).
+   * Capability/engine selector. Default `auto`: ollama:* is true local stream;
+   * harness is an optional enhancement. Legacy `localModelViaHarness` maps onto this.
+   */
+  engineMode: EngineMode;
+  /**
+   * Derived: true only when engineMode is `codex-oss`.
+   * Kept so older readers still see a boolean.
    */
   localModelViaHarness: boolean;
 }
@@ -73,6 +85,7 @@ export function defaultSettings(): XyaiSettings {
     cloudProviders: emptyCloudProviders(),
     customProviders: [],
     accessMode: 'default',
+    engineMode: 'auto',
     localModelViaHarness: false,
   };
 }
@@ -97,6 +110,14 @@ export function normalizeSettings(partial: unknown): XyaiSettings {
     typeof r.modelId === 'string' && r.modelId.trim()
       ? r.modelId.trim()
       : base.modelId;
+  const engineMode = normalizeEngineMode({
+    engineMode: r.engineMode,
+    localModelViaHarness: r.localModelViaHarness,
+    hasLocalModelViaHarness: Object.prototype.hasOwnProperty.call(
+      r,
+      'localModelViaHarness',
+    ),
+  });
   return {
     modelId: normalizeModelRef(rawModel),
     forceMock: r.forceMock === true,
@@ -104,8 +125,8 @@ export function normalizeSettings(partial: unknown): XyaiSettings {
     cloudProviders: normalizeCloudProviders(r.cloudProviders),
     customProviders: normalizeCustomProviders(r.customProviders),
     accessMode: normalizeAccessMode(r.accessMode),
-    // Default OFF (true stream). Only explicit true opts into harness for local models.
-    localModelViaHarness: r.localModelViaHarness === true,
+    engineMode,
+    localModelViaHarness: localModelViaHarnessFromEngineMode(engineMode),
   };
 }
 
@@ -120,11 +141,22 @@ export function loadSettings(): XyaiSettings {
   }
 }
 
+function omitUndefined<T extends Record<string, unknown>>(
+  obj: T,
+): Partial<T> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out as Partial<T>;
+}
+
 export function saveSettings(partial: Partial<XyaiSettings>): XyaiSettings {
   const current = loadSettings();
+  const patch = omitUndefined(partial as Record<string, unknown>);
   const next = normalizeSettings({
     ...current,
-    ...partial,
+    ...patch,
     cloudProviders:
       partial.cloudProviders !== undefined
         ? normalizeCloudProviders({

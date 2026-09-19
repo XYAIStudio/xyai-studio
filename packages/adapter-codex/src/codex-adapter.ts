@@ -26,6 +26,11 @@ import {
   type CodexBinarySource,
   type ResolveCodexBinaryResult,
 } from './resolve-codex-bin.js';
+import {
+  CODEX_ERROR_CODE,
+  mapCodexSpawnError,
+  mapCodexUserError,
+} from './codex-user-error.js';
 
 export interface CodexAdapterOptions {
   /** Force mock even if binary exists */
@@ -236,7 +241,7 @@ export class CodexAdapter implements AgentRuntime {
         timestamp: now(),
         sessionId,
         taskId,
-        payload: { message: 'Codex binary not resolved' },
+        payload: mapCodexUserError(CODEX_ERROR_CODE.BIN_MISSING),
       };
       return;
     }
@@ -332,10 +337,7 @@ export class CodexAdapter implements AgentRuntime {
         timestamp: now(),
         sessionId,
         taskId,
-        payload: {
-          message: `Codex spawn failed: ${spawnState.error.message}`,
-          code: 'SPAWN_ERROR',
-        },
+        payload: mapCodexSpawnError(spawnState.error),
       };
       return;
     }
@@ -364,6 +366,12 @@ export function createCodexAdapter(
 export { MOCK_MARKER };
 export type { ResolveCodexBinaryResult, CodexBinarySource };
 export { resolveCodexBinary } from './resolve-codex-bin.js';
+export {
+  CODEX_ERROR_CODE,
+  isHarnessUnavailablePayload,
+  mapCodexSpawnError,
+  mapCodexUserError,
+} from './codex-user-error.js';
 export {
   parseCodexJsonlLine,
   parseCodexJsonlRawLine,

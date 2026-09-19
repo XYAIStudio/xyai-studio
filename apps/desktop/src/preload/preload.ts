@@ -23,7 +23,9 @@ export interface XyaiStatus {
   binaryPath: string | null;
   modelId: string;
   forceMock: boolean;
+  engineMode?: 'auto' | 'local-stream' | 'codex-oss' | 'dsh' | 'claude';
   localModelViaHarness?: boolean;
+  harnesses?: { id: string; enabled: boolean }[];
   models: { id: string; label: string; hint?: string }[];
   localModels: { id: string; label: string; hint?: string }[];
   activeSessionId: string;
@@ -40,6 +42,7 @@ export interface XyaiSettings {
   codexBin: string;
   cloudProviders: CloudProvidersSettings;
   accessMode: AccessMode;
+  engineMode?: 'auto' | 'local-stream' | 'codex-oss' | 'dsh' | 'claude';
   localModelViaHarness?: boolean;
 }
 

@@ -88,7 +88,7 @@ Cindy 明确行为（首期必须对齐）：
 **modelRef**（会话当前模型，统一 ID）：
 
 - `codex:<modelId>` — 走 `adapter-codex`
-- `ollama:<name>` — **默认**走 Codex OSS harness（`codex exec --oss --local-provider ollama`）；仅当设置 `localModelViaHarness: false` 时退回 model-hub 直连流式（Phase A bypass，逃生舱）
+- `ollama:<name>` — **默认**（`engineMode: auto`）走 model-hub 直连 NDJSON 真流式；仅「高级本地引擎」/`codex-oss` 走 `codex exec --oss --local-provider ollama`，缺二进制时软降级
 - 后续：`claude:…` / `cloud:openai:…` 等，仍只扩展解析表，不改 UI 合同
 
 > 详见仓库根目录 `LOCAL-HARNESS.md`（推理机 vs 大脑）。

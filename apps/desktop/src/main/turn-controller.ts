@@ -24,6 +24,8 @@ import {
 } from '@xyai/model-hub';
 import { streamOpenAiChatCompletions } from './openai-compat.js';
 import type { CustomProvider } from './custom-providers.js';
+import type { EngineMode } from './engine-mode.js';
+import { ollamaTurnUsesHarness } from './harness/router.js';
 
 export type CodexLocalProvider = 'ollama' | 'lmstudio';
 
@@ -44,6 +46,8 @@ export interface ResolveTurnRouteOptions {
    * When false (product default), direct `runOllamaTurn` NDJSON stream.
    */
   localModelViaHarness?: boolean;
+  /** Preferred: capability/engine selector. Overrides the boolean when set. */
+  engineMode?: EngineMode;
 }
 
 /** Resolve send route from a modelRef (settings.modelId may hold modelRef). */
@@ -62,7 +66,10 @@ export function resolveTurnRoute(
   }
   const ollama = toOllamaModelName(ref);
   if (ollama) {
-    const viaHarness = opts.localModelViaHarness === true;
+    const viaHarness =
+      opts.engineMode !== undefined
+        ? ollamaTurnUsesHarness(opts.engineMode, 'chat')
+        : opts.localModelViaHarness === true;
     if (viaHarness) {
       return {
         kind: 'codex',

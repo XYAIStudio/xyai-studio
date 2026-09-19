@@ -1,17 +1,24 @@
 /**
- * Main-process Codex host — multi-session registry + createCodexAdapter.
+ * Main-process Codex host — multi-session registry + harness factory.
  * Turn routing (Codex / Ollama) via turn-controller + modelRef.
  * Renderer never imports adapters; all turns go through IPC.
  */
 
 import { randomUUID } from 'node:crypto';
-import { SessionRegistry } from '@xyai/core';
+import { listHarnesses, SessionRegistry } from '@xyai/core';
 import {
-  createCodexAdapter,
+  CODEX_ERROR_CODE,
+  isHarnessUnavailablePayload,
+  mapCodexUserError,
   resolveCodexBinary,
   type CodexAdapter,
   type CodexBinarySource,
 } from '@xyai/adapter-codex';
+import {
+  createCodexHostAdapter,
+  DEFAULT_STUDIO_ASSEMBLY,
+} from './harness/index.js';
+import type { EngineMode } from './engine-mode.js';
 import type { AgentEvent } from '@xyai/contracts';
 import { normalizeModelRef } from '@xyai/contracts';
 import {
@@ -77,8 +84,12 @@ export interface CodexHostStatus {
   modelId: string;
   forceMock: boolean;
   codexBin: string;
-  /** Default true: ollama:* via Codex --oss. */
+  /** Default `auto`: ollama:* is true local stream. */
+  engineMode: EngineMode;
+  /** Derived: true only when engineMode is `codex-oss`. */
   localModelViaHarness: boolean;
+  /** Assembly harness rows (id + enabled) for Settings. */
+  harnesses: { id: string; enabled: boolean }[];
   models: { id: string; label: string; hint?: string }[];
   localModels: { id: string; label: string; hint?: string }[];
   cloudProviders: XyaiSettings['cloudProviders'];
@@ -94,6 +105,7 @@ export function configureChatPersistence(userDataDir: string): void {
 export class CodexHost {
   private readonly registry = new SessionRegistry();
   private adapter: CodexAdapter;
+  private readonly profile = DEFAULT_STUDIO_ASSEMBLY;
   private activeSessionId: string | null = null;
   private sending = false;
   private readonly aborts = new TurnAbortBag();
@@ -128,14 +140,18 @@ export class CodexHost {
   }
 
   private buildAdapter(): CodexAdapter {
-    return createCodexAdapter({
+    return createCodexHostAdapter({
       forceMock: this.settings.forceMock,
       binaryPath: this.settings.codexBin.trim() || undefined,
+      profile: this.profile,
     });
   }
 
   private routeOpts() {
-    return { localModelViaHarness: this.settings.localModelViaHarness === true };
+    return {
+      engineMode: this.settings.engineMode,
+      localModelViaHarness: this.settings.localModelViaHarness === true,
+    };
   }
 
   private resolveRoute() {
@@ -262,6 +278,53 @@ export class CodexHost {
     });
   }
 
+  private async *streamLocalOllamaTurn(opts: {
+    sessionId: string;
+    taskId: string;
+    model: string;
+    userText: string;
+  }): AsyncIterable<AgentEvent> {
+    this.appendHistory(opts.sessionId, 'user', opts.userText);
+    const messages = this.packForModel(opts.sessionId);
+    const signal = this.aborts.beginOllama();
+    let assistantText = '';
+    try {
+      for await (const ev of runOllamaTurn({
+        sessionId: opts.sessionId,
+        taskId: opts.taskId,
+        model: opts.model,
+        messages,
+        signal,
+      })) {
+        if (ev.type === 'message.delta') {
+          const p = (ev.payload || {}) as Record<string, unknown>;
+          const piece =
+            (typeof p.delta === 'string' && p.delta) ||
+            (typeof p.text === 'string' && p.text) ||
+            '';
+          if (piece) assistantText += piece;
+        }
+        if (ev.type === 'message.completed') {
+          const p = (ev.payload || {}) as Record<string, unknown>;
+          const finalText =
+            (typeof p.text === 'string' && p.text.trim()) ||
+            assistantText.trim();
+          if (finalText) {
+            this.appendHistory(opts.sessionId, 'assistant', finalText);
+            const hist = this.historyFor(opts.sessionId);
+            const lastUser = [...hist].reverse().find((m) => m.role === 'user');
+            if (lastUser) {
+              this.rememberFromTurn(opts.sessionId, lastUser.content, finalText);
+            }
+          }
+        }
+        yield ev;
+      }
+    } finally {
+      this.aborts.clearOllama();
+    }
+  }
+
   private appendHistory(
     sessionId: string,
     role: 'user' | 'assistant',
@@ -385,7 +448,12 @@ export class CodexHost {
       modelId: this.modelRef,
       forceMock: this.settings.forceMock,
       codexBin: this.settings.codexBin,
+      engineMode: this.settings.engineMode,
       localModelViaHarness: this.settings.localModelViaHarness === true,
+      harnesses: listHarnesses(this.profile).map((h) => ({
+        id: h.id,
+        enabled: h.enabled,
+      })),
       models: (() => {
         const custom = customModelsForStatus(this.settings.customProviders || []);
         if (!custom.length) return this.catalogModels;
@@ -492,6 +560,22 @@ export class CodexHost {
 
 
       const route = this.resolveRoute();
+      if (
+        this.settings.engineMode === 'dsh' ||
+        this.settings.engineMode === 'claude'
+      ) {
+        yield {
+          type: 'error',
+          timestamp: new Date().toISOString(),
+          sessionId,
+          taskId,
+          payload: {
+            message: '这项高级能力即将推出，已用本机流式对话继续。',
+            code: 'HARNESS_STUB',
+            soft: true,
+          },
+        };
+      }
       if (route.kind === 'custom') {
         const provider = findCustomProvider(
           this.settings.customProviders || [],
@@ -552,49 +636,12 @@ export class CodexHost {
         return;
       }
       if (route.kind === 'ollama') {
-        this.appendHistory(sessionId, 'user', trimmed);
-        const messages = this.packForModel(sessionId);
-        const signal = this.aborts.beginOllama();
-        let assistantText = '';
-        let completedOk = false;
-        try {
-          for await (const ev of runOllamaTurn({
-            sessionId,
-            taskId,
-            model: route.model,
-            messages,
-            signal,
-          })) {
-            if (ev.type === 'message.delta') {
-              const p = (ev.payload || {}) as Record<string, unknown>;
-              const piece =
-                (typeof p.delta === 'string' && p.delta) ||
-                (typeof p.text === 'string' && p.text) ||
-                '';
-              if (piece) assistantText += piece;
-            }
-            if (ev.type === 'message.completed') {
-              const p = (ev.payload || {}) as Record<string, unknown>;
-              const finalText =
-                (typeof p.text === 'string' && p.text.trim()) ||
-                assistantText.trim();
-              if (finalText) {
-                this.appendHistory(sessionId, 'assistant', finalText);
-                const hist = this.historyFor(sessionId);
-                const lastUser = [...hist].reverse().find((m) => m.role === 'user');
-                if (lastUser) {
-                  this.rememberFromTurn(sessionId, lastUser.content, finalText);
-                }
-              }
-              completedOk = true;
-            }
-            yield ev;
-          }
-          // If stream ended without completed (e.g. abort), do not append assistant.
-          void completedOk;
-        } finally {
-          this.aborts.clearOllama();
-        }
+        yield* this.streamLocalOllamaTurn({
+          sessionId,
+          taskId,
+          model: route.model,
+          userText: trimmed,
+        });
         return;
       }
 
@@ -616,56 +663,22 @@ export class CodexHost {
         }
         if (this.adapter.isMock && !this.settings.forceMock) {
           // Qualification line: keep real local streaming when harness binary is missing.
-          // Soft tip only — no engineer jargon, do not hard-fail the turn.
           yield {
             type: 'error',
             timestamp: new Date().toISOString(),
             sessionId,
             taskId,
             payload: {
-              message:
-                '高级能力组件暂未就绪，已用本机模型继续流式回答。可稍后在设置中配置对话引擎路径以解锁更强能力。',
+              ...mapCodexUserError(CODEX_ERROR_CODE.MOCK_WITHOUT_FORCE),
               code: 'HARNESS_SOFT_FALLBACK',
-              soft: true,
             },
           };
-          this.appendHistory(sessionId, 'user', trimmed);
-          const messages = this.packForModel(sessionId);
-          const signal = this.aborts.beginOllama();
-          let assistantText = '';
-          let completedOk = false;
-          try {
-            for await (const ev of runOllamaTurn({
-              sessionId,
-              taskId,
-              model: route.modelId,
-              messages,
-              signal,
-            })) {
-              if (ev.type === 'message.delta') {
-                const p = (ev.payload || {}) as Record<string, unknown>;
-                const piece =
-                  (typeof p.delta === 'string' && p.delta) ||
-                  (typeof p.text === 'string' && p.text) ||
-                  '';
-                if (piece) assistantText += piece;
-              }
-              if (ev.type === 'message.completed') {
-                const p = (ev.payload || {}) as Record<string, unknown>;
-                const finalText =
-                  (typeof p.text === 'string' && p.text.trim()) ||
-                  assistantText.trim();
-                if (finalText) {
-                  this.appendHistory(sessionId, 'assistant', finalText);
-                }
-                completedOk = true;
-              }
-              yield ev;
-            }
-            void completedOk;
-          } finally {
-            this.aborts.clearOllama();
-          }
+          yield* this.streamLocalOllamaTurn({
+            sessionId,
+            taskId,
+            model: route.modelId,
+            userText: trimmed,
+          });
           return;
         }
       }
@@ -677,12 +690,37 @@ export class CodexHost {
         oss: route.oss === true,
         localProvider: route.localProvider,
       });
-      yield* this.adapter.send({
+      let sawUseful = false;
+      let fallback = false;
+      for await (const ev of this.adapter.send({
         sessionId,
         taskId,
         content: trimmed,
         modelId: route.modelId,
-      });
+      })) {
+        if (
+          ev.type === 'error' &&
+          route.oss &&
+          !sawUseful &&
+          isHarnessUnavailablePayload(ev.payload)
+        ) {
+          yield ev;
+          fallback = true;
+          break;
+        }
+        if (ev.type === 'message.delta' || ev.type === 'message.completed') {
+          sawUseful = true;
+        }
+        yield ev;
+      }
+      if (fallback) {
+        yield* this.streamLocalOllamaTurn({
+          sessionId,
+          taskId,
+          model: route.modelId,
+          userText: trimmed,
+        });
+      }
     } finally {
       this.sending = false;
     }

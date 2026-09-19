@@ -1,17 +1,24 @@
 {
-  "name": "@xyai/adapter-dsh",
+  "name": "@xyai/adapter-claude",
   "version": "0.5.0-dev",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json --pretty false",
     "typecheck": "tsc -p tsconfig.json --pretty false --noEmit",
     "test": "vitest run"
   },
-  "dependencies": { "@xyai/contracts": "workspace:*" },
+  "dependencies": {
+    "@xyai/contracts": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"

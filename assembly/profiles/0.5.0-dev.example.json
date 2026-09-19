@@ -6,8 +6,22 @@
       "id": "codex",
       "adapter": "adapter-codex",
       "enabled": true,
-      "version": "mock",
-      "pinnedBinaryNote": "MOCK only — real Codex binary not wired; do not download from this repo"
+      "version": "0.151.0",
+      "pinnedBinaryNote": "Real binary via resolveCodexBinary; missing binary soft-falls back to local stream"
+    },
+    {
+      "id": "dsh",
+      "adapter": "adapter-dsh",
+      "enabled": false,
+      "version": "stub",
+      "pinnedBinaryNote": "Disabled stub — implements AgentRuntime; not a user-facing brand choice"
+    },
+    {
+      "id": "claude",
+      "adapter": "adapter-claude",
+      "enabled": false,
+      "version": "stub",
+      "pinnedBinaryNote": "Disabled stub — implements AgentRuntime; coming soon"
     }
   ],
   "modules": [
@@ -43,7 +57,7 @@
     }
   ],
   "notes": [
-    "Locked: first harness = Codex (adapter-codex first; DSH/Claude later)",
+    "Locked: first enabled harness = Codex; dsh/claude listed as disabled stubs",
     "Locked: OpenXYOS = git submodule at components/openxyos",
     "Locked: first internal beta MAY omit AI employees (M4 deferred)"
   ]

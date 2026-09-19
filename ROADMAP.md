@@ -38,5 +38,5 @@
 
 ## 本地 Ollama × Codex harness（P0）
 
-- **默认**：`ollama:*` → `codex exec --oss`（见 `LOCAL-HARNESS.md`）；Phase A 直连 `runOllamaTurn` 仅作设置逃生舱（`localModelViaHarness: false`）。
+- **默认**：`engineMode: auto` → `ollama:*` 直连 `runOllamaTurn` 真流式；「高级本地引擎」才走 `codex exec --oss`（见 `LOCAL-HARNESS.md`）。
 

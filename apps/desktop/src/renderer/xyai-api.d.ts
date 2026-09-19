@@ -18,7 +18,9 @@ export interface XyaiStatus {
   /** Current modelRef (e.g. codex:gpt-5 / ollama:qwen2.5). */
   modelId?: string;
   forceMock?: boolean;
+  engineMode?: 'auto' | 'local-stream' | 'codex-oss' | 'dsh' | 'claude';
   localModelViaHarness?: boolean;
+  harnesses?: { id: string; enabled: boolean }[];
   models?: { id: string; label: string; hint?: string }[];
   localModels?: { id: string; label: string; hint?: string }[];
   activeSessionId?: string;
@@ -30,8 +32,6 @@ export interface XyaiStatus {
   }[];
   isSending?: boolean;
   accessMode?: AccessMode;
-  /** Default true: ollama:* via Codex --oss. */
-  localModelViaHarness?: boolean;
 }
 
 export type AccessMode = 'default' | 'auto' | 'full';
@@ -44,7 +44,7 @@ export interface XyaiSettings {
   cloudProviders: CloudProvidersSettings;
   customProviders?: import('./types-custom-provider.js').CustomProvider[];
   accessMode?: AccessMode;
-  /** Default true: ollama:* via Codex --oss. */
+  engineMode?: 'auto' | 'local-stream' | 'codex-oss' | 'dsh' | 'claude';
   localModelViaHarness?: boolean;
 }
 

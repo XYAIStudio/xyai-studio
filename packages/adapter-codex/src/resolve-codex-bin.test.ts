@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { resolveCodexBinary } from './resolve-codex-bin.js';
+import {
+  findBinaryOnPathEntries,
+  npmGlobalVendorRoots,
+  pathBinaryNames,
+  resolveCodexBinary,
+} from './resolve-codex-bin.js';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 
@@ -42,5 +47,29 @@ describe('resolveCodexBinary', () => {
     } else {
       expect(r.source).toBeNull();
     }
+  });
+
+  it('prefers codex.exe over codex.cmd on Windows PATH', () => {
+    expect(pathBinaryNames('win32')).toEqual(['codex.exe', 'codex.cmd']);
+    const dirs = [path.join('/fake', 'npm'), path.join('/fake', 'vendor')];
+    const present = new Set([
+      path.join(dirs[0]!, 'codex.cmd'),
+      path.join(dirs[1]!, 'codex.exe'),
+    ]);
+    const hit = findBinaryOnPathEntries(dirs, (p) => present.has(p), 'win32');
+    expect(hit).toBe(path.join(dirs[1]!, 'codex.exe'));
+  });
+
+  it('includes Windows npm global platform vendor root', () => {
+    const roots = npmGlobalVendorRoots(
+      ['C:\\Users\\me\\AppData\\Roaming'],
+      '@openai/codex-win32-x64',
+      '',
+    );
+    expect(
+      roots.some((r) =>
+        r.replace(/\\/g, '/').endsWith('npm/node_modules/@openai/codex-win32-x64'),
+      ),
+    ).toBe(true);
   });
 });

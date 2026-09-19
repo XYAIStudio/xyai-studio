@@ -181,17 +181,49 @@ describe('Phase A turn route', () => {
       model: 'qwen',
     });
   });
+
+  it('engineMode auto/local-stream stay on ollama; codex-oss uses --oss', () => {
+    expect(resolveTurnRoute('ollama:qwen', { engineMode: 'auto' })).toEqual({
+      kind: 'ollama',
+      model: 'qwen',
+    });
+    expect(
+      resolveTurnRoute('ollama:qwen', { engineMode: 'local-stream' }),
+    ).toEqual({
+      kind: 'ollama',
+      model: 'qwen',
+    });
+    expect(
+      resolveTurnRoute('ollama:qwen', { engineMode: 'codex-oss' }),
+    ).toEqual({
+      kind: 'codex',
+      modelId: 'qwen',
+      oss: true,
+      localProvider: 'ollama',
+    });
+  });
 });
 
-describe('localModelViaHarness setting', () => {
-  it('defaults to false (stream-first); only explicit true enables harness', () => {
+describe('engineMode setting', () => {
+  it('defaults to auto; maps legacy localModelViaHarness', () => {
+    expect(normalizeSettings({}).engineMode).toBe('auto');
     expect(normalizeSettings({}).localModelViaHarness).toBe(false);
-    expect(normalizeSettings({ localModelViaHarness: false }).localModelViaHarness).toBe(
-      false,
+    expect(normalizeSettings({ localModelViaHarness: false }).engineMode).toBe(
+      'local-stream',
+    );
+    expect(normalizeSettings({ localModelViaHarness: true }).engineMode).toBe(
+      'codex-oss',
     );
     expect(normalizeSettings({ localModelViaHarness: true }).localModelViaHarness).toBe(
       true,
     );
+    expect(normalizeSettings({ engineMode: 'auto' }).engineMode).toBe('auto');
+    expect(
+      normalizeSettings({
+        engineMode: 'auto',
+        localModelViaHarness: true,
+      }).engineMode,
+    ).toBe('auto');
   });
 });
 

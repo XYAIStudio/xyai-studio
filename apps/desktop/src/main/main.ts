@@ -314,6 +314,14 @@ function registerIpc(): void {
           typeof partial.localModelViaHarness === 'boolean'
             ? partial.localModelViaHarness
             : undefined,
+        engineMode:
+          partial.engineMode === 'auto' ||
+          partial.engineMode === 'local-stream' ||
+          partial.engineMode === 'codex-oss' ||
+          partial.engineMode === 'dsh' ||
+          partial.engineMode === 'claude'
+            ? partial.engineMode
+            : undefined,
       });
       void syncOpenXyosChatModels();
       return { settings, status: h.getStatus() };

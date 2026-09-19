@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import path from 'node:path';
 import {
   buildCodexExecArgs,
+  CODEX_ERROR_CODE,
   createCodexAdapter,
+  mapCodexUserError,
   MOCK_MARKER,
 } from './codex-adapter.js';
 
@@ -87,5 +90,37 @@ describe('buildCodexExecArgs', () => {
       'qwen3:8b',
       'fix bug',
     ]);
+  });
+
+  it('keeps --oss --local-provider ollama -m <bare> when session.oss', () => {
+    const args = buildCodexExecArgs({
+      sandbox: 'read-only',
+      cwd: '/tmp',
+      content: 'hi',
+      modelId: 'qwen3:8b',
+      oss: true,
+      localProvider: 'ollama',
+    });
+    const ossAt = args.indexOf('--oss');
+    const providerAt = args.indexOf('--local-provider');
+    const mAt = args.indexOf('-m');
+    expect(ossAt).toBeGreaterThan(-1);
+    expect(args[providerAt + 1]).toBe('ollama');
+    expect(args[mAt + 1]).toBe('qwen3:8b');
+    expect(args[mAt + 1]).not.toMatch(/^ollama:/);
+    expect(ossAt).toBeLessThan(mAt);
+  });
+});
+
+describe('CodexAdapter missing binary', () => {
+  it('is mock when binary is absent unless forceMock was requested', () => {
+    const adapter = createCodexAdapter({
+      binaryPath: path.join('/tmp', 'xyai-no-such-codex-bin'),
+    });
+    expect(adapter.isMock).toBe(true);
+    expect(adapter.binary.path).toBeNull();
+    const mapped = mapCodexUserError(CODEX_ERROR_CODE.MOCK_WITHOUT_FORCE);
+    expect(mapped.soft).toBe(true);
+    expect(mapped.message).toMatch(/本机/);
   });
 });

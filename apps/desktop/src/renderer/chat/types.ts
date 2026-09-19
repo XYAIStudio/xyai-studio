@@ -15,6 +15,7 @@ export type XyaiStatus = {
   binaryPath: string | null;
   modelId?: string;
   forceMock?: boolean;
+  engineMode?: 'auto' | 'local-stream' | 'codex-oss' | 'dsh' | 'claude';
   localModelViaHarness?: boolean;
   models?: ModelOption[];
   localModels?: ModelOption[];

@@ -149,3 +149,32 @@ export async function loadAssemblyProfile(filePath: string): Promise<AssemblyVal
 export function enabledModuleIds(profile: AssemblyProfile): string[] {
   return profile.modules.filter((m: AssemblyModule) => m.enabled).map((m) => m.id);
 }
+
+/** All harness rows in declaration order (enabled and stub). */
+export function listHarnesses(profile: AssemblyProfile): AssemblyHarness[] {
+  return profile.harnesses.slice();
+}
+
+/**
+ * @param profile Assembly profile
+ * @param id Harness id (`codex` / `dsh` / `claude`)
+ */
+export function getHarnessById(
+  profile: AssemblyProfile,
+  id: string,
+): AssemblyHarness | undefined {
+  return profile.harnesses.find((h) => h.id === id);
+}
+
+/** Enabled harness ids in declaration order. */
+export function enabledHarnessIds(profile: AssemblyProfile): string[] {
+  return profile.harnesses.filter((h) => h.enabled).map((h) => h.id);
+}
+
+/**
+ * @param profile Assembly profile
+ * @param id Harness id
+ */
+export function isHarnessEnabled(profile: AssemblyProfile, id: string): boolean {
+  return profile.harnesses.some((h) => h.id === id && h.enabled === true);
+}

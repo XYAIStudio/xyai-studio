@@ -16,8 +16,9 @@
 
 ## 资格线
 
-- 默认：`ollama:*` → 本机 NDJSON **真流式**（`runOllamaTurn`）
-- Harness（Codex 等）= 增强能力，显式开启；缺二进制时软降级，不中断对话
+- 默认：`engineMode: auto` → `ollama:*` 本机 NDJSON **真流式**（`runOllamaTurn`）
+- 「本机流式对话」强制上述路径；「高级本地引擎」才走 Codex `--oss`
+- Harness 是增强层；缺二进制时软降级，不中断对话
 
 ## 交接原则
 

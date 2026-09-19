@@ -6,7 +6,11 @@ describe('@xyai/contracts', () => {
     const profile: AssemblyProfile = {
       productVersion: '0.5.0',
       profileId: '0.5.0-dev.example',
-      harnesses: [{ id: 'codex', adapter: 'adapter-codex', enabled: true }],
+      harnesses: [
+        { id: 'codex', adapter: 'adapter-codex', enabled: true },
+        { id: 'dsh', adapter: 'adapter-dsh', enabled: false },
+        { id: 'claude', adapter: 'adapter-claude', enabled: false },
+      ],
       modules: [{ id: 'conversation', enabled: true }],
       components: [
         {
