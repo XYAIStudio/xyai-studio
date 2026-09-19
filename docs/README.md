@@ -8,4 +8,4 @@
 
 本目录：
 
-- [XYAI-CORE.md](./XYAI-CORE.md) — 自有 Core 原则、权威类型、C1–C4 路线图
+- [XYAI-CORE.md](./XYAI-CORE.md) — 自有 Core 原则、权威类型、C0–C4 路线图

@@ -21,7 +21,7 @@ Cindy 同构分层的 AI 桌面基座脚手架：**自有 Core + Harness Adapter
 apps/desktop              # Electron 薄宿主 + 最小聊天窗 + smoke CLI + pack:win
 packages/xyai-contracts   # 平台契约
 packages/xyai-core        # AssemblyGraph / SessionRegistry
-packages/xyai-core-runtime # SessionFacade / 权限映射 / 文本能力 / 停滞看门狗
+packages/xyai-core-runtime # SessionFacade / 权限映射 / 文本能力 / 模型与知识网关 / 停滞看门狗
 packages/adapter-codex    # Codex Adapter（真实 exec --json + MOCK 回退）
 packages/xyos-bridge      # OpenXYOS 健康探针桥
 packages/xyai-ui-shell    # UI 壳占位

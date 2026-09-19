@@ -28,6 +28,24 @@ export {
   planModelGateway,
   inferProtocolFromRef,
 } from './gateway.js';
+export {
+  isKnowledgeSeekingQuery,
+  messageHasKnowledgePrefix,
+  normalizeKnowledgeHits,
+  formatKnowledgePrefix,
+  planKnowledgeContext,
+  applyKnowledgePrefix,
+  resolveKnowledgeContext,
+  stubKnowledgeIngest,
+  emptyKnowledgeGateway,
+  KNOWLEDGE_PREFIX_RE,
+  type KnowledgeSourceInput,
+  type KnowledgeHitInput,
+  type NormalizeKnowledgeHitsInput,
+  type KnowledgeContextReason,
+  type KnowledgeContextPlan,
+  type PlanKnowledgeContextInput,
+} from './knowledge.js';
 
 export type {
   SessionFacade,
@@ -39,6 +57,10 @@ export type {
   NormalizedModelEntry,
   CatalogProtocol,
   CatalogSource,
+  KnowledgeSourceKind,
+  KnowledgeHit,
+  KnowledgeQuery,
+  KnowledgeGateway,
 } from '@xyai/contracts';
 
 export {

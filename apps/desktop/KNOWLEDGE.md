@@ -11,7 +11,7 @@
 4. **云端 KB**：
    - **ima（官方 OpenAPI）**：`POST https://ima.qq.com/openapi/wiki/v1/<action>`，请求头 `ima-openapi-clientid` / `ima-openapi-apikey`。挂接时保存 Client ID + API Key + 所选 `knowledgeBaseId`（仅 userData）。列表走 `get_knowledge_list`；对话 `@` 检索走 `search_knowledge`（`highlight_content` → 引用）。凭证在 https://ima.qq.com/agent-interface 获取。仅当用户显式启用 mock 或凭证不完整时回退 stub。
    - **HTTP**：通用远程列表；无 baseUrl 时 stub。
-5. **对话 `@`**：Composer 可 `@` 已挂接知识库；发送前检索并注入上下文。
+5. **对话 `@`**：Composer 可 `@` 已挂接知识库；发送前检索并注入上下文。未 `@` 时，检索型 chat/tools 回合由 Core `planKnowledgeContext` 在 Session `send` 上自动附加本机+云命中；无挂接或 `你好` 为空操作。
 6. **引用**：助手气泡展示「引用文件链接」；点击 `shell.openPath` / 外链，右键「在文件夹中显示」。
 
 ## 持久化
