@@ -214,7 +214,15 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
       const message =
         typeof p.message === 'string' ? p.message : 'unknown error';
       const code = typeof p.code === 'string' ? p.code : '';
-      if (p.soft === true || code === 'HARNESS_SOFT_FALLBACK') {
+      if (
+        p.soft === true ||
+        code === 'HARNESS_SOFT_FALLBACK' ||
+        code === 'HARNESS_STUB' ||
+        code === 'CODEX_BIN_MISSING' ||
+        code === 'SPAWN_ERROR' ||
+        code === 'ENOENT' ||
+        code === 'MOCK_WITHOUT_FORCE'
+      ) {
         msgs.push({ id: uid(), role: 'system', text: message });
         if (sid === activeSessionId) render();
         return;

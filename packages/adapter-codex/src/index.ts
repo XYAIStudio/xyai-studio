@@ -6,6 +6,10 @@ export {
   resolveCodexBinary,
   parseCodexJsonlLine,
   parseCodexJsonlRawLine,
+  CODEX_ERROR_CODE,
+  isHarnessUnavailablePayload,
+  mapCodexSpawnError,
+  mapCodexUserError,
 } from './codex-adapter.js';
 export type {
   CodexAdapterOptions,
@@ -13,3 +17,8 @@ export type {
   ResolveCodexBinaryResult,
   CodexBinarySource,
 } from './codex-adapter.js';
+export {
+  findBinaryOnPathEntries,
+  npmGlobalVendorRoots,
+  pathBinaryNames,
+} from './resolve-codex-bin.js';

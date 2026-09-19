@@ -25,6 +25,11 @@ describe('desktop smoke path', () => {
     );
     expect(validation.ok).toBe(true);
     expect(validation.profile.productVersion).toBe('0.5.0');
+    expect(validation.profile.harnesses.map((h) => [h.id, h.enabled])).toEqual([
+      ['codex', true],
+      ['dsh', false],
+      ['claude', false],
+    ]);
 
     const adapter = createCodexAdapter({ forceMock: true });
     expect(adapter.isMock).toBe(true);

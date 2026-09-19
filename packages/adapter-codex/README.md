@@ -22,12 +22,21 @@ const mock = createCodexAdapter({ forceMock: true });
 
 1. `CodexAdapterOptions.binaryPath` / `XYAI_CODEX_BIN` (must exist)
 2. Platform optional package via `@openai/codex` (e.g. `@openai/codex-win32-x64` → `vendor/<triple>/bin/codex[.exe]`)
-3. `codex` / `codex.exe` on `PATH`
+3. npm global vendor, including Windows `…/@openai/codex-win32-x64/vendor/…/codex.exe`
+4. `PATH` — on Windows `codex.exe` is preferred over the npm `codex.cmd` shim
+
+Missing binary / spawn / ENOENT map to Chinese **soft** payloads (`CODEX_BIN_MISSING`, `SPAWN_ERROR`, `ENOENT`, `MOCK_WITHOUT_FORCE`). The Studio host may then continue the same turn on local Ollama stream.
 
 ## Real exec flags
 
 ```
 codex exec --json --ephemeral --skip-git-repo-check -s read-only -C <cwd> "<prompt>"
+```
+
+Local OSS (`session.oss`):
+
+```
+codex exec --json … --oss --local-provider ollama -m <bare-name>
 ```
 
 Prompt is a **single argv** (spawn args array — never a joined ArgumentList string).

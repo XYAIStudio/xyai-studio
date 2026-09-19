@@ -40,12 +40,59 @@ const settingsModel = document.getElementById('settings-model') as HTMLSelectEle
 const settingsForceMock = document.getElementById(
   'settings-force-mock',
 ) as HTMLInputElement;
-const settingsLocalHarness = document.getElementById(
-  'settings-local-harness',
-) as HTMLInputElement;
+const settingsEngineMode = document.getElementById(
+  'settings-engine-mode',
+) as HTMLElement | null;
 const settingsCodexBin = document.getElementById(
   'settings-codex-bin',
 ) as HTMLInputElement;
+
+type EngineModeUi =
+  | 'auto'
+  | 'local-stream'
+  | 'codex-oss'
+  | 'dsh'
+  | 'claude';
+
+function readEngineMode(): EngineModeUi {
+  const checked = settingsEngineMode?.querySelector(
+    'input[name="engine-mode"]:checked',
+  ) as HTMLInputElement | null;
+  const v = checked?.value;
+  if (
+    v === 'auto' ||
+    v === 'local-stream' ||
+    v === 'codex-oss' ||
+    v === 'dsh' ||
+    v === 'claude'
+  ) {
+    return v;
+  }
+  return 'auto';
+}
+
+function writeEngineMode(
+  mode: string | undefined,
+  harnesses?: { id: string; enabled: boolean }[],
+): void {
+  if (!settingsEngineMode) return;
+  const dshRow = document.getElementById('engine-mode-dsh-row');
+  const dshEnabled = harnesses?.some((h) => h.id === 'dsh' && h.enabled);
+  if (dshRow) dshRow.hidden = !dshEnabled;
+  const next =
+    mode === 'auto' ||
+    mode === 'local-stream' ||
+    mode === 'codex-oss' ||
+    mode === 'dsh' ||
+    mode === 'claude'
+      ? mode
+      : 'auto';
+  settingsEngineMode
+    .querySelectorAll<HTMLInputElement>('input[name="engine-mode"]')
+    .forEach((input) => {
+      input.checked = input.value === next;
+    });
+}
 const cloudProvidersEl = document.getElementById(
   'cloud-providers',
 ) as HTMLElement;
@@ -863,9 +910,7 @@ async function loadSettingsForms(chatFill?: typeof fillModelSelect): Promise<voi
   (chatFill || fillModelSelect)(settingsModel, status);
   settingsCodexBin.value = settings.codexBin || '';
   settingsForceMock.checked = Boolean(settings.forceMock);
-  if (settingsLocalHarness) {
-    settingsLocalHarness.checked = settings.localModelViaHarness !== false;
-  }
+  writeEngineMode(settings.engineMode || 'auto', status.harnesses);
   renderCloudForm(settings.cloudProviders);
   renderCustomProviders(settings.customProviders || []);
 }
@@ -1213,15 +1258,13 @@ async function boot(): Promise<void> {
         modelId: settingsModel.value,
         forceMock: settingsForceMock.checked,
         codexBin: settingsCodexBin.value,
-        localModelViaHarness: settingsLocalHarness
-          ? settingsLocalHarness.checked
-          : true,
+        engineMode: readEngineMode(),
       });
       await chat.refreshFromStatus();
       const st = await window.xyai.getStatus();
       renderStatusChip(st);
       chat.fillModelSelect(settingsModel, st);
-      alert('Codex 设置已保存');
+      alert('设置已保存');
     });
 
   document

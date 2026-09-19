@@ -1,7 +1,7 @@
 /**
- * DeepSeek Harness adapter stub — implements AgentRuntime.
- * Not enabled in the default assembly profile. Product UI must not
- * present “DSH” as a required brand choice.
+ * Claude harness adapter stub — implements AgentRuntime.
+ * Not enabled in the default assembly profile. Settings may show
+ * 「高级云端引擎」as coming soon; never a required brand wall.
  */
 
 import type {
@@ -13,10 +13,10 @@ import type {
 } from '@xyai/contracts';
 
 const STUB_MESSAGE =
-  '这项高级能力即将推出，已为你继续本机流式对话。';
+  '云端高级能力即将推出，已为你继续本机流式对话。';
 
-export class DshAdapter implements AgentRuntime {
-  readonly harnessId = 'dsh';
+export class ClaudeAdapter implements AgentRuntime {
+  readonly harnessId = 'claude';
   readonly isStub = true;
   readonly isReady = false;
 
@@ -47,6 +47,6 @@ export class DshAdapter implements AgentRuntime {
   }
 }
 
-export function createDshAdapter(): DshAdapter {
-  return new DshAdapter();
+export function createClaudeAdapter(): ClaudeAdapter {
+  return new ClaudeAdapter();
 }

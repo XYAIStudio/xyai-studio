@@ -1335,6 +1335,46 @@ button {
   color: var(--text);
   font-size: 13px;
 }
+.engine-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(147, 197, 253, 0.4);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.45);
+}
+.engine-mode legend {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+.engine-mode label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.engine-mode label[data-soon] {
+  opacity: 0.6;
+}
+.engine-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.engine-advanced summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.engine-advanced label {
+  margin-top: 6px;
+}
+
 .form-grid select,
 .form-grid input[type="text"],
 .form-grid input[type="password"] {

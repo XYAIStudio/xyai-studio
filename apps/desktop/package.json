@@ -17,7 +17,9 @@
     "icons": "node ./scripts/ensure-icons.mjs"
   },
   "dependencies": {
+    "@xyai/adapter-claude": "workspace:*",
     "@xyai/adapter-codex": "workspace:*",
+    "@xyai/adapter-dsh": "workspace:*",
     "@xyai/contracts": "workspace:*",
     "@xyai/core": "workspace:*",
     "@xyai/knowledge": "workspace:*",

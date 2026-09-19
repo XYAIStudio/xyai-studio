@@ -182,25 +182,92 @@ function requireFromRoot(root: string): NodeJS.Require | null {
 }
 
 
-/** npm global @openai/codex vendor layout (Windows often only has codex.cmd on PATH). */
-function findNpmGlobalVendor(targetTriple: string, platformPackage: string): string | null {
-  const home = process.env.APPDATA || process.env.HOME || process.env.USERPROFILE;
-  if (!home) return null;
-  const candidates = [
-    path.join(home, 'npm', 'node_modules', '@openai', 'codex'),
-    path.join(home, 'npm', 'node_modules', '@openai', 'codex', 'node_modules', ...platformPackage.split('/')),
-  ];
-  // Linux/mac: ~/.npm-global or prefix — also try dirname of `npm root -g` style paths via PATH
-  for (const dir of (process.env.PATH ?? process.env.Path ?? '').split(path.delimiter)) {
+/**
+ * PATH names: on Windows prefer native `codex.exe` over the npm shim `codex.cmd`.
+ * @param platform process.platform
+ */
+export function pathBinaryNames(platform: NodeJS.Platform = process.platform): string[] {
+  if (platform === 'win32') return ['codex.exe', 'codex.cmd'];
+  return ['codex'];
+}
+
+/**
+ * Walk PATH-like dirs; earlier names win (exe before cmd).
+ * @param dirs Directories from PATH
+ * @param exists Existence probe (injectable for tests)
+ * @param platform process.platform
+ */
+export function findBinaryOnPathEntries(
+  dirs: string[],
+  exists: (candidate: string) => boolean = existsSync,
+  platform: NodeJS.Platform = process.platform,
+): string | null {
+  for (const name of pathBinaryNames(platform)) {
+    for (const dir of dirs) {
+      if (!dir) continue;
+      const candidate = path.join(dir, name);
+      if (exists(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * npm global roots that may contain `@openai/codex` or `@openai/codex-win32-x64`
+ * (`…/node_modules/@openai/codex-win32-x64/vendor/<triple>/bin/codex.exe`).
+ */
+export function npmGlobalVendorRoots(
+  homes: Array<string | undefined>,
+  platformPackage: string,
+  pathEnv: string,
+): string[] {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const push = (p: string) => {
+    if (!p || seen.has(p)) return;
+    seen.add(p);
+    candidates.push(p);
+  };
+  for (const home of homes) {
+    if (!home) continue;
+    push(path.join(home, 'npm', 'node_modules', '@openai', 'codex'));
+    push(
+      path.join(
+        home,
+        'npm',
+        'node_modules',
+        '@openai',
+        'codex',
+        'node_modules',
+        ...platformPackage.split('/'),
+      ),
+    );
+    // Windows npm global often installs the platform package at the top level.
+    push(path.join(home, 'npm', 'node_modules', ...platformPackage.split('/')));
+  }
+  for (const dir of pathEnv.split(path.delimiter)) {
     if (!dir) continue;
     const near = path.join(dir, 'node_modules', '@openai', 'codex');
-    candidates.push(near);
-    candidates.push(path.join(near, 'node_modules', ...platformPackage.split('/')));
+    push(near);
+    push(path.join(near, 'node_modules', ...platformPackage.split('/')));
+    push(path.join(dir, 'node_modules', ...platformPackage.split('/')));
   }
+  return candidates;
+}
+
+/** npm global @openai/codex vendor layout (Windows often only has codex.cmd on PATH). */
+function findNpmGlobalVendor(targetTriple: string, platformPackage: string): string | null {
+  const homes = [
+    process.env.APPDATA,
+    process.env.LOCALAPPDATA,
+    process.env.HOME,
+    process.env.USERPROFILE,
+  ];
+  const pathEnv = process.env.PATH ?? process.env.Path ?? '';
+  const candidates = npmGlobalVendorRoots(homes, platformPackage, pathEnv);
   for (const root of candidates) {
     const hit = existingVendor(root, targetTriple);
     if (hit) return hit;
-    // when root is meta package, look nested platform package
     const nested = path.join(root, 'node_modules', ...platformPackage.split('/'));
     const nestedHit = existingVendor(nested, targetTriple);
     if (nestedHit) return nestedHit;
@@ -212,12 +279,7 @@ function findOnPath(): string | null {
   const pathEnv = process.env.PATH ?? process.env.Path ?? '';
   if (!pathEnv) return null;
   const parts = pathEnv.split(path.delimiter).filter(Boolean);
-  const name = exeName();
-  for (const dir of parts) {
-    const candidate = path.join(dir, name);
-    if (existsSync(candidate)) return candidate;
-  }
-  return null;
+  return findBinaryOnPathEntries(parts);
 }
 
 /**

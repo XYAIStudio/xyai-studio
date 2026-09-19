@@ -208,25 +208,48 @@
               </div>
               <pre id="pull-log" class="pull-log" hidden></pre>
 
-              <div class="card" id="codex-card">
-                <h2>Codex 对话引擎</h2>
+              <div class="card" id="engine-card">
+                <h2>对话能力</h2>
+                <p class="hint">默认「自动」：本机模型直接流式回答。需要改文件或更强规划时，可选用高级能力；未就绪时会自动用本机继续聊，不会打断对话。</p>
                 <div class="form-grid">
+                  <fieldset class="engine-mode" id="settings-engine-mode">
+                    <legend>能力选择</legend>
+                    <label>
+                      <input type="radio" name="engine-mode" value="auto" checked />
+                      自动（推荐）
+                    </label>
+                    <label>
+                      <input type="radio" name="engine-mode" value="local-stream" />
+                      本机流式对话
+                    </label>
+                    <label>
+                      <input type="radio" name="engine-mode" value="codex-oss" />
+                      高级本地引擎
+                    </label>
+                    <label data-soon="true">
+                      <input type="radio" name="engine-mode" value="claude" disabled />
+                      高级云端引擎（即将推出）
+                    </label>
+                    <label hidden id="engine-mode-dsh-row">
+                      <input type="radio" name="engine-mode" value="dsh" disabled />
+                      实验室引擎（即将推出）
+                    </label>
+                  </fieldset>
                   <label>默认模型
                     <select id="settings-model"></select>
                   </label>
-                  <label class="check">
-                    <input type="checkbox" id="settings-force-mock" />
-                    强制 Mock（调试）
-                  </label>
-                  <label class="check">
-                    <input type="checkbox" id="settings-local-harness" checked />
-                    本地模型走 Codex harness（推荐；关闭则直连 Ollama 聊天）
-                  </label>
-                  <label>Codex 路径（可空，自动探测）
-                    <input type="text" id="settings-codex-bin" placeholder="例如 C:\…\codex.exe" />
-                  </label>
+                  <details class="engine-advanced">
+                    <summary>高级</summary>
+                    <label>对话引擎路径（可空，自动探测）
+                      <input type="text" id="settings-codex-bin" placeholder="例如 C:\…\codex.exe" />
+                    </label>
+                    <label class="check">
+                      <input type="checkbox" id="settings-force-mock" />
+                      强制 Mock（仅开发）
+                    </label>
+                  </details>
                 </div>
-                <button type="button" id="btn-save-codex" class="primary capsule-btn">保存 Codex 设置</button>
+                <button type="button" id="btn-save-codex" class="primary capsule-btn">保存设置</button>
               </div>
             </div>
 
