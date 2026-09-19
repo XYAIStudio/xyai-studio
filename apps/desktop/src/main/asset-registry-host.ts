@@ -4,15 +4,12 @@
  * Does not invent a store.
  */
 
-import type { InteropAsset, InteropAssetKind } from '@xyai/contracts';
-import type {
-  AssetRegistryEntry,
-  AssetRegistrySnapshot,
-  AssetRegistrySourceRow,
-} from '@xyai/contracts';
+import type { AssetRegistryEntry, InteropAsset, InteropAssetKind } from '@xyai/contracts';
 import {
   createAssetRegistry,
   type AssetPromoteFn,
+  type AssetRegistrySnapshot,
+  type AssetRegistrySourceRow,
   type ThinAssetRegistry,
 } from '@xyai/core-runtime';
 import type { PersonalAsset } from './personalize/types.js';
