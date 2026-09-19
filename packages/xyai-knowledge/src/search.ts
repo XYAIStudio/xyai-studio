@@ -181,8 +181,32 @@ export function formatContextBlock(
   return header + parts.join('\n\n') + '\n【检索结束】\n';
 }
 
-/** Explicit note when a mounted KB has no index chunks at all. */
-export function formatEmptyIndexNote(kbName: string): string {
+/** Why a mounted KB has zero searchable chunks. */
+export type EmptyIndexReason = 'never-parsed' | 'no-searchable-text';
+
+/**
+ * Distinguish "user never ran parse" from "parse ran but wrote no chunks".
+ * @param meta Index meta written at the end of a parse attempt; null if absent
+ * @returns `no-searchable-text` when a parse left meta.json, else `never-parsed`
+ */
+export function emptyIndexReasonFromMeta(
+  meta: { chunkCount?: number } | null,
+): EmptyIndexReason {
+  return meta ? 'no-searchable-text' : 'never-parsed';
+}
+
+/**
+ * Explicit note when a mounted KB has no index chunks.
+ * @param kbName Mount display name
+ * @param reason `never-parsed` vs parse produced no searchable body
+ */
+export function formatEmptyIndexNote(
+  kbName: string,
+  reason: EmptyIndexReason = 'never-parsed',
+): string {
+  if (reason === 'no-searchable-text') {
+    return `【知识库「${kbName}」解析未产生可检索正文，请重新解析或换可读文件】\n`;
+  }
   return `【知识库「${kbName}」尚未有可用索引，请先在知识库页完成解析】\n`;
 }
 

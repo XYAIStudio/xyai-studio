@@ -421,6 +421,7 @@ const api = {
     citations: KbCitation[];
     context: string;
     emptyIndexNames: string[];
+    emptyIndexNotes: string[];
   }> => ipcRenderer.invoke('xyai:kb-search', input),
 
   kbGetCitations: (input: {

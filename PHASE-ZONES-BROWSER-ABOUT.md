@@ -15,8 +15,8 @@ Desktop typecheck: **pass**. No Windows pack in this phase.
 ## 3) 已挂载知识库必须被对话识别
 
 - `@xyai/knowledge` `search.ts`：中文友好 tokenize（CJK 整段 + bigram）+ 整句 substring 加分；无命中但有 chunks → **overview 兜底**前 N 片。
-- `knowledge-host.search`：始终 prepend `formatAttachedKbBanner`；无索引库写入 `formatEmptyIndexNote`，返回 `emptyIndexNames`。
-- Chat：`emptyIndexNames` → `transcript.appendError`；context 为空时仍注入挂载说明，**禁止静默丢弃**。
+- `knowledge-host.search`：始终 prepend `formatAttachedKbBanner`；无索引库写入 `formatEmptyIndexNote`（从未解析 / 解析未产生正文），返回 `emptyIndexNames` + `emptyIndexNotes`。
+- Chat：`emptyIndexNotes`（或 `emptyIndexNames`）→ `transcript.appendError`；context 为空时仍注入挂载说明，**禁止静默丢弃**。
 - 有真实命中时仍保留 citations。
 
 ## 4) 业务空间 → OpenXYOS
