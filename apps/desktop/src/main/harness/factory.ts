@@ -47,8 +47,6 @@ export function createAdapterForHarnessId(
         binaryPath: options.binaryPath,
         cwd: options.cwd,
         sandbox: options.sandbox,
-        askForApproval: options.askForApproval,
-        addDirs: options.addDirs,
       });
     case 'dsh':
       return createDshAdapter();
