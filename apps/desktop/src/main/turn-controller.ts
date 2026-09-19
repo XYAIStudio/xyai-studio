@@ -25,7 +25,19 @@ import {
 import { streamOpenAiChatCompletions } from './openai-compat.js';
 import type { CustomProvider } from './custom-providers.js';
 import type { EngineMode } from './engine-mode.js';
-import { ollamaTurnUsesHarness } from './harness/router.js';
+import type { AccessMode } from './settings.js';
+import {
+  ollamaTurnUsesHarness,
+  turnUsesHarness,
+  type CapabilityNeed,
+} from './harness/router.js';
+import { inferCapabilityNeed } from './turn-intent.js';
+import {
+  accessModeToCodexSandbox,
+  ensureStudioWorkspace,
+  studioPersonalizeDir,
+  type CodexSandboxSpec,
+} from './studio-workspace.js';
 
 export type CodexLocalProvider = 'ollama' | 'lmstudio';
 
@@ -37,6 +49,8 @@ export type TurnRoute =
       /** Local OSS inference via `codex exec --oss`. */
       oss?: boolean;
       localProvider?: CodexLocalProvider;
+      /** Lift custom/cloud OpenAI-compat brain through Codex tools. */
+      customProviderId?: string;
     }
   | { kind: 'custom'; providerId: string; modelId: string };
 
@@ -48,6 +62,25 @@ export interface ResolveTurnRouteOptions {
   localModelViaHarness?: boolean;
   /** Preferred: capability/engine selector. Overrides the boolean when set. */
   engineMode?: EngineMode;
+  /** tools/planning lifts custom + local models onto Codex. Default chat. */
+  capabilityNeed?: CapabilityNeed;
+}
+
+export interface PlanTurnInput {
+  modelRef: string;
+  userText: string;
+  engineMode?: EngineMode;
+  localModelViaHarness?: boolean;
+  accessMode?: AccessMode;
+  userDataDir?: string;
+}
+
+export interface TurnPlan {
+  capabilityNeed: CapabilityNeed;
+  route: TurnRoute;
+  sandbox: CodexSandboxSpec;
+  cwd: string;
+  addDirs: string[];
 }
 
 /** Resolve send route from a modelRef (settings.modelId may hold modelRef). */
@@ -56,8 +89,20 @@ export function resolveTurnRoute(
   opts: ResolveTurnRouteOptions = {},
 ): TurnRoute {
   const ref = normalizeModelRef(modelRef);
+  const need = opts.capabilityNeed ?? 'chat';
   const custom = parseCustomModelRef(ref);
   if (custom) {
+    const viaHarness =
+      opts.engineMode !== undefined
+        ? turnUsesHarness(opts.engineMode, need)
+        : need !== 'chat';
+    if (viaHarness) {
+      return {
+        kind: 'codex',
+        modelId: custom.modelId,
+        customProviderId: custom.providerId,
+      };
+    }
     return {
       kind: 'custom',
       providerId: custom.providerId,
@@ -68,8 +113,8 @@ export function resolveTurnRoute(
   if (ollama) {
     const viaHarness =
       opts.engineMode !== undefined
-        ? ollamaTurnUsesHarness(opts.engineMode, 'chat')
-        : opts.localModelViaHarness === true;
+        ? ollamaTurnUsesHarness(opts.engineMode, need)
+        : opts.localModelViaHarness === true || need !== 'chat';
     if (viaHarness) {
       return {
         kind: 'codex',
@@ -81,6 +126,33 @@ export function resolveTurnRoute(
     return { kind: 'ollama', model: ollama };
   }
   return { kind: 'codex', modelId: toCodexModelId(ref) };
+}
+
+/**
+ * Single send-time plan: intent + route + writable sandbox.
+ */
+export function planTurn(input: PlanTurnInput): TurnPlan {
+  const accessMode = input.accessMode ?? 'default';
+  const capabilityNeed = inferCapabilityNeed(input.userText, accessMode);
+  const route = resolveTurnRoute(input.modelRef, {
+    engineMode: input.engineMode,
+    localModelViaHarness: input.localModelViaHarness,
+    capabilityNeed,
+  });
+  const userDataDir = input.userDataDir;
+  const cwd = userDataDir
+    ? ensureStudioWorkspace(userDataDir)
+    : ensureStudioWorkspace();
+  const personalize = userDataDir
+    ? studioPersonalizeDir(userDataDir)
+    : studioPersonalizeDir();
+  return {
+    capabilityNeed,
+    route,
+    sandbox: accessModeToCodexSandbox(accessMode),
+    cwd,
+    addDirs: [personalize],
+  };
 }
 
 /** Abort both Codex adapter turn and in-flight Ollama fetch. */

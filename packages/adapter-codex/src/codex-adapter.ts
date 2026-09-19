@@ -50,6 +50,11 @@ interface SessionState {
   modelId?: string;
   oss?: boolean;
   localProvider?: CodexLocalProvider;
+  sandbox?: string;
+  approval?: string;
+  addDirs?: string[];
+  extraEnv?: Record<string, string>;
+  configOverrides?: string[];
 }
 
 /** Pure argv builder for `codex exec` (testable without spawn). */
@@ -60,6 +65,9 @@ export function buildCodexExecArgs(opts: {
   modelId?: string;
   oss?: boolean;
   localProvider?: CodexLocalProvider;
+  approval?: string;
+  addDirs?: string[];
+  configOverrides?: string[];
 }): string[] {
   const args = [
     'exec',
@@ -71,6 +79,17 @@ export function buildCodexExecArgs(opts: {
     '-C',
     opts.cwd,
   ];
+  if (opts.approval) {
+    args.push('-a', opts.approval);
+  }
+  for (const dir of opts.addDirs ?? []) {
+    const t = dir.trim();
+    if (t) args.push('--add-dir', t);
+  }
+  for (const cfg of opts.configOverrides ?? []) {
+    const t = cfg.trim();
+    if (t) args.push('--config', t);
+  }
   if (opts.oss) {
     args.push('--oss');
     if (opts.localProvider) {
@@ -135,6 +154,11 @@ export class CodexAdapter implements AgentRuntime {
       modelId: options.modelId,
       oss: options.oss === true,
       localProvider: options.localProvider,
+      sandbox: options.sandbox,
+      approval: options.approval,
+      addDirs: options.addDirs,
+      extraEnv: options.extraEnv,
+      configOverrides: options.configOverrides,
     });
   }
 
@@ -248,7 +272,7 @@ export class CodexAdapter implements AgentRuntime {
 
     const session = this.active.get(sessionId);
     const cwd = session?.cwd || this.options.cwd || process.cwd();
-    const sandbox = this.options.sandbox ?? 'read-only';
+    const sandbox = session?.sandbox || this.options.sandbox || 'read-only';
     const modelId = options.modelId || session?.modelId;
 
     // IMPORTANT: prompt is ONE argv token; do not join args into a single string.
@@ -259,6 +283,9 @@ export class CodexAdapter implements AgentRuntime {
       modelId,
       oss: session?.oss === true,
       localProvider: session?.localProvider,
+      approval: session?.approval,
+      addDirs: session?.addDirs,
+      configOverrides: session?.configOverrides,
     });
 
     const ctx: ParseCodexJsonlContext = {
@@ -272,7 +299,7 @@ export class CodexAdapter implements AgentRuntime {
 
     const child = spawn(bin, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env },
+      env: { ...process.env, ...(session?.extraEnv || {}) },
       windowsHide: true,
     });
     this.children.set(sessionId, child);
