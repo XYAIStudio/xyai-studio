@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { accessModeToPermissionMode } from '@xyai/core-runtime';
 import {
   accessModeToCodexSandbox,
   ensureStudioWorkspace,
+  permissionModeToCodexSandbox,
   setWorkspaceUserDataDir,
   studioPersonalizeDir,
   studioWorkspaceDir,
@@ -26,6 +28,19 @@ describe('accessModeToCodexSandbox', () => {
     expect(accessModeToCodexSandbox('full')).toEqual({
       sandbox: 'danger-full-access',
       approval: 'never',
+    });
+  });
+
+  it('routes accessMode through PermissionMode without changing sandbox', () => {
+    expect(accessModeToPermissionMode('default')).toBe('default');
+    expect(accessModeToPermissionMode('auto')).toBe('auto');
+    expect(accessModeToPermissionMode('full')).toBe('bypass');
+    expect(accessModeToCodexSandbox('full')).toEqual(
+      permissionModeToCodexSandbox('bypass'),
+    );
+    expect(permissionModeToCodexSandbox('ask')).toEqual({
+      sandbox: 'workspace-write',
+      approval: 'on-request',
     });
   });
 });

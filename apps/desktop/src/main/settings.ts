@@ -6,7 +6,11 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { normalizeModelRef } from '@xyai/contracts';
+import {
+  normalizeAccessMode,
+  normalizeModelRef,
+  type AccessMode,
+} from '@xyai/contracts';
 import {
   emptyCloudProviders,
   normalizeCloudProviders,
@@ -39,12 +43,7 @@ export const DEFAULT_MODELS: ModelOption[] = [
   { id: 'codex:gpt-4o', label: 'GPT-4o' },
 ];
 
-export type AccessMode = 'default' | 'auto' | 'full';
-
-export function normalizeAccessMode(v: unknown): AccessMode {
-  if (v === 'default' || v === 'auto' || v === 'full') return v;
-  return 'default';
-}
+export type { AccessMode };
 
 export interface XyaiSettings {
   /**

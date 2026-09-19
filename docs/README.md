@@ -6,4 +6,6 @@
 - ../PRODUCT-VISION.md
 - ../ROADMAP.md
 
-本目录后续可放：契约草案、UI 线框说明、阶段 evidence 索引。
+本目录：
+
+- [XYAI-CORE.md](./XYAI-CORE.md) — 自有 Core 原则、权威类型、C1–C4 路线图

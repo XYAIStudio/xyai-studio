@@ -22,6 +22,7 @@
     "@xyai/adapter-dsh": "workspace:*",
     "@xyai/contracts": "workspace:*",
     "@xyai/core": "workspace:*",
+    "@xyai/core-runtime": "workspace:*",
     "@xyai/knowledge": "workspace:*",
     "@xyai/model-hub": "workspace:*",
     "@xyai/xyos-bridge": "workspace:*",
