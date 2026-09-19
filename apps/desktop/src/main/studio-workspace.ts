@@ -52,7 +52,7 @@ export function studioPersonalizeDir(
 
 const WORKSPACE_README = `# XYAI Studio 工作目录
 
-对话里的创建 / 写入任务会把文件放在这里。插件、技能、MCP 写进 plugins/、skills/、mcp/ 后会出现在「个性化」列表，无需复制 PowerShell。
+对话里的创建 / 写入任务会把文件放在这里。插件、技能、MCP、智能体、文档、管理系统写进 plugins/、skills/、mcp/、agents/、docs/、systems/ 后会出现在「个性化」列表，无需复制 PowerShell。
 `;
 
 /**
@@ -64,7 +64,15 @@ export function ensureStudioWorkspace(
 ): string {
   const dir = studioWorkspaceDir(userData);
   mkdirSync(dir, { recursive: true });
-  for (const sub of ['plugins', 'skills', 'mcp', 'agents', 'connectors']) {
+  for (const sub of [
+    'plugins',
+    'skills',
+    'mcp',
+    'agents',
+    'connectors',
+    'docs',
+    'systems',
+  ]) {
     mkdirSync(path.join(dir, sub), { recursive: true });
   }
   const readme = path.join(dir, 'README.md');
@@ -105,7 +113,7 @@ export function workspaceToolPreamble(workspaceDir: string): string {
   return [
     '你在 XYAI Studio 本机工作目录中工作，可以直接创建和修改文件。',
     `工作目录：${workspaceDir}`,
-    '把普通文件写在工作目录；插件写入 plugins/<名称>/，技能写入 skills/<名称>/，MCP 写入 mcp/ 或 mcp.json，智能体写入 agents/<名称>/。',
+    '把普通文件写在工作目录；插件写入 plugins/<名称>/，技能写入 skills/<名称>/，MCP 写入 mcp/ 或 mcp.json，智能体写入 agents/<名称>/，文档写入 docs/<名称>/，管理系统写入 systems/<名称>/。',
     '完成后不要让用户复制 PowerShell 或手工安装。',
   ].join('\n');
 }

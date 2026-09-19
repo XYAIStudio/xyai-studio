@@ -109,7 +109,7 @@ Cindy 明确行为（首期必须对齐）：
 | 模块 | 位置（目标） | 职责 |
 |---|---|---|
 | `SessionStore` | `packages/xyai-core` 或 `apps/desktop/src/main/session-store.ts` | 会话 CRUD、当前会话、标题 |
-| `TurnController` | `apps/desktop/src/main/turn-controller.ts`（由 CodexHost 演进） | 执行 Core `planModelGateway`：stream / Codex（含自定义脑注入）；知识前缀走同一 `send`；abort |
+| `TurnController` | `apps/desktop/src/main/turn-controller.ts`（由 CodexHost 演进） | 执行 Core `planModelGateway`：stream / Codex（含自定义脑注入）；知识前缀走同一 `send`；工具回合结束后 Forge → `installAsset`；abort |
 | `ModelCatalogFacade` | main：`normalizeGatewayCatalog`（Ollama + 自定义/云 + 内置） | 给 Picker 的统一列表（`source: local\|cloud`） |
 | `Composer` | `apps/desktop/src/renderer/chat/composer.ts` | 输入、发送/停止、IME、焦点 |
 | `ModelPicker` | `apps/desktop/src/renderer/chat/model-picker.ts` | 对标 Cindy：分组（本地 / Codex）、搜索、当前 chip |

@@ -7,7 +7,9 @@ export type PersonalizeKind =
   | 'plugin'
   | 'mcp'
   | 'connector'
-  | 'agent';
+  | 'agent'
+  | 'doc'
+  | 'system';
 
 export type PersonalizeOriginApp =
   | 'gemini'

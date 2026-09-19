@@ -1,10 +1,12 @@
 /**
- * After a tools turn, copy workspace plugins/skills/MCP/agents into 个性化.
- * No installer execution — copy + catalog only.
+ * After a tools turn, copy workspace plugins/skills/MCP/agents/docs/systems
+ * into 个性化 via `installAsset`. No installer execution — catalog only.
  */
 
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { installAsset } from './personalize/actions.js';
+import { notifyForgeBiz, packForgeAsset } from './forge-execute.js';
 import { discoveryId } from './personalize/paths.js';
 import {
   extractMcpServersMap,
@@ -15,11 +17,7 @@ import {
   readJsonFile,
   sanitizeMcpServerEntry,
 } from './personalize/scan-fs.js';
-import {
-  copyPathInto,
-  installedDir,
-  upsertAsset,
-} from './personalize/store.js';
+import { getAsset, upsertAsset } from './personalize/store.js';
 import type { PersonalAsset, PersonalizeKind } from './personalize/types.js';
 
 const KIND_FOLDERS: { dir: string; kind: PersonalizeKind }[] = [
@@ -28,6 +26,8 @@ const KIND_FOLDERS: { dir: string; kind: PersonalizeKind }[] = [
   { dir: 'mcp', kind: 'mcp' },
   { dir: 'agents', kind: 'agent' },
   { dir: 'connectors', kind: 'connector' },
+  { dir: 'docs', kind: 'doc' },
+  { dir: 'systems', kind: 'system' },
 ];
 
 function assetFromDir(
@@ -106,7 +106,7 @@ export interface InstallWorkspacePluginsResult {
 }
 
 /**
- * Copy discovered workspace assets into userData/personalize/installed.
+ * Pack each workspace asset as discovered, then call personalize `installAsset`.
  * @param workspaceDir Studio cwd (userData/workspace)
  */
 export function installWorkspacePlugins(
@@ -117,21 +117,33 @@ export function installWorkspacePlugins(
   for (const raw of discovered) {
     const src = raw.pathOrRef;
     if (!src || !existsSync(src)) continue;
-    const destRoot = path.join(installedDir(raw.kind), raw.id);
-    const pathOrRef = copyPathInto(src, destRoot);
-    const asset: PersonalAsset = {
-      ...raw,
-      status: 'installed',
-      pathOrRef,
-      manifest: {
-        ...(raw.manifest || {}),
-        installedAt: new Date().toISOString(),
-        installPath: pathOrRef,
-        workspaceSource: src,
-      },
-    };
-    upsertAsset(asset);
-    installed.push(asset);
+    const existing = getAsset(raw.id);
+    if (existing) {
+      upsertAsset({
+        ...existing,
+        manifest: {
+          ...(existing.manifest || {}),
+          ...(raw.manifest || {}),
+          originalPath: src,
+          workspaceSource: src,
+        },
+      });
+    } else {
+      packForgeAsset({
+        ...raw,
+        status: 'discovered',
+        manifest: {
+          ...(raw.manifest || {}),
+          originalPath: src,
+          workspaceSource: src,
+        },
+      });
+    }
+    const inst = installAsset(raw.id);
+    if (inst.ok && inst.asset) {
+      installed.push(inst.asset);
+      void notifyForgeBiz(inst.asset);
+    }
   }
   return { installed };
 }

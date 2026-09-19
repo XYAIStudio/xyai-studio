@@ -8,7 +8,9 @@ export type PersonalizeKind =
   | 'plugin'
   | 'mcp'
   | 'connector'
-  | 'agent';
+  | 'agent'
+  | 'doc'
+  | 'system';
 
 export type PersonalizeSource = 'studio' | 'local' | 'openxyos';
 
@@ -38,6 +40,8 @@ const MODULES: {
   { kind: 'mcp', label: 'MCP', desc: 'MCP 服务与工具注册' },
   { kind: 'connector', label: '连接器', desc: '外部系统连接配置' },
   { kind: 'agent', label: '智能体定制', desc: '四类工位蓝图（P4）' },
+  { kind: 'doc', label: '文档', desc: '对话沉淀的文档' },
+  { kind: 'system', label: '管理系统', desc: '对话沉淀的业务系统' },
 ];
 
 const SOURCES: { id: PersonalizeSource; label: string }[] = [
@@ -68,7 +72,7 @@ const STATUS_LABEL: Record<string, string> = {
 function emptyHint(kind: PersonalizeKind, source: PersonalizeSource): string {
   if (kind === 'agent') {
     if (source === 'studio') {
-      return '暂无定制蓝图。智能体四类工位向导将在后续版本提供。';
+      return '暂无定制蓝图。对话创建的智能体会出现在这里；四类工位向导将在后续版本提供。';
     }
     if (source === 'local') {
       return '智能体模板本机扫描未启用（P4）。';
@@ -76,7 +80,7 @@ function emptyHint(kind: PersonalizeKind, source: PersonalizeSource): string {
     return '业务空间模板互通尚未启用（P3）。';
   }
   if (source === 'studio') {
-    return '暂无已安装项。可在「本机发现」中导入后安装到此处。';
+    return '暂无已安装项。对话创建或「本机发现」导入后会出现在这里。';
   }
   if (source === 'local') {
     return '未发现本机资产。已探测 Claude / Codex·Cursor / Gemini / Workbuddy 等常见目录；未安装对应软件时列表为空属正常。';

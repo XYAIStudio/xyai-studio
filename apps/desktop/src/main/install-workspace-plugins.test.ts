@@ -35,17 +35,28 @@ describe('installWorkspacePlugins', () => {
     );
     mkdirSync(path.join(ws, 'skills', 'demo-skill'), { recursive: true });
     writeFileSync(path.join(ws, 'skills', 'demo-skill', 'SKILL.md'), '# skill');
+    mkdirSync(path.join(ws, 'docs', '手册'), { recursive: true });
+    writeFileSync(path.join(ws, 'docs', '手册', 'note.md'), '# doc');
+    mkdirSync(path.join(ws, 'systems', 'oa'), { recursive: true });
+    writeFileSync(path.join(ws, 'systems', 'oa', 'README.md'), '# system');
 
     const found = discoverWorkspaceAssets(ws);
     expect(found.map((a) => a.name).sort()).toEqual([
       'demo-plugin',
       'demo-skill',
+      'oa',
+      '手册',
     ]);
 
     const res = installWorkspacePlugins(ws);
-    expect(res.installed).toHaveLength(2);
+    expect(res.installed).toHaveLength(4);
     expect(res.installed.every((a) => a.status === 'installed')).toBe(true);
     expect(res.installed.every((a) => existsSync(a.pathOrRef))).toBe(true);
+    expect(
+      res.installed.every((a) =>
+        a.pathOrRef.includes(path.join('personalize', 'installed')),
+      ),
+    ).toBe(true);
     const stored = listStored({
       status: ['installed', 'enabled', 'disabled', 'imported'],
     });
@@ -55,5 +66,7 @@ describe('installWorkspacePlugins', () => {
     expect(stored.some((a) => a.name === 'demo-skill' && a.kind === 'skill')).toBe(
       true,
     );
+    expect(stored.some((a) => a.name === '手册' && a.kind === 'doc')).toBe(true);
+    expect(stored.some((a) => a.name === 'oa' && a.kind === 'system')).toBe(true);
   });
 });
