@@ -61,6 +61,8 @@ describe('ensureStudioWorkspace', () => {
     expect(cwd).toBe(studioWorkspaceDir(tmp));
     expect(existsSync(path.join(cwd, 'plugins'))).toBe(true);
     expect(existsSync(path.join(cwd, 'skills'))).toBe(true);
+    expect(existsSync(path.join(cwd, 'docs'))).toBe(true);
+    expect(existsSync(path.join(cwd, 'systems'))).toBe(true);
     expect(existsSync(path.join(cwd, 'README.md'))).toBe(true);
     expect(existsSync(studioPersonalizeDir(tmp))).toBe(true);
   });

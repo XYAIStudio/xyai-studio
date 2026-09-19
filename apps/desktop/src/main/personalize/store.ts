@@ -54,7 +54,7 @@ function ensureDirs(): void {
     root,
     importsDir(),
     path.join(root, 'installed'),
-    ...(['skill', 'plugin', 'mcp', 'connector', 'agent'] as PersonalizeKind[]).map(
+    ...(['skill', 'plugin', 'mcp', 'connector', 'agent', 'doc', 'system'] as PersonalizeKind[]).map(
       installedDir,
     ),
   ]) {

@@ -46,6 +46,14 @@ export {
   type KnowledgeContextPlan,
   type PlanKnowledgeContextInput,
 } from './knowledge.js';
+export {
+  forgePlan,
+  sanitizeForgeName,
+  workspaceRelForForge,
+  personalizeKindForForge,
+  type ForgePlan,
+  type ForgePlanReason,
+} from './forge.js';
 
 export type {
   SessionFacade,
@@ -61,6 +69,11 @@ export type {
   KnowledgeHit,
   KnowledgeQuery,
   KnowledgeGateway,
+  ForgeAssetKind,
+  ForgeRequest,
+  ForgeResult,
+  ForgeStage,
+  ForgeFile,
 } from '@xyai/contracts';
 
 export {
@@ -73,4 +86,11 @@ export {
   ACCESS_MODES,
   PERMISSION_MODES,
   AGENT_KINDS,
+  FORGE_ASSET_KINDS,
+  FORGE_WORKSPACE_FOLDERS,
+  normalizeForgeAssetKind,
+  isForgeAssetKind,
+  workspaceFolderForKind,
+  inferForgeKindFromWorkspaceRel,
+  interopKindForForge,
 } from '@xyai/contracts';

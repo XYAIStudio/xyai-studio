@@ -22,6 +22,7 @@ describe('inferTurnCapability', () => {
     expect(inferTurnCapability('安装这个 MCP')).toBe('tools');
     expect(inferTurnCapability('生成一份文档')).toBe('tools');
     expect(inferTurnCapability('放到个性化列表')).toBe('tools');
+    expect(inferTurnCapability('创建一个管理系统')).toBe('tools');
   });
 
   it('forces tools for English create/write/install language', () => {
