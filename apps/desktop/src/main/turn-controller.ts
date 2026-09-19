@@ -1,20 +1,23 @@
 /**
- * TurnController helpers — modelRef routing for chat turns.
- * CodexHost owns sessions / IPC; this module decides Codex vs Ollama
- * and runs the Ollama stream with a shared abort bag.
+ * TurnController helpers — execute the Core model gateway plan.
+ * CodexHost owns sessions / IPC; this module maps GatewayPlan → stream / Codex
+ * and runs Ollama / OpenAI-compat streams with a shared abort bag.
  */
 
-import type { AgentEvent, PermissionMode } from '@xyai/contracts';
+import type {
+  AgentEvent,
+  CatalogProtocol,
+  GatewayLift,
+  GatewayPlan,
+  PermissionMode,
+} from '@xyai/contracts';
 import {
   accessModeToPermissionMode,
+  mapCatalogProtocol,
+  planModelGateway,
   stallTimeoutForCapability,
 } from '@xyai/core-runtime';
-import {
-  normalizeModelRef,
-  parseCustomModelRef,
-  toCodexModelId,
-  toOllamaModelName,
-} from '@xyai/contracts';
+import { parseCustomModelRef } from '@xyai/contracts';
 import type { CodexAdapter } from '@xyai/adapter-codex';
 import {
   ensureOllamaRunning,
@@ -30,11 +33,7 @@ import { streamOpenAiChatCompletions } from './openai-compat.js';
 import type { CustomProvider } from './custom-providers.js';
 import type { EngineMode } from './engine-mode.js';
 import type { AccessMode } from './settings.js';
-import {
-  ollamaTurnUsesHarness,
-  turnUsesHarness,
-  type CapabilityNeed,
-} from './harness/router.js';
+import { type CapabilityNeed } from './harness/router.js';
 import { inferCapabilityNeed } from './turn-intent.js';
 import {
   accessModeToCodexSandbox,
@@ -68,6 +67,8 @@ export interface ResolveTurnRouteOptions {
   engineMode?: EngineMode;
   /** tools/planning lifts custom + local models onto Codex. Default chat. */
   capabilityNeed?: CapabilityNeed;
+  /** Saved custom-provider protocol for `custom:*` refs. */
+  protocol?: CatalogProtocol;
 }
 
 export interface PlanTurnInput {
@@ -77,6 +78,9 @@ export interface PlanTurnInput {
   localModelViaHarness?: boolean;
   accessMode?: AccessMode;
   userDataDir?: string;
+  /** Used to resolve custom-provider protocol (Anthropic tools gap). */
+  customProviders?: CustomProvider[];
+  protocol?: CatalogProtocol;
 }
 
 export interface TurnPlan {
@@ -85,9 +89,77 @@ export interface TurnPlan {
   permissionMode: PermissionMode;
   stallTimeoutMs: number;
   route: TurnRoute;
+  gateway: GatewayPlan;
   sandbox: CodexSandboxSpec;
   cwd: string;
   addDirs: string[];
+}
+
+/**
+ * Map settings.engineMode onto gateway lift.
+ * `local-stream` never lifts; `codex-oss` always; others follow capability.
+ * @param engineMode Desktop engine selector
+ */
+export function gatewayLiftForEngineMode(
+  engineMode?: EngineMode,
+): GatewayLift {
+  if (engineMode === 'local-stream') return 'never';
+  if (engineMode === 'codex-oss') return 'always';
+  return 'auto';
+}
+
+/**
+ * @param modelRef Session model
+ * @param providers Saved custom providers
+ * @returns Protocol for a custom ref, or undefined
+ */
+export function protocolForCustomRef(
+  modelRef: string,
+  providers?: CustomProvider[],
+): CatalogProtocol | undefined {
+  const custom = parseCustomModelRef(modelRef);
+  if (!custom || !providers?.length) return undefined;
+  const provider = providers.find((p) => p.id === custom.providerId);
+  return provider ? mapCatalogProtocol(provider.protocol) : undefined;
+}
+
+/** Map a Core gateway plan onto the desktop TurnRoute still used by the host. */
+export function gatewayPlanToTurnRoute(plan: GatewayPlan): TurnRoute {
+  if (plan.mode === 'agent' && plan.agent) {
+    return {
+      kind: 'codex',
+      modelId: plan.agent.modelId,
+      ...(plan.agent.oss
+        ? { oss: true, localProvider: plan.agent.localProvider ?? 'ollama' }
+        : {}),
+      ...(plan.agent.injectProviderId
+        ? { customProviderId: plan.agent.injectProviderId }
+        : {}),
+    };
+  }
+  if (plan.stream?.kind === 'ollama') {
+    return { kind: 'ollama', model: plan.stream.modelId };
+  }
+  return {
+    kind: 'custom',
+    providerId: plan.stream?.providerId ?? '',
+    modelId: plan.stream?.modelId ?? '',
+  };
+}
+
+function planGatewayFromRouteOpts(
+  modelRef: string,
+  opts: ResolveTurnRouteOptions,
+): GatewayPlan {
+  const need = opts.capabilityNeed ?? 'chat';
+  return planModelGateway({
+    modelRef,
+    capability: need,
+    lift: gatewayLiftForEngineMode(opts.engineMode),
+    ollamaViaHarness:
+      opts.engineMode === undefined && opts.localModelViaHarness === true,
+    protocol: opts.protocol,
+  });
 }
 
 /** Resolve send route from a modelRef (settings.modelId may hold modelRef). */
@@ -95,44 +167,7 @@ export function resolveTurnRoute(
   modelRef: string,
   opts: ResolveTurnRouteOptions = {},
 ): TurnRoute {
-  const ref = normalizeModelRef(modelRef);
-  const need = opts.capabilityNeed ?? 'chat';
-  const custom = parseCustomModelRef(ref);
-  if (custom) {
-    const viaHarness =
-      opts.engineMode !== undefined
-        ? turnUsesHarness(opts.engineMode, need)
-        : need !== 'chat';
-    if (viaHarness) {
-      return {
-        kind: 'codex',
-        modelId: custom.modelId,
-        customProviderId: custom.providerId,
-      };
-    }
-    return {
-      kind: 'custom',
-      providerId: custom.providerId,
-      modelId: custom.modelId,
-    };
-  }
-  const ollama = toOllamaModelName(ref);
-  if (ollama) {
-    const viaHarness =
-      opts.engineMode !== undefined
-        ? ollamaTurnUsesHarness(opts.engineMode, need)
-        : opts.localModelViaHarness === true || need !== 'chat';
-    if (viaHarness) {
-      return {
-        kind: 'codex',
-        modelId: ollama,
-        oss: true,
-        localProvider: 'ollama',
-      };
-    }
-    return { kind: 'ollama', model: ollama };
-  }
-  return { kind: 'codex', modelId: toCodexModelId(ref) };
+  return gatewayPlanToTurnRoute(planGatewayFromRouteOpts(modelRef, opts));
 }
 
 /**
@@ -143,11 +178,16 @@ export function planTurn(input: PlanTurnInput): TurnPlan {
   const accessMode = input.accessMode ?? 'default';
   const permissionMode = accessModeToPermissionMode(accessMode);
   const capabilityNeed = inferCapabilityNeed(input.userText);
-  const route = resolveTurnRoute(input.modelRef, {
+  const protocol =
+    input.protocol ??
+    protocolForCustomRef(input.modelRef, input.customProviders);
+  const gateway = planGatewayFromRouteOpts(input.modelRef, {
     engineMode: input.engineMode,
     localModelViaHarness: input.localModelViaHarness,
     capabilityNeed,
+    protocol,
   });
+  const route = gatewayPlanToTurnRoute(gateway);
   const userDataDir = input.userDataDir;
   const cwd = userDataDir
     ? ensureStudioWorkspace(userDataDir)
@@ -160,6 +200,7 @@ export function planTurn(input: PlanTurnInput): TurnPlan {
     permissionMode,
     stallTimeoutMs: stallTimeoutForCapability(capabilityNeed),
     route,
+    gateway,
     sandbox: accessModeToCodexSandbox(accessMode),
     cwd,
     addDirs: [personalize],

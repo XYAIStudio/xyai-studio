@@ -1,9 +1,10 @@
 /**
  * Cindy-style compat: point Codex at an OpenAI-compatible endpoint
- * (DeepSeek etc.) via --config + env, without a full local proxy.
+ * (DeepSeek etc.) via --config + env. A full loopback proxy is not required:
+ * Chat Completions / Responses brains inject into the same AgentRuntime.
  */
 
-import type { CustomProvider } from './custom-providers.js';
+import type { CustomProvider, CustomProviderProtocol } from './custom-providers.js';
 
 export const CODEX_CUSTOM_PROVIDER_ID = 'xyai';
 export const CODEX_CUSTOM_ENV_KEY = 'OPENAI_API_KEY';
@@ -53,4 +54,44 @@ export function customProviderCodexInjection(
     `model_providers.${id}.wire_api=${tomlQuoted(wireApi)}`,
   ];
   return { extraEnv, configOverrides };
+}
+
+/**
+ * Chat Completions and Responses can drive Codex tools via injection.
+ * Anthropic Messages has no Codex wire in this connect layer.
+ * @param protocol Saved custom-provider protocol
+ */
+export function openaiCompatDrivesCodexTools(
+  protocol: CustomProviderProtocol,
+): boolean {
+  return protocol === 'chat-completions' || protocol === 'openai-responses';
+}
+
+const DEEPSEEK_STRICT_RE =
+  /deepseek-v4|deepseek-chat|deepseek-reasoner|^deepseek\//i;
+
+/**
+ * DeepSeek V4 (and current `deepseek-chat` / `deepseek-reasoner` aliases)
+ * reject unnamed Codex tools such as `tool_search` / `web_search`.
+ * Cindy's `codex-proxy-host` sanitizes the same class of tools before forward.
+ * @param tools Request `tools` array (OpenAI-compat / Responses)
+ * @param modelId Bare model id; non-DeepSeek ids are left unchanged
+ */
+export function sanitizeDeepSeekV4CustomTools(
+  tools: unknown,
+  modelId?: string,
+): unknown {
+  if (!Array.isArray(tools)) return tools;
+  if (modelId && !DEEPSEEK_STRICT_RE.test(modelId.trim())) return tools;
+  return tools.filter((tool) => {
+    if (!tool || typeof tool !== 'object') return false;
+    const rec = tool as Record<string, unknown>;
+    if (typeof rec.name === 'string' && rec.name.trim()) return true;
+    const fn = rec.function;
+    if (fn && typeof fn === 'object') {
+      const name = (fn as Record<string, unknown>).name;
+      return typeof name === 'string' && Boolean(name.trim());
+    }
+    return false;
+  });
 }

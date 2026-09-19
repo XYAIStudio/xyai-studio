@@ -14,12 +14,31 @@ export {
   type StallWatchdogOptions,
 } from './stall-watchdog.js';
 export { RuntimeSession, type RuntimeSessionOptions } from './runtime-session.js';
+export {
+  normalizeGatewayCatalog,
+  findCatalogEntry,
+  mapCatalogProtocol,
+  type CatalogLocalInput,
+  type CatalogCustomProviderInput,
+  type CatalogCustomModelInput,
+  type CatalogBuiltinInput,
+  type NormalizeGatewayCatalogInput,
+} from './catalog.js';
+export {
+  planModelGateway,
+  inferProtocolFromRef,
+} from './gateway.js';
 
 export type {
   SessionFacade,
   PermissionMode,
   AccessMode,
   AgentKind,
+  GatewayPlan,
+  GatewayLift,
+  NormalizedModelEntry,
+  CatalogProtocol,
+  CatalogSource,
 } from '@xyai/contracts';
 
 export {

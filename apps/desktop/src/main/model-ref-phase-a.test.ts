@@ -138,10 +138,42 @@ describe('Phase A model-catalog-facade', () => {
       },
     ]);
     expect(catalog.local).toHaveLength(1);
+    expect(catalog.cloud).toHaveLength(0);
+    expect(catalog.normalized.some((r) => r.id === 'ollama:llama3.2')).toBe(
+      true,
+    );
     expect(catalog.codex.length).toBe(DEFAULT_MODELS.length);
     const lists = toStatusModelLists(catalog);
     expect(lists.localModels[0]!.id).toBe('ollama:llama3.2');
     expect(lists.models[0]!.id.startsWith('codex:')).toBe(true);
+  });
+
+  it('includes cloud custom providers in the normalized catalog', async () => {
+    const catalog = await loadUnifiedModelCatalog(async () => [], [
+      {
+        id: 'ds',
+        name: 'DeepSeek',
+        runtime: 'codex',
+        auth: 'apiKey',
+        protocol: 'chat-completions',
+        baseUrl: 'https://api.deepseek.com',
+        models: [{ id: 'deepseek-chat', label: 'DeepSeek Chat' }],
+      },
+    ]);
+    expect(catalog.cloud.map((m) => m.id)).toEqual([
+      'custom:ds/deepseek-chat',
+    ]);
+    expect(
+      catalog.normalized.find((r) => r.id === 'custom:ds/deepseek-chat'),
+    ).toMatchObject({
+      source: 'cloud',
+      protocol: 'chat-completions',
+      displayName: 'DeepSeek Chat',
+    });
+    const lists = toStatusModelLists(catalog);
+    expect(lists.models.some((m) => m.id === 'custom:ds/deepseek-chat')).toBe(
+      true,
+    );
   });
 });
 
