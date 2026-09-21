@@ -40,3 +40,12 @@
 
 - **默认**：`engineMode: auto` → `ollama:*` 直连 `runOllamaTurn` 真流式；仅设置「本机写文件」才连闲聊也走 `codex exec --oss`（见 `LOCAL-HARNESS.md`）。
 
+## Core 增强执行基线（2026-09-21）
+
+今后 XYAI Core 优化按 **[docs/XYAI-CORE-ENHANCEMENT.md](docs/XYAI-CORE-ENHANCEMENT.md)** 执行（能力轨 C1+… + 结构轨 AgentEvent/Maker，已消解冲突）。
+
+| 冲刺 | 内容 | 状态 |
+|---|---|---|
+| Sprint 1 | AgentEvent + Codex translator + 瘦宿主 Plan 上移 | 待开始 |
+| Sprint 2 | C1+/C2+/C3+/C4+ 与瘦版 overflow | 待开始 |
+| Sprint 3 | BaseAgent + 第二 Adapter + Maker 式 Session 工厂（M5） | 待开始 |

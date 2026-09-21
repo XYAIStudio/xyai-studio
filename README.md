@@ -63,7 +63,7 @@ Codex 原生二进制 **不强制打入安装包**；运行时用 PATH / `XYAI_C
 
 ## 文档
 
-见 `docs-plan/`：`ARCHITECTURE`、`PRODUCT-VISION`、`MODULE-MAP`、`ROADMAP`、`OPENXYOS-PACKAGING`、`RELATION-TO-LEGACY`、`AGENTS`。Core 原则：[docs/XYAI-CORE.md](docs/XYAI-CORE.md)。
+见 `docs-plan/`：`ARCHITECTURE`、`PRODUCT-VISION`、`MODULE-MAP`、`ROADMAP`、`OPENXYOS-PACKAGING`、`RELATION-TO-LEGACY`、`AGENTS`。Core 原则：[docs/XYAI-CORE.md](docs/XYAI-CORE.md)。 Core 增强执行基线：[docs/XYAI-CORE-ENHANCEMENT.md](docs/XYAI-CORE-ENHANCEMENT.md)。
 
 ## 注意
 

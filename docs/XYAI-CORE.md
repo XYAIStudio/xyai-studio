@@ -133,6 +133,8 @@ Cindy Session 用 45 分钟无事件判定会话挂死。XYAI 用更短的**回�
 
 C0–C4 Core 切片已齐（会话门面、模型网关、知识网关、Forge、双空间登记处）。余下是产品打磨（登记处 UI、双向同步交互、选型面板、ingest、Anthropic 工具路径），不是再改 Agent Loop。
 
+后续增强与 Cindy 结构对照的**执行基线**见 [XYAI-CORE-ENHANCEMENT.md](./XYAI-CORE-ENHANCEMENT.md)（结构轨开槽 + 能力轨填槽；勿另起平行方案文）。
+
 ## 相关
 
 - 分层总图：[ARCHITECTURE.md](../ARCHITECTURE.md)
