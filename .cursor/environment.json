@@ -1,0 +1,21 @@
+{
+  "name": "XYAI Studio / DeepSeek Harness",
+  "install": "bash .cursor/install.sh",
+  "chromeExecutablePath": "/usr/local/bin/google-chrome",
+  "terminals": [
+    {
+      "name": "dsh-web",
+      "command": "export PATH=\"/usr/bin:$PATH\"; pnpm dsh web --no-open --port 3080",
+      "description": "DeepSeek Harness web workbench (host server + browser UI) on http://127.0.0.1:3080. The startup log prints a tokenized URL; open it to exchange the token for a session cookie. Sending a chat turn to a real model needs credentials, but the server and UI load without a key. The PATH prefix keeps commands on Node 24 (the repo requires >=22.19) since the Cursor sandbox may otherwise resolve an older node first."
+    },
+    {
+      "name": "xyos-backend",
+      "command": "export PATH=\"/usr/bin:$PATH\"; cd xyos-backend && JWT_SECRET=\"${JWT_SECRET:-$(openssl rand -hex 32)}\" COOKIE_SECRET=\"${COOKIE_SECRET:-$(openssl rand -hex 32)}\" npm run dev",
+      "description": "XYOS local backend (Express + embedded SQLite via sql.js) on http://127.0.0.1:3000. Seeds a demo tenant on first boot (login demo@demo.com / demo123). Uses ephemeral JWT/COOKIE secrets unless JWT_SECRET and COOKIE_SECRET are provided. The PATH prefix keeps commands on Node 24 (see dsh-web)."
+    }
+  ],
+  "ports": [
+    { "name": "dsh-web", "port": 3080 },
+    { "name": "xyos-backend", "port": 3000 }
+  ]
+}
