@@ -52,7 +52,7 @@ Get-FileHash -Algorithm SHA256 '.\XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe'
 
 XYAI Studio 是一款本地优先的桌面智能工作台。本仓库发布 XYAI 开源层：Electron 桌面壳、XYOS 本地服务、行业智能体模块，以及相对于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的集成补丁。
 
-## v0.3 已包含的能力
+## 开源层能力概览
 
 - 根据电脑硬件推荐本地小模型，并由用户决定是否下载、部署和注册。
 - 在对话中选择本地或云端模型，支持流式输出；云端模型由用户自行配置。

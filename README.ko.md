@@ -40,7 +40,7 @@ Mac 안내(이 이전 미리보기만): [MACOS-INSTALL.md](MACOS-INSTALL.md) · 
 
 XYAI Studio는 로컬 우선 방식의 데스크톱 AI 작업 공간입니다. 이 저장소는 v0.3의 XYAI 오픈 소스 계층을 공개합니다. Electron 데스크톱 셸, 로컬 XYOS 서비스, 산업 에이전트 모듈, 그리고 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 통합 패치가 포함됩니다.
 
-## v0.3 주요 기능
+## 오픈 소스 계층 기능 개요
 
 - 컴퓨터 하드웨어에 따라 소형 로컬 모델을 추천하며, 다운로드·배포·등록 여부는 사용자가 결정합니다.
 - 대화에서 로컬 또는 클라우드 모델을 선택할 수 있고 스트리밍 응답을 지원합니다. 클라우드 모델 설정은 사용자가 직접 관리합니다.

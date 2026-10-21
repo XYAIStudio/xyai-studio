@@ -45,7 +45,7 @@ Mac install guide for this preview only: [MACOS-INSTALL.md](MACOS-INSTALL.md) ·
 
 XYAI Studio is a local-first desktop AI workspace. This repository publishes the XYAI open-source layer: the Electron desktop shell, the local XYOS service, the industry-agent module, and integration patches for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
 
-## What v0.3 includes
+## Open-source layer capabilities (overview)
 
 - Recommends small local models based on the computer's hardware; users decide whether to download, deploy, and register them.
 - Lets users choose local or cloud models in chat, with streaming responses. Cloud-model configuration remains user controlled.

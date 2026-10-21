@@ -40,7 +40,7 @@ Mac 教學（僅此舊預覽）：[MACOS-INSTALL.md](MACOS-INSTALL.md) · 校驗
 
 XYAI Studio 是一款本地優先的桌面智慧工作台。本儲存庫發布 v0.3 的 XYAI 開源層：Electron 桌面殼、XYOS 本地服務、產業智慧體模組，以及相對於 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的整合修補程式。
 
-## v0.3 已包含的能力
+## 開源層能力概覽
 
 - 依據電腦硬體推薦本地小型模型，並由使用者自行決定是否下載、部署及註冊。
 - 在對話中選擇本地或雲端模型，支援串流回應；雲端模型設定由使用者自行管理。
