@@ -5,31 +5,48 @@
 > **本地优先的智能体工作台**：装上就能对话、挂知识库、定制智能体；需要业务空间时再上 XYOS。  
 > 开源获客与信任 · 企业落地走 XYOS / 私有化（边界见下文）。
 
-**最新桌面 Beta：`v0.5.0`** · 源码分支 [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
+**当前桌面 Beta：`v0.5.0`** · 产品源码分支 [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
 
-| 目标 | 平台 | 链接 |
+### 下载
+
+当前安装只使用这一份 Windows 安装包。从 GitHub Release 直接下载，不需要平台账号。
+
+| 文件 | 平台 | 链接 |
 | --- | --- | --- |
-| **0.5 桌面安装包（推荐试用）** | Windows x64 | [XYAI-Studio-0.5.0-Setup-x64.exe](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
+| **`XYAI-Studio-0.5.0-Setup-x64.exe`** | Windows x64 | [下载 v0.5.0 Setup](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
 
-> 0.5：本地优先 Electron + Codex 对话路径 + OpenXYOS 业务空间；安装前请先卸载旧版。
+- 文件大小：92,029,554 字节（发布页约 87.8 MB）。
+- 安装前请先在「设置 → 应用」卸载已有的 XYAI Studio 或更旧构建，避免路径和组件冲突。
+- 该安装包未做 Windows 代码签名。若 SmartScreen 提示「Windows 已保护你的电脑」，请确认文件来自上面的 Release 后再继续。
+- 本 Release 尚未附带 `SHA256SUMS.txt`。下文旧预览的校验文件只覆盖 `v0.3.1-20260904-r2`。
+- 0.5：本地优先 Electron + Codex 对话路径 + OpenXYOS 业务空间。
 
----
-
-**上一稳定预览：`v0.3.1-20260904-r2`** · 官网 [www.cnxyai.cn](https://www.cnxyai.cn/) · [Release 说明](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
-
-### 下载（点哪个？）
-
-| 你想… | 平台 | 下载 |
-| --- | --- | --- |
-| **先试试**智能体开发（体积更小） | Windows x64 | [简洁包 `.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe) |
-| **一次装齐**少折腾（推荐大多数人） | Windows x64 | [离线完整包 `.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe) |
-| **Mac 试用**（Apple 芯片） | macOS arm64 | [未签名 DMG](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-arm64.dmg) |
-
-- Windows 专业向（本机 XYOS）：先装简洁包，再在应用内「设置 / 组件管理」装 [`xyos-local-runtime` zip](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip)。  
-- Mac 安装逐步教程（含 Gatekeeper）：[MACOS-INSTALL.md](MACOS-INSTALL.md)  
-- 校验：同 Release 的 [`SHA256SUMS.txt`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/SHA256SUMS.txt)
+官网：[www.cnxyai.cn](https://www.cnxyai.cn/) · 逐步安装见 [Wiki · Getting Started](https://github.com/XYAIStudio/xyai-studio/wiki/Getting-Started)
 
 > Star / Issue / 讨论都欢迎。装上后卡在哪一步，直接开 Issue 并附系统版本与报错原文。
+
+### 旧预览 / Legacy preview
+
+<a id="legacy-preview"></a>
+
+本节只保留 **`v0.3.1-20260904-r2`**，供对照旧构建。当前安装使用上一节的 v0.5.0 Windows Setup。macOS 安装包只存在于这一预览。[Release 说明](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
+
+| 文件 | 平台 | 说明 |
+| --- | --- | --- |
+| [`XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe) | Windows x64 | 旧预览简洁包 |
+| [`XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe) | Windows x64 | 旧预览离线完整包（含 XYOS 与本地推理运行时；模型权重仍在应用内下载） |
+| [`XYAI-Studio-0.3.1-arm64.dmg`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-arm64.dmg) | macOS arm64 | 旧预览，未签名，仅 Apple 芯片 |
+| [`XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip) | Windows x64 | 旧预览组件：在应用内「设置 / 组件管理」安装，避免手工覆盖程序目录 |
+| [`XYAI-Studio-0.3.1-20260904-r2-local-inference-win-x64.zip`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-local-inference-win-x64.zip) | Windows x64 | 旧预览组件：安装后到模型广场按硬件下载模型 |
+
+- Mac 逐步教程（仅此旧预览）：[MACOS-INSTALL.md](MACOS-INSTALL.md)
+- 校验文件（仅此旧预览）：[`SHA256SUMS.txt`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/SHA256SUMS.txt)、[`release-manifest.json`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/release-manifest.json)
+
+核对旧预览文件时，用 PowerShell 计算哈希，再与 `SHA256SUMS.txt` 中的同名行比对。遇到 SmartScreen 时先核来源与哈希。
+
+```powershell
+Get-FileHash -Algorithm SHA256 '.\XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe'
+```
 
 ---
 
@@ -52,36 +69,25 @@ XYAI Studio 是一款本地优先的桌面智能工作台。本仓库发布 XYAI
 - `xyos-backend/`：XYOS 本地服务源码；不含用户数据库、上传文件、运行时工作区和凭据。
 - `patches/xyai-studio-v0.3-overlay.patch`：应用到指定上游版本的 XYAI 集成补丁。
 
-当前不包含任何安装包、模型权重、用户知识库、日志、数据库、密钥或已编译的 XYOS Web 资源。Windows 整合安装包只使用桌面端统一的一份 `llama.cpp` 运行时，不再在智能体模块重复携带。发布版二进制文件将通过 GitHub Releases 提供，并附带 SHA-256 校验值。
+源码树不收录安装包二进制。桌面安装包由 GitHub Releases 提供，当前 Beta 是文首的 **v0.5.0** Windows Setup。源码树不包含模型权重、用户知识库、日志、数据库、密钥或已编译的 XYOS Web 资源。Windows 整合安装包只使用桌面端统一的一份 `llama.cpp` 运行时，智能体模块不再重复携带。v0.5.0 Release 目前未附带 SHA-256 校验文件；旧预览 `v0.3.1-20260904-r2` 附有 `SHA256SUMS.txt`。
 
-## Windows 安装与下载
+## Windows 安装（v0.5.0）
 
-请优先使用文首三个下载按钮对应的 **`v0.3.1-20260904-r2`** 文件；完整说明见 [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)。
+1. 在「设置 → 应用」卸载已有 XYAI Studio 或更旧构建。
+2. 下载 [`XYAI-Studio-0.5.0-Setup-x64.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe)（[Release v0.5.0](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)）。
+3. 运行安装向导。该包未做 Windows 代码签名；若 SmartScreen 拦截，先确认文件来自上述 Release。本 Release 未附带 SHA-256 校验文件。
+4. 启动后按需配置模型与知识库。模型权重在应用内下载。
 
-| 文件 | 适合谁 | 怎么用 |
-| --- | --- | --- |
-| `XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe` | 先体验智能体开发 | 双击安装；XYOS 网络连接；更多组件可在设置中按需装 |
-| `XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe` | 想一次装齐（推荐） | 双击安装；含 XYOS 与本地推理运行时等；**模型权重仍需在应用内下载** |
-| `XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip` | 要本机 XYOS 业务空间 | 在「设置 / 组件管理」安装，勿手工覆盖程序目录 |
-| `XYAI-Studio-0.3.1-20260904-r2-local-inference-win-x64.zip` | 要本地 GGUF 运行时 | 在组件管理中安装后，到模型广场按硬件下载模型 |
+当前 Beta 没有 macOS 安装包。Apple 芯片 DMG 只在「旧预览 / Legacy preview」，教程见 [MACOS-INSTALL.md](MACOS-INSTALL.md)。
 
-### 安全校验与安装提示
+## 哪个分支
 
-1. 下载同批 `SHA256SUMS.txt` / `release-manifest.json`。
-2. PowerShell 校验示例：
+| 分支 | 用途 |
+| --- | --- |
+| [`main`](https://github.com/XYAIStudio/xyai-studio/tree/main) | 仓库默认分支。不带参数的 `git clone` 得到这里。公开树以 0.3 开源层为主，README 与社区文档在此维护。 |
+| [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) | 当前桌面 Beta v0.5.0 的产品源码。要对照已发布的 Windows 安装包，使用这个分支。 |
 
-   ```powershell
-   Get-FileHash -Algorithm SHA256 '.\XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe'
-   ```
-
-3. 与 `SHA256SUMS.txt` 中同名行比对一致后再安装；遇 SmartScreen 时先核来源与哈希。
-4. 可选组件请在应用内组件管理安装，不要解压 ZIP 直接覆盖安装目录。
-
-## macOS 安装与下载
-
-- 包：`XYAI-Studio-0.3.1-arm64.dmg`（**仅 Apple 芯片**，未签名内测）
-- 教程：[MACOS-INSTALL.md](MACOS-INSTALL.md)
-- 已含 Metal 版 `llama-server` 与 XYOS 依赖；模型权重仍在应用内下载。
+安装使用文首的 v0.5.0 Setup 即可，不必为了安装去克隆分支。
 
 ## 开始开发
 

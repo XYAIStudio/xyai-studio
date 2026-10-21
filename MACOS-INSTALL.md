@@ -1,5 +1,7 @@
 # XYAI Studio — macOS 傻瓜安装教程（Apple Silicon）
 
+> **旧预览 / Legacy preview。** 当前桌面 Beta 是 Windows **v0.5.0**：[`XYAI-Studio-0.5.0-Setup-x64.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe)。本页只说明旧预览的 macOS DMG，不作为与 Windows 0.5.0 并列的当前推荐。
+>
 > 适用版本：`v0.3.1-20260904-r2`  
 > 安装包：`XYAI-Studio-0.3.1-arm64.dmg`（**未签名内测包**）  
 > 适用电脑：**Apple 芯片**（M1 / M2 / M3 / M4 等 arm64）。**不支持**老款 Intel Mac。  
@@ -13,7 +15,7 @@
 
 1. 看一下你的 Mac 是否为 Apple 芯片：  
    左上角苹果菜单 → **关于本机** → 芯片一栏应写 **Apple M…**。  
-   若写的是 **Intel**，请先不要装本 DMG，改用 Windows 包或等待 Intel 版。
+   若写的是 **Intel**，请不要安装本 DMG。当前桌面 Beta 请改用 Windows 安装包 [`XYAI-Studio-0.5.0-Setup-x64.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe)。
 2. 预留约 **1 GB** 磁盘空间（安装包约 430MB，安装后还会更大）。
 3. 需要能访问 GitHub Releases（公司网络若拦 GitHub，请换网络或让同事代下）。
 

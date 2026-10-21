@@ -4,13 +4,37 @@
 
 > 讓專業經驗，進化為生產力。
 
-**最新桌面 Beta：`v0.5.0`** · 原始碼分支 [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
+**目前桌面 Beta：`v0.5.0`** · 產品原始碼分支 [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
 
-| 目標 | 平台 | 連結 |
+### 下載
+
+目前只使用這一份 Windows 安裝包。從 GitHub Release 直接下載，不需要平台帳號。
+
+| 檔案 | 平台 | 連結 |
 | --- | --- | --- |
-| **0.5 桌面安裝包（建議試用）** | Windows x64 | [XYAI-Studio-0.5.0-Setup-x64.exe](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
+| **`XYAI-Studio-0.5.0-Setup-x64.exe`** | Windows x64 | [下載 v0.5.0 Setup](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
 
-> 0.5：本地優先 Electron + Codex 對話路徑 + OpenXYOS 業務空間；安裝前請先解除安裝舊版。
+- 檔案大小：92,029,554 位元組（發布頁約 87.8 MB）。
+- 安裝前請先在「設定 → 應用程式」解除安裝既有的 XYAI Studio 或更舊組建。
+- 此安裝包未做 Windows 程式碼簽章。若 SmartScreen 提示已保護你的電腦，請確認檔案來自上面的 Release 再繼續。
+- 本 Release 尚未附帶 `SHA256SUMS.txt`。下方舊預覽的校驗檔只涵蓋 `v0.3.1-20260904-r2`。
+- 0.5：本地優先 Electron + Codex 對話路徑 + OpenXYOS 業務空間。
+
+### 旧预览 / Legacy preview
+
+<a id="legacy-preview"></a>
+
+本節只保留 **`v0.3.1-20260904-r2`**，供對照舊組建。目前安裝請用上一節的 v0.5.0 Windows Setup。macOS 安裝包只存在於這一預覽。[Release 說明](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
+
+| 檔案 | 平台 | 說明 |
+| --- | --- | --- |
+| [`XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe) | Windows x64 | 舊預覽精簡包 |
+| [`XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe) | Windows x64 | 舊預覽離線完整包 |
+| [`XYAI-Studio-0.3.1-arm64.dmg`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-arm64.dmg) | macOS arm64 | 舊預覽，未簽章，僅 Apple 晶片 |
+| [`XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip) | Windows x64 | 舊預覽元件 |
+| [`XYAI-Studio-0.3.1-20260904-r2-local-inference-win-x64.zip`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-local-inference-win-x64.zip) | Windows x64 | 舊預覽元件 |
+
+Mac 教學（僅此舊預覽）：[MACOS-INSTALL.md](MACOS-INSTALL.md) · 校驗（僅此舊預覽）：[`SHA256SUMS.txt`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/SHA256SUMS.txt)
 
 ---
 
@@ -33,7 +57,16 @@ XYAI Studio 是一款本地優先的桌面智慧工作台。本儲存庫發布 v
 - `xyos-backend/`：XYOS 本地服務原始碼；不含使用者資料庫、上傳檔案、工作區及憑證。
 - `patches/xyai-studio-v0.3-overlay.patch`：套用至指定上游修訂版本的 XYAI 整合修補程式。
 
-本儲存庫不含安裝程式、模型權重、使用者知識庫、日誌、資料庫、金鑰或已編譯的 XYOS Web 資源。Windows 整合安裝包只使用桌面端資源目錄中的單一共用 `llama.cpp` 執行階段，智慧體模組不再攜帶重複副本。發行版二進位檔將透過 GitHub Releases 提供，並附上 SHA-256 校驗值。
+原始碼樹不收錄安裝包二進位檔。桌面安裝包由 GitHub Releases 提供，目前 Beta 是文首的 **v0.5.0** Windows Setup。原始碼樹不包含模型權重、使用者知識庫、日誌、資料庫、金鑰或已編譯的 XYOS Web 資源。Windows 整合安裝包只使用桌面端資源目錄中的單一共用 `llama.cpp` 執行階段，智慧體模組不再攜帶重複副本。v0.5.0 Release 目前未附帶 SHA-256 校驗檔；舊預覽 `v0.3.1-20260904-r2` 附有 `SHA256SUMS.txt`。
+
+## 哪個分支
+
+| 分支 | 用途 |
+| --- | --- |
+| [`main`](https://github.com/XYAIStudio/xyai-studio/tree/main) | 儲存庫預設分支。不帶參數的 `git clone` 會得到這裡。公開樹以 0.3 開源層為主，README 與社群文件在此維護。 |
+| [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) | 目前桌面 Beta v0.5.0 的產品原始碼。要對照已發布的 Windows 安裝包，請使用這個分支。 |
+
+安裝使用文首的 v0.5.0 Setup 即可。
 
 ## 開始開發
 

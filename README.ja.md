@@ -4,13 +4,37 @@
 
 > 専門的な経験を、生産力へ。
 
-**最新デスクトップ Beta：`v0.5.0`** · ソースブランチ [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
+**現行デスクトップ Beta：`v0.5.0`** · 製品ソース [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) · [Release](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
 
-| 目的 | プラットフォーム | リンク |
+### ダウンロード
+
+インストールには次の Windows Setup だけを使います。GitHub Release から直接ダウンロードでき、プラットフォームアカウントは不要です。
+
+| ファイル | プラットフォーム | リンク |
 | --- | --- | --- |
-| **0.5 デスクトップインストーラー（試用推奨）** | Windows x64 | [XYAI-Studio-0.5.0-Setup-x64.exe](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
+| **`XYAI-Studio-0.5.0-Setup-x64.exe`** | Windows x64 | [v0.5.0 Setup をダウンロード](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) |
 
-> 0.5：ローカル優先の Electron + Codex チャット経路 + OpenXYOS ビジネス空間。インストール前に旧版をアンインストールしてください。
+- サイズ：92,029,554 バイト（リリースページでは約 87.8 MB）。
+- インストール前に「設定 → アプリ」で既存の XYAI Studio またはより古いビルドをアンインストールしてください。
+- この Setup は Windows コード署名されていません。SmartScreen が表示されたら、ファイルが上記 Release のものであることを確認してから続行してください。
+- この Release には `SHA256SUMS.txt` はまだありません。下の旧プレビューのチェックサムは `v0.3.1-20260904-r2` だけを対象にします。
+- 0.5：ローカル優先の Electron + Codex チャット経路 + OpenXYOS ビジネス空間。
+
+### 旧预览 / Legacy preview
+
+<a id="legacy-preview"></a>
+
+ここにあるのは **`v0.3.1-20260904-r2`** だけで、古いプレビューとの照合用です。現在のインストールは上の v0.5.0 Windows Setup を使います。macOS パッケージはこのプレビューにだけあります。[Release ノート](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.3.1-20260904-r2)
+
+| ファイル | プラットフォーム | 説明 |
+| --- | --- | --- |
+| [`XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-core-win-x64.exe) | Windows x64 | 旧プレビュー（コア） |
+| [`XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-full-Setup-0.3.1-20260904-r2.exe) | Windows x64 | 旧プレビュー（オフライン一式） |
+| [`XYAI-Studio-0.3.1-arm64.dmg`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-arm64.dmg) | macOS arm64 | 旧プレビュー。未署名。Apple シリコンのみ |
+| [`XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-xyos-local-runtime-win-x64.zip) | Windows x64 | 旧プレビューのコンポーネント |
+| [`XYAI-Studio-0.3.1-20260904-r2-local-inference-win-x64.zip`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/XYAI-Studio-0.3.1-20260904-r2-local-inference-win-x64.zip) | Windows x64 | 旧プレビューのコンポーネント |
+
+Mac 手順（この旧プレビューのみ）：[MACOS-INSTALL.md](MACOS-INSTALL.md) · チェックサム（この旧プレビューのみ）：[`SHA256SUMS.txt`](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.3.1-20260904-r2/SHA256SUMS.txt)
 
 ---
 
@@ -33,7 +57,16 @@ XYAI Studio は、ローカルファーストのデスクトップ AI ワーク�
 - `xyos-backend/` — XYOS ローカルサービスのソース。ユーザーデータベース、アップロード、作業領域、資格情報は含みません。
 - `patches/xyai-studio-v0.3-overlay.patch` — 指定された上流リビジョンに適用する XYAI 統合パッチ。
 
-インストーラー、モデル重み、ユーザー知識ベース、ログ、データベース、秘密情報、コンパイル済み XYOS Web アセットは含まれません。Windows 統合パッケージはデスクトップリソース内の共有 `llama.cpp` ランタイムを 1 つだけ使用し、エージェントモジュールには重複コピーを含めません。配布バイナリは GitHub Releases で SHA-256 とともに公開します。
+ソースツリーにはインストーラーのバイナリは含まれません。デスクトップのインストーラーは GitHub Releases で公開しており、現行 Beta は文頭の **v0.5.0** Windows Setup です。ソースツリーにはモデル重み、ユーザー知識ベース、ログ、データベース、秘密情報、コンパイル済み XYOS Web アセットは含まれません。Windows 統合パッケージはデスクトップリソース内の共有 `llama.cpp` ランタイムを 1 つだけ使用し、エージェントモジュールには重複コピーを含めません。v0.5.0 Release にはまだ SHA-256 チェックサムがありません。旧プレビュー `v0.3.1-20260904-r2` には `SHA256SUMS.txt` があります。
+
+## どのブランチか
+
+| ブランチ | 用途 |
+| --- | --- |
+| [`main`](https://github.com/XYAIStudio/xyai-studio/tree/main) | デフォルトブランチ。引数なしの `git clone` はここを取得します。公開ツリーは 0.3 のオープンソース層が中心で、README とコミュニティ文書はここで保守します。 |
+| [`release/0.5`](https://github.com/XYAIStudio/xyai-studio/tree/release/0.5) | 現行デスクトップ Beta v0.5.0 の製品ソース。公開済み Windows インストーラーに対応するツリーを見るときはこのブランチを使います。 |
+
+インストール自体は文頭の v0.5.0 Setup で足ります。
 
 ## 開発環境の準備
 
