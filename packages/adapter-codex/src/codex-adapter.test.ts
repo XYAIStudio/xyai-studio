@@ -154,7 +154,7 @@ describe('buildCodexExecArgs', () => {
         sandbox: 'workspace-write',
         cwd: '/ws',
         content: 'write plugin',
-        askForApproval: 'never',
+        approval: 'never',
         addDirs: ['/personalize'],
       }),
     ).toEqual([
