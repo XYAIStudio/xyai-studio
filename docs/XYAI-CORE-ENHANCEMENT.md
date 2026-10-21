@@ -198,7 +198,9 @@ PR 规则：
 
 ## 8. 下一步（默认开工项）
 
-**Sprint 1 最小 PR**：`contracts` 增加 `AgentEvent` + `adapter-codex` 最小 translator，不动大 UI。
+**0.5.1 明确不做本节。** 下一功能版（0.6）再开 Sprint 1。粗粒度 `AgentEvent` 与 Codex JSONL 映射已经在库里；0.6 要补的是本地流式 translator、判别联合 payload，以及 Renderer 只订一份事件。
+
+**Sprint 1 最小 PR**（留待 0.6）：`contracts` 加厚 `AgentEvent` + `adapter-codex` / 本地流式 translator，不动大 UI。
 
 验收：
 
@@ -214,3 +216,4 @@ PR 规则：
 | 日期 | 说明 |
 |---|---|
 | 2026-09-21 | 初版：合并 Core 增强方案与 Cindy 对照，写入工作目录供执行 |
+| 2026-10-21 | 0.5.1 不启动 Sprint 1；本节仍是 0.6 的默认开工项 |

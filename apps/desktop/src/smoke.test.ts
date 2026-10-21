@@ -24,7 +24,7 @@ describe('desktop smoke path', () => {
       path.join(repoRoot, 'assembly/profiles/0.5.0-dev.example.json'),
     );
     expect(validation.ok).toBe(true);
-    expect(validation.profile.productVersion).toBe('0.5.0');
+    expect(validation.profile.productVersion).toBe('0.5.1');
     expect(validation.profile.harnesses.map((h) => [h.id, h.enabled])).toEqual([
       ['codex', true],
       ['dsh', false],

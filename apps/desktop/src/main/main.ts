@@ -18,6 +18,7 @@ import {
 import type { AgentEvent, InteropAssetKind } from '@xyai/contracts';
 import { isInteropPersonalizeKind } from '@xyai/contracts';
 import { CodexHost } from './codex-host.js';
+import { safeExternalHttpUrl } from './external-url.js';
 import {
   findOpenXyosRuntimeRoot,
   getOpenXyosServerBaseUrl,
@@ -266,7 +267,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 960,
     minHeight: 640,
-    title: 'XYAI Studio',
+    title: `XYAI Studio ${app.getVersion()}`,
     backgroundColor: '#eef4ff',
     ...(icon ? { icon } : {}),
     webPreferences: {
@@ -280,13 +281,14 @@ function createWindow(): void {
 
   void mainWindow.loadFile(indexHtml);
 
-  mainWindow.webContents.on('did-finish-load', () => {
-    void mainWindow!.webContents
-      .executeJavaScript(
-        'typeof window.xyai + "|" + (window.xyai ? Object.keys(window.xyai).join(",") : "")',
-      )
-      .then((v) => console.log('[xyai] renderer bridge=', v))
-      .catch((e) => console.error('[xyai] bridge probe failed', e));
+  // Chat markdown uses target=_blank. Electron denies window.open unless a
+  // handler is set; hand http(s) to the system browser and keep the shell.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    const safe = safeExternalHttpUrl(url);
+    if (safe) {
+      void shell.openExternal(safe);
+    }
+    return { action: 'deny' };
   });
 
   mainWindow.webContents.on('preload-error', (_event, preloadPathArg, error) => {

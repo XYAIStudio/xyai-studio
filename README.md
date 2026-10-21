@@ -1,8 +1,15 @@
 # XYAI Studio 0.5
 
-**下载（Windows x64 NSIS）**：[XYAI-Studio-0.5.0-Setup-x64.exe](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) · [Release 说明](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0)
+**当前源码版本：`0.5.1`（候选）** · Windows x64 NSIS 安装包：**待构建（pending build）**。本仓库不附带安装包或二进制。
+
+| 版本 | 状态 | 说明 |
+| --- | --- | --- |
+| **0.5.1** | 源码候选，安装包待构建 | 文件名将为 `XYAI-Studio-0.5.1-Setup-x64.exe`。构建完成前没有下载链接。 |
+| **0.5.0** | 上一已发布安装包 | [XYAI-Studio-0.5.0-Setup-x64.exe](https://github.com/XYAIStudio/xyai-studio/releases/download/v0.5.0/XYAI-Studio-0.5.0-Setup-x64.exe) · [Release 说明](https://github.com/XYAIStudio/xyai-studio/releases/tag/v0.5.0) |
 
 > 源码分支：`release/0.5` · 仓库：[XYAIStudio/xyai-studio](https://github.com/XYAIStudio/xyai-studio) · OpenXYOS submodule：[XYAIStudio/openXYOS](https://github.com/XYAIStudio/openXYOS)
+>
+> `v0.3.1-20260904-r2` 是 `main` 上的旧桌面预览，不是这条 0.5 线的当前下载。试用请用上面的 **0.5.0** 安装包，或等待 **0.5.1** 构建。
 
 ---
 Cindy 同构分层的 AI 桌面基座脚手架：**自有 Core + Harness Adapters + OpenXYOS 独立组件**。Electron 薄宿主，契约优先，禁止 DOM 注入。
@@ -53,7 +60,7 @@ XYAI_CODEX_MOCK=1 pnpm --filter desktop dev
 ```bash
 pnpm install
 pnpm --filter desktop pack:win
-# 产物：apps/desktop/release/XYAI Studio-0.5.0-Setup-x64.exe
+# 产物：apps/desktop/release/XYAI-Studio-0.5.1-Setup-x64.exe（待构建）
 ```
 
 等价根脚本：`pnpm pack:win`。

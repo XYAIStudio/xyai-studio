@@ -3,13 +3,15 @@
  */
 import { spawnSync } from 'node:child_process';
 import * as esbuild from 'esbuild';
-import { cpSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readDesktopAppVersion } from './app-version.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, '..');
 const outDir = path.join(appRoot, 'pack-out');
+const appVersion = readDesktopAppVersion(appRoot);
 
 {
   const r = spawnSync(process.execPath, [path.join(here, 'ensure-icons.mjs')], {
@@ -74,7 +76,7 @@ writeFileSync(
   JSON.stringify(
     {
       name: 'xyai-studio',
-      version: '0.5.0',
+      version: appVersion,
       private: true,
       main: 'main.cjs',
       productName: 'XYAI Studio',
@@ -86,7 +88,7 @@ writeFileSync(
 
 writeFileSync(
   path.join(outDir, 'README-PACK.txt'),
-  'XYAI Studio 0.5 packaged build. Codex uses system/PATH or mock fallback.\n',
+  `XYAI Studio ${appVersion} packaged build. Codex uses system/PATH or mock fallback.\n`,
 );
 
 console.log('[bundle-for-pack] wrote', outDir);

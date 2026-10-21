@@ -1,0 +1,4 @@
+{
+  "name": "XYAI Studio 0.5",
+  "install": "bash .cursor/install.sh"
+}

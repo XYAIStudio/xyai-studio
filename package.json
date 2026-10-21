@@ -1,6 +1,6 @@
 {
   "name": "xyai-studio-0.5",
-  "version": "0.5.0-dev",
+  "version": "0.5.1",
   "private": true,
   "description": "XYAI Studio 0.5 monorepo — Cindy-isomorphic Core + harness adapters + OpenXYOS",
   "packageManager": "pnpm@9.15.0",

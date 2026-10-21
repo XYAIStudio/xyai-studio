@@ -3,6 +3,7 @@
  * Card links open the in-app Browser zone (not shell.openExternal / iframe nav).
  */
 
+import { DESKTOP_PRODUCT_VERSION } from './product-version.js';
 import { openBrowser } from './zones/browser.js';
 
 export const ABOUT_HTML = `<!doctype html>
@@ -101,7 +102,7 @@ export const ABOUT_HTML = `<!doctype html>
         <a href="https://ai.cnxy.tech/">ai.cnxy.tech</a>
       </div>
     </div>
-    <div class="foot">XYAI Studio · 可信智能系统</div>
+    <div class="foot">XYAI Studio __VERSION__ · 可信智能系统</div>
   </div>
 </body>
 </html>`;
@@ -130,7 +131,10 @@ export function showAboutDialog(logoSrc: string): void {
   const iframe = document.createElement('iframe');
   iframe.className = 'about-iframe';
   iframe.title = '关于我们';
-  iframe.srcdoc = ABOUT_HTML.replaceAll('__LOGO__', logoSrc);
+  iframe.srcdoc = ABOUT_HTML.replaceAll('__LOGO__', logoSrc).replaceAll(
+    '__VERSION__',
+    DESKTOP_PRODUCT_VERSION,
+  );
 
   frame.appendChild(close);
   frame.appendChild(iframe);

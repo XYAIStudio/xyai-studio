@@ -25,6 +25,10 @@
 2. OpenXYOS submodule → M3 探针完成；全量业务后续
 3. AI employees optional for first beta → **M4 不阻塞首个内测**
 
+## 0.5.1（修复候选，2026-10）
+
+打磨与文档，不升 0.6。安装包待构建。不做 Sprint 1（统一事件槽加厚）、不启用 AI 员工、不接第二个真 Adapter。
+
 ## 非目标（0.5 beta）
 
 - 不自研完整 Native Agent Loop 作为入场条件

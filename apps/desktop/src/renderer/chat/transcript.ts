@@ -5,6 +5,7 @@
  */
 
 import type { AgentEvent, ChatMsg, ChatMsgAction } from './types.js';
+import { safeExternalHttpUrl } from './external-url.js';
 import { markdownToSafeHtml } from './markdown-safe.js';
 import type { BubbleActionKind } from './message-actions.js';
 
@@ -373,6 +374,13 @@ export function createTranscript(root: HTMLElement): TranscriptApi {
     wiredActions = true;
     root.addEventListener('click', (e) => {
       const t = e.target as HTMLElement | null;
+      const anchor = t?.closest('a[href]') as HTMLAnchorElement | null;
+      if (anchor && root.contains(anchor)) {
+        const safe = safeExternalHttpUrl(anchor.getAttribute('href') || '');
+        e.preventDefault();
+        if (safe) void window.xyai?.openExternal?.(safe);
+        return;
+      }
       const btn = t?.closest('[data-msg-action]') as HTMLElement | null;
       if (!btn) return;
       const kind = btn.dataset.msgAction as BubbleActionKind | undefined;

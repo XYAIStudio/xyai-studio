@@ -1,4 +1,4 @@
-# XYAI Studio 0.5 — Windows NSIS installer
+# XYAI Studio 0.5.1 — Windows NSIS installer
 appId: studio.xyai.desktop
 productName: XYAI Studio
 copyright: Copyright © XYAI
@@ -39,7 +39,7 @@ win:
     - target: nsis
       arch:
         - x64
-  artifactName: '${productName}-${version}-Setup-${arch}.${ext}'
+  artifactName: 'XYAI-Studio-${version}-Setup-${arch}.${ext}'
 
 nsis:
   installerIcon: build/icon.ico

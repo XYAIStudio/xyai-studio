@@ -22,8 +22,10 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
+import { readDesktopAppVersion } from './app-version.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const appVersion = readDesktopAppVersion(root);
 const repoRoot = path.resolve(root, '../..');
 const packDir = path.join(root, 'pack');
 
@@ -96,8 +98,8 @@ function writePackPackageJson() {
   const pkg = {
     name: 'xyai-studio',
     productName: 'XYAI Studio',
-    version: '0.5.0',
-    description: 'XYAI Studio 0.5 beta — Electron thin host + Codex chat',
+    version: appVersion,
+    description: `XYAI Studio ${appVersion} — Electron thin host + Codex chat`,
     author: 'XYAI',
     license: 'UNLICENSED',
     private: true,

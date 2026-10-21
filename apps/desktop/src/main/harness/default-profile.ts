@@ -6,7 +6,7 @@
 import type { AssemblyProfile } from '@xyai/contracts';
 
 export const DEFAULT_STUDIO_ASSEMBLY: AssemblyProfile = {
-  productVersion: '0.5.0',
+  productVersion: '0.5.1',
   profileId: '0.5.0-dev.example',
   harnesses: [
     {
